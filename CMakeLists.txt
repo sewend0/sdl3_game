@@ -13,6 +13,14 @@ cmake_minimum_required(VERSION 3.31)
 project(sdl3_lazy)
 set(CMAKE_CXX_STANDARD 23)
 
+# For portable exe file
+# make variable with flags
+set(RELEASE_STATIC_FLAGS "-static-libgcc -static-libstdc++ -static")
+# set debug to not use any special flags
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "")
+# set release to use flags from variable
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${RELEASE_STATIC_FLAGS}")
+
 # Add third party libs
 add_subdirectory(thirdparty/SDL)
 add_subdirectory(thirdparty/SDL_image)

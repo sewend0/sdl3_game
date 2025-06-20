@@ -16,16 +16,18 @@ constexpr std::string app_title{"Pong"};
 
 constexpr int screen_width{1280};
 constexpr int screen_height{720};
+constexpr int screen_framerate{120};
 constexpr int virtual_width{432};
 constexpr int virtual_height{243};
+constexpr Uint64 ns_per_frame{1'000'000'000 / screen_framerate};
 
 constexpr int audio_channel_count{1};
 
 // Assets
-const std::string font_path_pong{"assets\\font\\pong_font.ttf"};
-const std::string audio_path_paddle_hit{"assets\\audio\\paddle_hit.wav"};
-const std::string audio_path_wall_hit{"assets\\audio\\wall_hit.wav"};
-const std::string audio_path_score{"assets\\audio\\score.wav"};
+const std::string font_path_pong{"../assets/font/pong_font.ttf"};
+const std::string audio_path_paddle_hit{"../assets/audio/paddle_hit.wav"};
+const std::string audio_path_wall_hit{"../assets/audio/wall_hit.wav"};
+const std::string audio_path_score{"../assets/audio/score.wav"};
 
 // UI
 constexpr SDL_Color ui_text_color{255, 255, 255, SDL_ALPHA_OPAQUE};
@@ -55,7 +57,7 @@ constexpr std::pair ball_dy_bounce_rand{10.0F, 150.0F};
 constexpr float difficulty_scale{1.06F};
 constexpr int ai_error_margin_limit{200};
 constexpr float ai_error_margin_distance_scaling{0.75F};
-constexpr float ai_error_margin_decay{2.25F};
+constexpr float ai_error_margin_decay{2.0F};
 constexpr int ai_center_threshold{3};
 constexpr int ai_move_speed_scaling{12};
 
@@ -145,27 +147,37 @@ private:
 };
 
 struct Timer {
-    Uint64 ns_per_frame{};
+
+    auto pre_update() -> Timer& {
+        current_ticks = SDL_GetTicksNS();
+        frame_ns = current_ticks - last_ticks;
+        return *this;
+    }
+
+    auto post_update() -> Timer& {
+        current_ticks = SDL_GetTicksNS();
+        frame_ns = current_ticks - last_ticks;
+        last_ticks = current_ticks;
+        delta_time = static_cast<float>(frame_ns) / 1'000'000'000.0F;
+        // what if dt is 0? rolling average might be good too
+        // fps = (1.0F / delta_time);
+        fps = fps * smoothing + (1.0F / delta_time) * (1.0F - smoothing);
+        return *this;
+    }
+
+    auto cap() -> Timer& {
+        if (frame_ns < ns_per_frame)
+            SDL_DelayNS(ns_per_frame - frame_ns);
+        return *this;
+    }
+
+    // global constant: ns_per_frame
+    Uint64 current_ticks{};
+    Uint64 last_ticks{};
+    Uint64 frame_ns{};
     float smoothing{0.95F};
-
-    float delta_time{0.0F};
-    float fps{0.0F};
-
-private:
-    Uint64 frame_start_ticks{};
-    Uint64 last_frame_ns{};
-
-public:
-    Timer(int target_fps);
-
-    auto set_rate() -> void;
-
-    // Call at the very start of game loop
-    auto start_frame() -> void { frame_start_ticks = SDL_GetTicksNS(); }
-    // Call at the very end of game loop
-    auto end_frame_and_cap() -> void;
-
-    auto get_fps_string() -> std::string { return std::format("{:.0f}", std::round(fps)); }
+    float delta_time{};
+    float fps{120};
 };
 
 // Forward Declarations
@@ -188,15 +200,14 @@ auto update_game() -> int;
 static SDL_Window* g_window{nullptr};
 static SDL_Renderer* g_renderer{nullptr};
 static Game_state g_state{Game_state::Start};
-static int g_refresh_rate{120};
-static Timer g_timer{g_refresh_rate};
+static Timer g_timer{};
 
 static TTF_Font* g_font{nullptr};
 
 static Text_object g_ui_msg_a{virtual_width / 2 - 48, ui_text_a_height, 96, 12};
 static Text_object g_ui_msg_b{virtual_width / 2 - 48, ui_text_b_height, 96, 12};
-static Text_object g_ui_fps{4, 4, 10, 6};
-static Text_object g_ui_score{virtual_width / 2 - 50, virtual_height / 2, 100, 36};
+static Text_object g_ui_fps{4, 4, 36, 12};
+static Text_object g_ui_score{virtual_width / 2 - 50, virtual_height / 2, 120, 36};
 
 static std::default_random_engine g_rng{
     static_cast<unsigned int>(std::chrono::high_resolution_clock::now().time_since_epoch().count())
@@ -404,34 +415,6 @@ auto Paddle::render() -> void {
     SDL_RenderFillRect(g_renderer, &paddle);
 }
 
-Timer::Timer(int target_fps) : ns_per_frame{static_cast<Uint64>(1'000'000'000 / g_refresh_rate)} {
-    frame_start_ticks = SDL_GetTicksNS();
-    fps = static_cast<float>(target_fps);
-}
-
-auto Timer::set_rate() -> void {
-    ns_per_frame = static_cast<Uint64>(1'000'000'000 / g_refresh_rate);
-};
-
-auto Timer::end_frame_and_cap() -> void {
-    // calculate how long logic and rendering took
-    const Uint64 work_ticks = SDL_GetTicksNS() - frame_start_ticks;
-
-    // to cap fps - if there is spare time, then delay
-    // if (work_ticks < ns_per_frame)
-    //     SDL_DelayNS(ns_per_frame - work_ticks);
-
-    // calculate actual total time for this frame (including delay)
-    last_frame_ns = SDL_GetTicksNS() - frame_start_ticks;
-
-    // calculate delta and fps for this single frame
-    delta_time = static_cast<float>(last_frame_ns) / 1'000'000'000.0F;
-    float current_raw_fps = 1.0F / delta_time;
-
-    // apply exponential smoothing to counter to have a stable display
-    fps = fps * smoothing + current_raw_fps * (1.0F - smoothing);
-}
-
 auto log_error(std::string msg) -> void {
     SDL_Log(std::format("{}: {}\n", msg, SDL_GetError()).c_str());
 }
@@ -481,12 +464,7 @@ auto load_media() -> bool {
 }
 
 auto load_fonts() -> bool {
-    // const char* c_base_path = SDL_GetBasePath();
-    // if (!c_base_path)
-    //     std::cerr << "FATAL ERROR: Could not get application base path";
-
-    const std::string font_path{SDL_GetBasePath() + font_path_pong};
-    g_font = TTF_OpenFont(font_path.c_str(), ui_font_size);
+    g_font = TTF_OpenFont(font_path_pong.c_str(), ui_font_size);
     if (g_font == nullptr) {
         log_error(std::format("Unable to load {}\tSDL_ttf error", font_path_pong));
         return false;
@@ -499,19 +477,17 @@ auto load_fonts() -> bool {
 }
 
 auto load_audio() -> bool {
-    const std::string base_path{SDL_GetBasePath()};
-    g_audio_paddle_hit = Mix_LoadWAV((base_path + audio_path_paddle_hit).c_str());
+    g_audio_paddle_hit = Mix_LoadWAV(audio_path_paddle_hit.c_str());
     if (g_audio_paddle_hit == nullptr) {
         log_error(std::format("Unable to load {}\tSDL_mixer error", audio_path_paddle_hit));
         return false;
     }
-
-    g_audio_wall_hit = Mix_LoadWAV((base_path + audio_path_wall_hit).c_str());
+    g_audio_wall_hit = Mix_LoadWAV(audio_path_wall_hit.c_str());
     if (g_audio_wall_hit == nullptr) {
         log_error(std::format("Unable to load {}\tSDL_mixer error", audio_path_wall_hit));
         return false;
     }
-    g_audio_score = Mix_LoadWAV((base_path + audio_path_score).c_str());
+    g_audio_score = Mix_LoadWAV(audio_path_score.c_str());
     if (g_audio_score == nullptr) {
         log_error(std::format("Unable to load {}\tSDL_mixer error", audio_path_score));
         return false;
@@ -544,17 +520,6 @@ auto init_game() -> bool {
         return false;
     }
     log_debug("Window - check\nRenderer - check");
-
-    SDL_GetCurrentDisplayMode(SDL_GetPrimaryDisplay())->refresh_rate >= 120.0F
-        ? g_refresh_rate = 120
-        : g_refresh_rate = 60;
-    if (!SDL_SetRenderVSync(g_renderer, 1)) {
-        SDL_Log("Could not enable VSync! SDL error: %s\n", SDL_GetError());
-        return false;
-    }
-    g_timer.set_rate();
-    log_debug(std::format("\tRefresh rate: {}", g_refresh_rate));
-    log_debug("\tVSync: On");
 
     if (!TTF_Init()) {
         log_error("Unable to init SDL_ttf, SDL_ttf error");
@@ -646,8 +611,7 @@ auto render_game() -> void {
         default:
             break;
     }
-
-    g_ui_fps.lazy_render(g_timer.get_fps_string());
+    g_ui_fps.lazy_render(std::format("{:.0f}", g_timer.fps));
 
     g_ball.render();
     g_player_1.render();
@@ -712,6 +676,10 @@ auto handle_state_keys(SDL_Event& e) -> void {
 }
 
 auto update_game() -> int {
+
+    Uint64 current_ticks{0};
+    Uint64 frame_ns{0};
+
     int exit_code{0};
 
     SDL_Event event{};
@@ -720,7 +688,6 @@ auto update_game() -> int {
     g_serving_player = random(1, 2);
 
     while (g_state != Game_state::Exit) {
-        g_timer.start_frame();
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 g_state = Game_state::Exit;
@@ -759,6 +726,7 @@ auto update_game() -> int {
                     else
                         deltas.y = random(ball_dy_bounce_rand);
 
+                    // g_ai_error_margin = random(-ai_error_margin_limit, ai_error_margin_limit);
                     ai_random_error(g_player_2);
                     Mix_PlayChannel(0, g_audio_paddle_hit, 0);
                 }
@@ -772,6 +740,7 @@ auto update_game() -> int {
                     else
                         deltas.y = random(ball_dy_bounce_rand);
 
+                    // g_ai_error_margin = random(-ai_error_margin_limit, ai_error_margin_limit);
                     ai_random_error(g_player_1);
                     Mix_PlayChannel(0, g_audio_paddle_hit, 0);
                 }
@@ -779,6 +748,7 @@ auto update_game() -> int {
                 if (collider.y <= 0) {
                     collider.y = 0;
                     deltas.y = -deltas.y;
+                    // g_ai_error_margin = random(-ai_error_margin_limit, ai_error_margin_limit);
                     ai_random_error(g_player_1);
                     ai_random_error(g_player_2);
                     Mix_PlayChannel(1, g_audio_wall_hit, 0);
@@ -787,6 +757,7 @@ auto update_game() -> int {
                 if (collider.y >= virtual_height - ball_size) {
                     collider.y = virtual_height - ball_size;
                     deltas.y = -deltas.y;
+                    // g_ai_error_margin = random(-ai_error_margin_limit, ai_error_margin_limit);
                     ai_random_error(g_player_1);
                     ai_random_error(g_player_2);
                     Mix_PlayChannel(0, g_audio_wall_hit, 0);
@@ -834,8 +805,7 @@ auto update_game() -> int {
         g_player_2.update(g_timer.delta_time);
 
         render_game();
-
-        g_timer.end_frame_and_cap();
+        g_timer.pre_update().cap().post_update();
     }
 
     return exit_code;

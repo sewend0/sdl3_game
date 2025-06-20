@@ -29,3 +29,18 @@ target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE
         SDL3_mixer::SDL3_mixer
         SDL3_ttf::SDL3_ttf
 )
+
+# Use Release config, and 'install' build target
+# Build
+
+# Installation Rules for creating a portable package
+# Installs the .exe to the 'bin' subfolder of the package
+install(TARGETS ${CMAKE_PROJECT_NAME}
+        RUNTIME DESTINATION bin
+)
+
+# Installs the 'assets' dir into the 'bin' subfolder
+install(DIRECTORY assets
+        DESTINATION bin
+)
+

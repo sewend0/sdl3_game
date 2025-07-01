@@ -30,6 +30,27 @@ add_subdirectory(thirdparty/SDL_ttf)
 # Make executable and link files
 add_executable("${CMAKE_PROJECT_NAME}" main.cpp)
 
+# Add sources and headers
+target_sources("${CMAKE_PROJECT_NAME}"
+        PRIVATE
+        tetris/src/Timing_controller.cpp
+        tetris/src/Game.cpp
+        tetris/src/Tetromino.cpp
+        tetris/src/Grid.cpp
+
+        PUBLIC
+        tetris/include/Timing_controller.h
+        tetris/include/Game.h
+        tetris/include/Tetromino.h
+        tetris/include/Grid.h
+)
+
+# Set included directories for this project
+target_include_directories("${CMAKE_PROJECT_NAME}"
+        PUBLIC
+        tetris/include
+)
+
 # Link third party libs
 target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE
         SDL3::SDL3
@@ -40,7 +61,6 @@ target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE
 
 # Use Release config, and 'install' build target
 # Build
-
 # Installation Rules for creating a portable package
 # Installs the .exe to the 'bin' subfolder of the package
 install(TARGETS ${CMAKE_PROJECT_NAME}

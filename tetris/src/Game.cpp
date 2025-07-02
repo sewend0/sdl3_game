@@ -139,11 +139,10 @@ auto Game::render() -> void {
 }
 
 auto Game::update() -> void {
-    static double accumulator{0};
-    accumulator += timer.sim_delta_seconds();
+    gravity_accumulator += timer.sim_delta_seconds();
 
-    if (accumulator >= gravity_rate) {
-        accumulator -= gravity_rate;
+    if (gravity_accumulator >= gravity()) {
+        gravity_accumulator -= gravity();
         apply_gravity();
     }
     // clear rows
@@ -155,6 +154,13 @@ auto Game::process_input() -> void {
         switch (event.type) {
             case SDL_EVENT_QUIT:
                 state = Game_state::Quit;
+                break;
+            case SDL_EVENT_KEY_DOWN:
+            case SDL_EVENT_KEY_UP:
+                if (state == Game_state::Play)
+                    handle_play_input(event);
+                if (state == Game_state::Start || state == Game_state::End)
+                    handle_menu_input(event);
                 break;
             default:
                 break;
@@ -188,27 +194,31 @@ auto Game::run() -> void {
     // SDL_Log("%d", static_cast<int>(grid.get(14, 4)));
     // SDL_Log("%d", static_cast<int>(grid.get(3, 25)));
 
+    // tetromino.remake_random();
+    // SDL_Log(
+    //     "type: %d, position: %d, %d", tetromino.get_type(), tetromino.get_position().x,
+    //     tetromino.get_position().y
+    // );
+
+    // SDL_Log("%s", tetromino.list_blocks().c_str());
+    // tetromino.rotate_cw();
+    // SDL_Log("%s", tetromino.list_blocks().c_str());
+    // tetromino.rotate_cw();
+    // SDL_Log("%s", tetromino.list_blocks().c_str());
+    // tetromino.rotate_cw();
+    // SDL_Log("%s", tetromino.list_blocks().c_str());
+    // tetromino.rotate_cw();
+    // SDL_Log("%s", tetromino.list_blocks().c_str());
+
+    // tetromino.move(-2, 3);
+    // SDL_Log(
+    //     "type: %d, position: %d, %d", tetromino.get_type(), tetromino.get_position().x,
+    //     tetromino.get_position().y
+    // );
+
     tetromino.remake_random();
-    SDL_Log(
-        "type: %d, position: %d, %d", tetromino.get_type(), tetromino.get_position().x,
-        tetromino.get_position().y
-    );
+    state = Game_state::Play;
 
-    // SDL_Log("%s", tetromino.list_blocks().c_str());
-    // tetromino.rotate_cw();
-    // SDL_Log("%s", tetromino.list_blocks().c_str());
-    // tetromino.rotate_cw();
-    // SDL_Log("%s", tetromino.list_blocks().c_str());
-    // tetromino.rotate_cw();
-    // SDL_Log("%s", tetromino.list_blocks().c_str());
-    // tetromino.rotate_cw();
-    // SDL_Log("%s", tetromino.list_blocks().c_str());
-
-    tetromino.move(-2, 3);
-    SDL_Log(
-        "type: %d, position: %d, %d", tetromino.get_type(), tetromino.get_position().x,
-        tetromino.get_position().y
-    );
     // DEBUG STUFF
     //
 
@@ -236,6 +246,54 @@ auto Game::run() -> void {
 
         timer.wait_for_next();
     }
+}
+
+auto Game::handle_play_input(const SDL_Event& event) -> void {
+    switch (event.type) {
+        case SDL_EVENT_KEY_DOWN:
+            switch (event.key.key) {
+                case SDLK_SPACE:
+                case SDLK_S:
+                    // increase gravity for quicker fall
+                    increased_gravity = true;
+                    break;
+                case SDLK_A:
+                case SDLK_LEFT:
+                    try_move(-1, 0);
+                    break;
+                case SDLK_D:
+                case SDLK_RIGHT:
+                    try_move(1, 0);
+                    break;
+                case SDLK_E:
+                case SDLK_K:
+                    try_rotate(Tetromino::Rotation::CW);
+                    break;
+                case SDLK_Q:
+                case SDLK_J:
+                    try_rotate(Tetromino::Rotation::CCW);
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case SDL_EVENT_KEY_UP:
+            switch (event.key.key) {
+                case SDLK_SPACE:
+                case SDLK_S:
+                    increased_gravity = false;
+                    break;
+                default:
+                    break;
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+auto Game::handle_menu_input(const SDL_Event& event) -> void {
+    //
 }
 
 auto Game::draw_cells() -> void {
@@ -277,25 +335,31 @@ auto Game::draw_interface() -> void {
     SDL_RenderRect(renderer, &grid.play_area());
 }
 
-// not right yet/maybe?
 auto Game::try_move(int x, int y) -> bool {
-    tetromino.move(x, y);
-    bool collides{false};
-    for (const auto& b : tetromino.get_blocks())
+    for (const auto& b : tetromino.get_blocks(x, y))
         if (grid.is_occupied(b.x, b.y))
-            collides = true;
+            return false;
 
-    if (collides) {
-        tetromino.move(-x, -y);
-        return false;
-    }
+    tetromino.move(x, y);
+    return true;
+}
 
+auto Game::try_rotate(Tetromino::Rotation dir) -> bool {
+    for (const auto& b : tetromino.get_rotated_blocks(dir))
+        if (grid.is_occupied(b.x, b.y))
+            return false;
+
+    tetromino.rotate(dir);
     return true;
 }
 
 auto Game::lock_piece() -> void {
     for (const auto& b : tetromino.get_blocks())
         grid.set(b.x, b.y, Cell::Filled);
+}
+
+auto Game::gravity() -> double {
+    return increased_gravity ? gravity_rate_fast : gravity_rate;
 }
 
 auto Game::apply_gravity() -> void {

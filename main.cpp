@@ -30,10 +30,10 @@ auto main(int argc, char* args[]) -> int {
     X   - Falling tetrominoes (all 7 standard types).
     X   - Gravity: piece falls one cell every N milliseconds.
     Player controls:
-    Move left/right.
-    X   - Rotate (clockwise only is fine).
-    Soft drop (accelerated fall).
-    Hard drop (instantly locks).
+        X   - Move left/right.
+        X   - Rotate (clockwise only is fine).
+        X   - Soft drop (accelerated fall).
+        Hard drop (instantly locks).
     X   - Locking: piece becomes part of grid after touching down.
     Next piece preview (1 piece is enough).
     Line clearing: full horizontal rows disappear.

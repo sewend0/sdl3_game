@@ -18,13 +18,15 @@ class Tetromino {
 
 public:
     enum class Type { I = 0, J, L, O, S, T, Z };
+    enum class Rotation { CW = 0, CCW = 1 };
 
     Tetromino() = default;
 
     auto remake_random() -> Tetromino*;
 
-    auto rotate_cw() -> void;
-    auto rotate_ccw() -> void;
+    auto rotate(Rotation dir) -> void;
+    // auto rotate_cw() -> void;
+    // auto rotate_ccw() -> void;
 
     auto get_type() const -> Type { return type; }
     auto get_position() const -> SDL_Point { return root; }
@@ -32,6 +34,7 @@ public:
 
     // Return global position of each Tetromino block (optional shifted position)
     auto get_blocks(int x = 0, int y = 0) const -> Shape_points;
+    auto get_rotated_blocks(Rotation dir) const -> Shape_points;
 
     auto list_blocks() const -> std::string {
         std::string line{};

@@ -24,6 +24,7 @@ public:
     [[nodiscard]] auto is_occupied(int x, int y) const -> bool;
     [[nodiscard]] auto is_filled(int x, int y) const -> bool;
     [[nodiscard]] auto is_base(int x, int y) const -> bool;
+    [[nodiscard]] auto is_wall(int x, int y = 0) const -> bool;
     [[nodiscard]] auto cell_size() const -> float;
     [[nodiscard]] auto play_area() const -> const SDL_FRect& { return play_surface; }
 

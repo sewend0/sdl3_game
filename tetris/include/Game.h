@@ -14,7 +14,7 @@
 #include <iostream>
 #include <string>
 
-enum class Game_state { Initializing = 0, Start, Select, End, Quit };
+enum class Game_state { Initializing = 0, Start, Play, End, Quit };
 
 class Game {
     // App configuration
@@ -38,8 +38,6 @@ class Game {
     static constexpr SDL_Color color_white{255, 255, 255, 255};
     static constexpr SDL_Color color_locked{150, 150, 150, 255};
 
-    double gravity_rate{1.0};
-
 public:
     Game();
     ~Game();
@@ -56,15 +54,20 @@ private:
     auto load_font() -> bool;
     auto load_audio() -> bool;
     auto load_media() -> bool;
+
+    auto handle_play_input(const SDL_Event& event) -> void;
+    auto handle_menu_input(const SDL_Event& event) -> void;
+
     auto draw_cells() -> void;
     auto draw_cell(int x, int y, SDL_Color color) -> void;
     auto draw_interface() -> void;
 
     auto try_move(int x, int y) -> bool;
-    // try_rotate
+    auto try_rotate(Tetromino::Rotation dir) -> bool;
     auto lock_piece() -> void;
     // spawn_piece / remake_random
     // auto collides() -> bool;
+    auto gravity() -> double;
     auto apply_gravity() -> void;
 
     SDL_Window* window{};
@@ -77,6 +80,11 @@ private:
     Grid grid{grid_area};
     Tetromino tetromino{};
     // next tetromino, std::optional<Tetromino> ?
+
+    double gravity_rate{1.0};
+    double gravity_rate_fast{0.3};
+    double gravity_accumulator{};
+    bool increased_gravity{false};
 };
 
 #endif    // GAME_H

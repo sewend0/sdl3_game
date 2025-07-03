@@ -37,12 +37,14 @@ target_sources("${CMAKE_PROJECT_NAME}"
         tetris/src/Game.cpp
         tetris/src/Tetromino.cpp
         tetris/src/Grid.cpp
+        tetris/src/Text_object.cpp
 
         PUBLIC
         tetris/include/Timing_controller.h
         tetris/include/Game.h
         tetris/include/Tetromino.h
         tetris/include/Grid.h
+        tetris/include/Text_object.h
 )
 
 # Set included directories for this project

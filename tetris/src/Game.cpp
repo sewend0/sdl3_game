@@ -68,6 +68,19 @@ auto Game::load_font() -> bool {
         return false;
     }
 
+    ui_score_label.initialize(renderer, font, color_white, &ui_score_label_dst, 8);
+    ui_level_label.initialize(renderer, font, color_white, &ui_level_label_dst, 8);
+    ui_lines_label.initialize(renderer, font, color_white, &ui_lines_label_dst, 8);
+    ui_score.initialize(renderer, font, color_white, &ui_score_dst, 8);
+    ui_level.initialize(renderer, font, color_white, &ui_level_dst, 8);
+    ui_lines.initialize(renderer, font, color_white, &ui_lines_dst, 8);
+
+    ui_msg_a.initialize(renderer, font, color_white, &ui_msg_a_dst, 20);
+    ui_msg_b.initialize(renderer, font, color_white, &ui_msg_b_dst, 20);
+    ui_msg_c.initialize(renderer, font, color_white, &ui_msg_c_dst, 20);
+    ui_msg_d.initialize(renderer, font, color_white, &ui_msg_d_dst, 20);
+    ui_msg_e.initialize(renderer, font, color_white, &ui_msg_e_dst, 20);
+
     return true;
 }
 
@@ -116,36 +129,42 @@ auto Game::render() -> void {
     );
     SDL_RenderClear(renderer);
 
-    //
-    // DEBUG STUFF
-    // grid.render(renderer);
-    // SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-    // SDL_FRect fullscreen{
-    //     0, 0, static_cast<float>(virtual_width), static_cast<float>(virtual_height)
-    // };
-    // SDL_RenderRect(renderer, &fullscreen);
-    //
-    // SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-    // SDL_RenderRect(renderer, &grid_area);
-
-    // DEBUG STUFF
-    //
-
     draw_interface();
     draw_cells();
+
+    switch (state) {
+        case Game_state::Start:
+        case Game_state::Welcome:
+        case Game_state::End:
+            draw_messages();
+            break;
+        default:
+            break;
+    }
+
     timer.display_debug(renderer);
 
     SDL_RenderPresent(renderer);
 }
 
 auto Game::update() -> void {
-    gravity_accumulator += timer.sim_delta_seconds();
+    switch (state) {
+        case Game_state::Play:
+            gravity_accumulator += timer.sim_delta_seconds();
 
-    if (gravity_accumulator >= gravity()) {
-        gravity_accumulator -= gravity();
-        apply_gravity();
+            if (gravity_accumulator >= gravity()) {
+                gravity_accumulator -= gravity();
+                apply_gravity();
+            }
+
+            // clear rows
+            break;
+        case Game_state::Start:
+        case Game_state::End:
+            break;
+        default:
+            break;
     }
-    // clear rows
 }
 
 auto Game::process_input() -> void {
@@ -157,10 +176,22 @@ auto Game::process_input() -> void {
                 break;
             case SDL_EVENT_KEY_DOWN:
             case SDL_EVENT_KEY_UP:
-                if (state == Game_state::Play)
-                    handle_play_input(event);
-                if (state == Game_state::Start || state == Game_state::End)
-                    handle_menu_input(event);
+                switch (state) {
+                    case Game_state::Play:
+                        handle_play_input(event);
+                        break;
+                    case Game_state::Welcome:
+                    case Game_state::Start:
+                    case Game_state::End:
+                        handle_menu_input(event);
+                        break;
+                    default:
+                        break;
+                }
+                // if (state == Game_state::Play)
+                //     handle_play_input(event);
+                // if (state == Game_state::Start || state == Game_state::End)
+                //     handle_menu_input(event);
                 break;
             default:
                 break;
@@ -169,58 +200,8 @@ auto Game::process_input() -> void {
 }
 
 auto Game::run() -> void {
-    //
-    // DEBUG STUFF
-
-    // grid.set(0, 19, Cell::Filled);
-    // grid.set(1, 19, Cell::Filled);
-    // grid.set(2, 19, Cell::Filled);
-    // grid.set(3, 19, Cell::Filled);
-    // grid.set(4, 19, Cell::Filled);
-    // grid.set(5, 19, Cell::Filled);
-    // grid.set(6, 19, Cell::Filled);
-    // grid.set(7, 19, Cell::Filled);
-    // grid.set(8, 19, Cell::Filled);
-    // grid.set(9, 19, Cell::Filled);
-
-    //
-    // for (int x = 0; x < Grid::columns; ++x)
-    //     for (int y = 0; y < Grid::rows; ++y) {
-    //         if (static_cast<int>(grid.get(x, y)) == 1) {
-    //             SDL_Log("%d, %d", x, y);
-    //         }
-    //     }
-    //
-    // SDL_Log("%d", static_cast<int>(grid.get(14, 4)));
-    // SDL_Log("%d", static_cast<int>(grid.get(3, 25)));
-
-    // tetromino.remake_random();
-    // SDL_Log(
-    //     "type: %d, position: %d, %d", tetromino.get_type(), tetromino.get_position().x,
-    //     tetromino.get_position().y
-    // );
-
-    // SDL_Log("%s", tetromino.list_blocks().c_str());
-    // tetromino.rotate_cw();
-    // SDL_Log("%s", tetromino.list_blocks().c_str());
-    // tetromino.rotate_cw();
-    // SDL_Log("%s", tetromino.list_blocks().c_str());
-    // tetromino.rotate_cw();
-    // SDL_Log("%s", tetromino.list_blocks().c_str());
-    // tetromino.rotate_cw();
-    // SDL_Log("%s", tetromino.list_blocks().c_str());
-
-    // tetromino.move(-2, 3);
-    // SDL_Log(
-    //     "type: %d, position: %d, %d", tetromino.get_type(), tetromino.get_position().x,
-    //     tetromino.get_position().y
-    // );
-
     tetromino.remake_random();
-    state = Game_state::Play;
-
-    // DEBUG STUFF
-    //
+    state = Game_state::Welcome;
 
     // physics state prev, current
     while (state != Game_state::Quit) {
@@ -256,6 +237,11 @@ auto Game::handle_play_input(const SDL_Event& event) -> void {
                 case SDLK_S:
                     // increase gravity for quicker fall
                     increased_gravity = true;
+                    break;
+                case SDLK_RETURN:
+                case SDLK_RETURN2:
+                    // drop tetromino instantly
+                    instant_drop();
                     break;
                 case SDLK_A:
                 case SDLK_LEFT:
@@ -293,7 +279,33 @@ auto Game::handle_play_input(const SDL_Event& event) -> void {
 }
 
 auto Game::handle_menu_input(const SDL_Event& event) -> void {
-    //
+    switch (event.type) {
+        case SDL_EVENT_KEY_DOWN:
+            switch (event.key.key) {
+                case SDLK_RETURN:
+                case SDLK_RETURN2:
+                    switch (state) {
+                        case Game_state::Welcome:
+                            state = Game_state::Start;
+                            break;
+                        case Game_state::Start:
+                            state = Game_state::Play;
+                            break;
+                        case Game_state::End:
+                            state = Game_state::Start;
+                            // reset grid status and new tetro here
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 auto Game::draw_cells() -> void {
@@ -317,12 +329,56 @@ auto Game::draw_cells() -> void {
 
 auto Game::draw_cell(int x, int y, SDL_Color color) -> void {
     const float size = grid.cell_size();
+    const int border_size = std::floor((size / 10) / 2);
     const SDL_FRect area{grid.play_area()};
     SDL_FRect rect{
-        area.x + (static_cast<float>(x) * size), area.y + (static_cast<float>(y) * size), size, size
+        area.x + (static_cast<float>(x) * size) + border_size,
+        area.y + (static_cast<float>(y) * size) + border_size, size - border_size,
+        size - border_size
     };
+
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     SDL_RenderFillRect(renderer, &rect);
+}
+
+auto Game::draw_game_text() -> void {
+    ui_score_label.render(ui_score_label_text);
+    ui_level_label.render(ui_level_label_text);
+    ui_lines_label.render(ui_lines_label_text);
+
+    ui_score.render(std::format("{}", player_score));
+    ui_level.render(std::format("{}", difficulty_level));
+    ui_lines.render(std::format("{}", player_lines));
+}
+
+auto Game::draw_messages() -> void {
+    SDL_SetRenderDrawColor(
+        renderer, color_interface_bg.r, color_interface_bg.g, color_interface_bg.b,
+        color_interface_bg.a
+    );
+    SDL_RenderFillRect(renderer, &ui_msg_box);
+    SDL_SetRenderDrawColor(renderer, color_white.r, color_white.g, color_white.b, color_white.a);
+    SDL_RenderRect(renderer, &ui_msg_box);
+
+    switch (state) {
+        case Game_state::Welcome:
+            ui_msg_a.render(ui_msg_text_welcome);
+            ui_msg_b.render(ui_msg_text_to_begin);
+            break;
+        case Game_state::Start:
+            ui_msg_a.render(ui_msg_text_to_start);
+            ui_msg_b.render(ui_msg_text_controls_a);
+            ui_msg_c.render(ui_msg_text_controls_b);
+            ui_msg_d.render(ui_msg_text_controls_c);
+            ui_msg_e.render(ui_msg_text_controls_d);
+            break;
+        case Game_state::End:
+            ui_msg_a.render(ui_msg_text_game_over);
+            ui_msg_b.render(ui_msg_text_replay);
+            break;
+        default:
+            break;
+    }
 }
 
 auto Game::draw_interface() -> void {
@@ -333,6 +389,8 @@ auto Game::draw_interface() -> void {
 
     SDL_SetRenderDrawColor(renderer, color_white.r, color_white.g, color_white.b, color_white.a);
     SDL_RenderRect(renderer, &grid.play_area());
+
+    draw_game_text();
 }
 
 auto Game::try_move(int x, int y) -> bool {
@@ -364,8 +422,7 @@ auto Game::gravity() -> double {
 
 auto Game::apply_gravity() -> void {
     bool collides{false};
-    std::array<SDL_Point, 4> blocks{tetromino.get_blocks(0, 1)};
-    for (auto b : blocks)
+    for (const auto& b : tetromino.get_blocks(0, 1))
         if (grid.is_filled(b.x, b.y) || grid.is_base(b.x, b.y))
             collides = true;
 
@@ -374,5 +431,13 @@ auto Game::apply_gravity() -> void {
     else {
         lock_piece();
         tetromino.remake_random();
+        for (const auto& b : tetromino.get_blocks())
+            if (grid.get(b.x, b.y) == Cell::Filled)
+                state = Game_state::End;
     }
+}
+
+auto Game::instant_drop() -> void {
+    while (try_move(0, 1))
+        ;
 }

@@ -29,19 +29,20 @@ auto main(int argc, char* args[]) -> int {
     X   - Game area (10×20 grid).
     X   - Falling tetrominoes (all 7 standard types).
     X   - Gravity: piece falls one cell every N milliseconds.
-    Player controls:
+    X   - Player controls:
         X   - Move left/right.
         X   - Rotate (clockwise only is fine).
         X   - Soft drop (accelerated fall).
-        Hard drop (instantly locks).
+        X   - Hard drop (instantly locks).
     X   - Locking: piece becomes part of grid after touching down.
     Next piece preview (1 piece is enough).
     Line clearing: full horizontal rows disappear.
     Scoring: 1–4 lines cleared gives points.
-    Game over: triggered when new piece can't be placed.
+    X   - Game over: triggered when new piece can't be placed.
+    Replay: Reset grid and tetromino states
 
 🧰 2. Basic Infrastructure
-    Game state management (e.g., Playing, GameOver).
+    X   - Game state management (e.g., Playing, GameOver).
     X   - Fixed timestep simulation.
     X   - Grid representation (2D array of cell states).
     X   - Tetromino system:
@@ -53,7 +54,7 @@ auto main(int argc, char* args[]) -> int {
     X   - Render game grid and locked tiles.
     X   - Render active falling piece.
     Render next piece preview.
-    Draw basic UI: score, lines cleared, FPS.
+    X   - Draw basic UI: score, lines cleared, FPS.
 
 🔄 4. Basic Timing & Difficulty
     X   - Gravity tick every N milliseconds (e.g., 1 per second initially).

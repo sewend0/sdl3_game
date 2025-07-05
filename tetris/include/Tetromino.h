@@ -11,7 +11,7 @@
 #include <map>
 #include <random>
 
-// right now, shape I rotates off of grid if flipped 180 at spawn.
+// right now, the I shape is one off the grid depending on the rotation
 
 class Tetromino {
     using Shape_points = std::array<SDL_Point, 4>;
@@ -20,14 +20,15 @@ public:
     enum class Type { I = 0, J, L, O, S, T, Z };
     enum class Rotation { CW = 0, CCW = 1 };
 
-    Tetromino() = default;
+    Tetromino(Grid& g) : grid{g} {}
 
     auto remake_random() -> Tetromino*;
+    auto pass_to(Tetromino& t) -> Tetromino*;
 
+    auto move(int x, int y) -> void;
     auto rotate(Rotation dir) -> void;
-    // auto rotate_cw() -> void;
-    // auto rotate_ccw() -> void;
 
+    auto get_grid() const -> Grid& { return grid; }
     auto get_type() const -> Type { return type; }
     auto get_position() const -> SDL_Point { return root; }
     auto get_offsets() const -> Shape_points { return offsets; }
@@ -36,17 +37,12 @@ public:
     auto get_blocks(int x = 0, int y = 0) const -> Shape_points;
     auto get_rotated_blocks(Rotation dir) const -> Shape_points;
 
-    auto list_blocks() const -> std::string {
-        std::string line{};
-        for (auto& b : get_blocks()) {
-            line += "(" + std::to_string(b.x) + ", " + std::to_string(b.y) + "), ";
-        }
-        return line += '\n';
-    }
-
-    auto move(int x, int y) -> void;
+    auto set_type(Type t) -> void { type = t; }
+    auto set_root(SDL_Point r) -> void { root = r; }
+    auto set_offsets(Shape_points o) -> void { offsets = o; }
 
 private:
+    Grid& grid;
     Type type{};
     SDL_Point root{};          // grid coordinate of rotation center (pivot)
     Shape_points offsets{};    // relative to pivot

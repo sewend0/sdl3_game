@@ -129,8 +129,9 @@ auto Game::render() -> void {
     );
     SDL_RenderClear(renderer);
 
-    draw_interface();
-    draw_cells();
+    draw_grid(grid, tetromino);
+    draw_grid(preview, next_tetromino);
+    draw_game_text();
 
     switch (state) {
         case Game_state::Start:
@@ -153,11 +154,21 @@ auto Game::update() -> void {
             gravity_accumulator += timer.sim_delta_seconds();
 
             if (gravity_accumulator >= gravity()) {
+                if (increased_gravity) {
+                    ++quick_dropped_rows;
+                }
+
                 gravity_accumulator -= gravity();
                 apply_gravity();
             }
 
-            // clear rows
+            if (player_lines >= (difficulty_level + 1) * difficulty_step) {
+                SDL_Log("Increasing difficulty");
+                ++difficulty_level;
+                gravity_rate -= difficulty_level * gravity_level_multi;
+                gravity_rate_fast = gravity_rate * gravity_fast_multi;
+            }
+
             break;
         case Game_state::Start:
         case Game_state::End:
@@ -188,10 +199,6 @@ auto Game::process_input() -> void {
                     default:
                         break;
                 }
-                // if (state == Game_state::Play)
-                //     handle_play_input(event);
-                // if (state == Game_state::Start || state == Game_state::End)
-                //     handle_menu_input(event);
                 break;
             default:
                 break;
@@ -200,7 +207,7 @@ auto Game::process_input() -> void {
 }
 
 auto Game::run() -> void {
-    tetromino.remake_random();
+    reset_game();
     state = Game_state::Welcome;
 
     // physics state prev, current
@@ -239,10 +246,11 @@ auto Game::handle_play_input(const SDL_Event& event) -> void {
                     increased_gravity = true;
                     break;
                 case SDLK_RETURN:
-                case SDLK_RETURN2:
+                case SDLK_RETURN2: {
                     // drop tetromino instantly
                     instant_drop();
                     break;
+                }
                 case SDLK_A:
                 case SDLK_LEFT:
                     try_move(-1, 0);
@@ -293,7 +301,7 @@ auto Game::handle_menu_input(const SDL_Event& event) -> void {
                             break;
                         case Game_state::End:
                             state = Game_state::Start;
-                            // reset grid status and new tetro here
+                            reset_game();
                             break;
                         default:
                             break;
@@ -308,14 +316,14 @@ auto Game::handle_menu_input(const SDL_Event& event) -> void {
     }
 }
 
-auto Game::draw_cells() -> void {
-    for (int y = 0; y < Grid::rows; ++y)
-        for (int x = 0; x < Grid::columns; ++x)
+auto Game::draw_cells(Grid& g, Tetromino& t) -> void {
+    for (int y = 0; y < g.rows(); ++y)
+        for (int x = 0; x < g.columns(); ++x)
             if (grid.get(x, y) == Cell::Filled)
-                draw_cell(x, y, color_locked);
+                draw_cell(g, x, y, color_locked);
 
-    for (const auto& p : tetromino.get_blocks())
-        draw_cell(p.x, p.y, color_white);
+    for (const auto& p : t.get_blocks())
+        draw_cell(g, p.x, p.y, color_white);
 
     // std::array<SDL_Point, 4> blocks{tetromino.get_blocks()};
     // for (int i = 0; i < blocks.size(); ++i) {
@@ -327,10 +335,10 @@ auto Game::draw_cells() -> void {
     // }
 }
 
-auto Game::draw_cell(int x, int y, SDL_Color color) -> void {
-    const float size = grid.cell_size();
+auto Game::draw_cell(Grid& g, int x, int y, SDL_Color color) -> void {
+    const float size = g.cell_size();
     const int border_size = std::floor((size / 10) / 2);
-    const SDL_FRect area{grid.play_area()};
+    const SDL_FRect area{g.play_area()};
     SDL_FRect rect{
         area.x + (static_cast<float>(x) * size) + border_size,
         area.y + (static_cast<float>(y) * size) + border_size, size - border_size,
@@ -339,6 +347,17 @@ auto Game::draw_cell(int x, int y, SDL_Color color) -> void {
 
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     SDL_RenderFillRect(renderer, &rect);
+}
+
+auto Game::draw_grid(Grid& g, Tetromino& t) -> void {
+    SDL_SetRenderDrawColor(
+        renderer, color_game_bg.r, color_game_bg.g, color_game_bg.b, color_game_bg.a
+    );
+    SDL_RenderFillRect(renderer, &g.play_area());
+    SDL_SetRenderDrawColor(renderer, color_white.r, color_white.g, color_white.b, color_white.a);
+    SDL_RenderRect(renderer, &g.play_area());
+
+    draw_cells(g, t);
 }
 
 auto Game::draw_game_text() -> void {
@@ -381,18 +400,6 @@ auto Game::draw_messages() -> void {
     }
 }
 
-auto Game::draw_interface() -> void {
-    SDL_SetRenderDrawColor(
-        renderer, color_game_bg.r, color_game_bg.g, color_game_bg.b, color_game_bg.a
-    );
-    SDL_RenderFillRect(renderer, &grid.play_area());
-
-    SDL_SetRenderDrawColor(renderer, color_white.r, color_white.g, color_white.b, color_white.a);
-    SDL_RenderRect(renderer, &grid.play_area());
-
-    draw_game_text();
-}
-
 auto Game::try_move(int x, int y) -> bool {
     for (const auto& b : tetromino.get_blocks(x, y))
         if (grid.is_occupied(b.x, b.y))
@@ -414,6 +421,8 @@ auto Game::try_rotate(Tetromino::Rotation dir) -> bool {
 auto Game::lock_piece() -> void {
     for (const auto& b : tetromino.get_blocks())
         grid.set(b.x, b.y, Cell::Filled);
+
+    score_drop(grid.clear_full_lines());
 }
 
 auto Game::gravity() -> double {
@@ -430,7 +439,8 @@ auto Game::apply_gravity() -> void {
         tetromino.move(0, 1);
     else {
         lock_piece();
-        tetromino.remake_random();
+        // tetromino.remake_random();
+        advance_tetrominos();
         for (const auto& b : tetromino.get_blocks())
             if (grid.get(b.x, b.y) == Cell::Filled)
                 state = Game_state::End;
@@ -438,6 +448,52 @@ auto Game::apply_gravity() -> void {
 }
 
 auto Game::instant_drop() -> void {
+    int start_row{tetromino.get_position().y};
     while (try_move(0, 1))
         ;
+    quick_dropped_rows += tetromino.get_position().y - start_row;
+    apply_gravity();
+}
+
+auto Game::advance_tetrominos() -> void {
+    next_tetromino.pass_to(tetromino)->remake_random();
+}
+
+auto Game::score_drop(int lines) -> void {
+    player_score += quick_dropped_rows +
+                    std::min((difficulty_level / 2) * score_quick_drop, score_max_quick_drop_multi);
+    quick_dropped_rows = 0;
+
+    switch (lines) {
+        case 0:
+            break;
+        case 1:
+            player_score += score_line_1 * (difficulty_level + 1);
+            break;
+        case 2:
+            player_score += score_line_2 * (difficulty_level + 1);
+            break;
+        case 3:
+            player_score += score_line_3 * (difficulty_level + 1);
+            break;
+        case 4:
+        default:
+            player_score += score_line_4 * (std::min(difficulty_level + 1, score_max_line_multi));
+            break;
+    }
+
+    player_lines += lines;
+}
+
+auto Game::reset_game() -> void {
+    player_score = 0;
+    player_lines = 0;
+    difficulty_level = 0;
+    gravity_rate = gravity_initial;
+    gravity_rate_fast = gravity_rate * gravity_fast_multi;
+    grid.clear();
+
+    tetromino.remake_random();
+    next_tetromino.remake_random();
+    advance_tetrominos();
 }

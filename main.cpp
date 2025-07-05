@@ -35,11 +35,12 @@ auto main(int argc, char* args[]) -> int {
         X   - Soft drop (accelerated fall).
         X   - Hard drop (instantly locks).
     X   - Locking: piece becomes part of grid after touching down.
-    Next piece preview (1 piece is enough).
-    Line clearing: full horizontal rows disappear.
-    Scoring: 1–4 lines cleared gives points.
+    X   - Next piece preview (1 piece is enough).
+    X   - Line clearing: full horizontal rows disappear.
+    X   - Scoring: 1–4 lines cleared gives points.
+    X   - Scoring: Dropping gives points per line.
     X   - Game over: triggered when new piece can't be placed.
-    Replay: Reset grid and tetromino states
+    X   - Replay: Reset grid and tetromino states
 
 🧰 2. Basic Infrastructure
     X   - Game state management (e.g., Playing, GameOver).
@@ -53,13 +54,20 @@ auto main(int argc, char* args[]) -> int {
 🖼️ 3. Rendering
     X   - Render game grid and locked tiles.
     X   - Render active falling piece.
-    Render next piece preview.
+    Render pieces in different colors.
+    X   - Render next piece preview.
     X   - Draw basic UI: score, lines cleared, FPS.
 
 🔄 4. Basic Timing & Difficulty
     X   - Gravity tick every N milliseconds (e.g., 1 per second initially).
-    Speed up gravity over time or based on lines cleared.
+    X   - Speed up gravity over time or based on lines cleared.
     DAS (delayed auto-shift) and repeat for holding left/right (optional).
+
+    5. Sound
+    Fall
+    Lock
+    Can't move
+    Line clear
 
 🪜 Stretch Features (Optional but Fun)
 🎮 Gameplay Enhancements
@@ -83,11 +91,11 @@ auto main(int argc, char* args[]) -> int {
 
 🧩 Suggested Development Order
     X   - Grid + Tetromino drawing.
-    Piece falling (auto and with keys).
-    Collision and locking.
-    Line clearing logic.
-    Piece spawning and game loop.
-    Score and game over detection.
+    X   - Piece falling (auto and with keys).
+    X   - Collision and locking.
+    X   - Line clearing logic.
+    X   - Piece spawning and game loop.
+    X   - Score and game over detection.
     UI and polish.
  */
 

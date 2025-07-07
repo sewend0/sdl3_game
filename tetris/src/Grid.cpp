@@ -18,7 +18,7 @@ auto Grid::clear_full_lines() -> int {
 
         bool is_full{true};
         for (auto cell : cells[i])
-            if (cell != Cell::Filled)
+            if (!is_filled(cell))
                 is_full = false;
 
         if (!is_full)
@@ -26,19 +26,87 @@ auto Grid::clear_full_lines() -> int {
 
         ++full_lines;
         clear_row(i);
-        shift_down(i);
+        shift_groups_down();
     }
 
     return full_lines;
 }
 
-auto Grid::shift_down(int row) -> void {
-    for (int r = row - 1; r > 0; --r) {
-        for (int c = 0; c < cells[r].size(); ++c)
-            if (cells[r][c] == Cell::Filled) {
-                cells[r][c] = Cell::Empty;
-                cells[r + 1][c] = Cell::Filled;
+auto Grid::find_groups() -> std::vector<Group_data> {
+    std::vector<Group_data> groups{};
+    std::set<std::pair<int, int>> visited{};
+
+    for (int r = 0; r < rows(); ++r) {
+        for (int c = 0; c < columns(); ++c) {
+            if (is_filled(c, r) && !visited.contains({c, r})) {
+                Group_data group{};
+                Group_data queue{};
+                queue.push_back({c, r, get(c, r)});
+                visited.insert({c, r});
+
+                while (!queue.empty()) {
+                    Cell_data p = queue.front();
+                    queue.erase(queue.begin());
+                    group.push_back(p);
+
+                    for (SDL_Point dir :
+                         {SDL_Point{0, 1}, {.x = 1, .y = 0}, {.x = 0, .y = -1}, {.x = -1, .y = 0}
+                         }) {
+                        int nc{std::get<0>(p) + dir.x};
+                        int nr{std::get<1>(p) + dir.y};
+                        if (is_filled(nc, nr) && !visited.contains({nc, nr})) {
+                            visited.insert({nc, nr});
+                            queue.push_back({nc, nr, get(nc, nr)});
+                        }
+                    }
+                }
+
+                groups.push_back(group);
             }
+        }
+    }
+
+    return groups;
+}
+
+auto Grid::shift_groups_down() -> void {
+    std::vector<Group_data> groups{find_groups()};
+    if (groups.empty())
+        return;
+
+    // yes this is kinda dumb, groups land on other groups which then fall -
+    // leaving hanging groups. so repeat the attempt at falling for as many groups there are
+    for (int g = 0; g < groups.size(); ++g) {
+
+        for (auto& group : groups) {
+            if (group.empty())
+                continue;
+
+            // clear all group cells
+            for (const auto& [x, y, _] : group)
+                set(x, y, Cell::Empty);
+
+            // find the closest filled or base cell to group
+            int fall_dist{rows()};
+            for (const auto& [x, y, cell] : group) {
+
+                int dist{};
+                while (true) {
+                    if (is_base(x, y + dist + 1) || is_filled(x, y + dist + 1))
+                        break;
+
+                    ++dist;
+                }
+
+                fall_dist = std::min(fall_dist, dist);
+            }
+
+            // update/modify group - set cells to shifted group
+            for (int i = 0; i < group.size(); ++i) {
+                std::get<1>(group[i]) += fall_dist;
+                set(std::get<0>(group[i]), std::get<1>(group[i]), std::get<2>(group[i]));
+            }
+        }
     }
 }
 
@@ -61,7 +129,12 @@ auto Grid::is_occupied(int x, int y) const -> bool {
 }
 
 auto Grid::is_filled(int x, int y) const -> bool {
-    return get(x, y) == Cell::Filled;
+    // return get(x, y) == Cell::Filled;
+    return is_filled(get(x, y));
+}
+
+auto Grid::is_filled(Cell c) const -> bool {
+    return c != Cell::Empty && c != Cell::Base && c != Cell::Out;
 }
 
 auto Grid::is_base(int x, int y) const -> bool {

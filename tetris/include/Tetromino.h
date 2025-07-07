@@ -11,8 +11,6 @@
 #include <map>
 #include <random>
 
-// right now, the I shape is one off the grid depending on the rotation
-
 class Tetromino {
     using Shape_points = std::array<SDL_Point, 4>;
 
@@ -32,6 +30,7 @@ public:
     auto get_type() const -> Type { return type; }
     auto get_position() const -> SDL_Point { return root; }
     auto get_offsets() const -> Shape_points { return offsets; }
+    auto get_cell_color() const -> Cell { return colors.at(type); }
 
     // Return global position of each Tetromino block (optional shifted position)
     auto get_blocks(int x = 0, int y = 0) const -> Shape_points;
@@ -60,6 +59,14 @@ private:
         {Type::T, {SDL_Point{0, 0}, {0, -1}, {-1, 0}, {1, 0}}},
         {Type::Z, {SDL_Point{0, 0}, {0, -1}, {-1, -1}, {1, 0}}},
     };
+
+    const std::map<Type, Cell> colors{
+        {Type::I, Cell::Red},    {Type::J, Cell::Green},  {Type::L, Cell::Blue},
+        {Type::O, Cell::Cyan},   {Type::S, Cell::Yellow}, {Type::T, Cell::Magenta},
+        {Type::Z, Cell::Orange},
+    };
+
+    auto shift_by() -> SDL_Point;
 };
 
 #endif    // TETROMINO_H

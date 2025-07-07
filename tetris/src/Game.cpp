@@ -316,33 +316,28 @@ auto Game::handle_menu_input(const SDL_Event& event) -> void {
     }
 }
 
+auto Game::cell_to_color(Cell c) -> SDL_Color {
+    return cell_colors.at(c);
+}
+
 auto Game::draw_cells(Grid& g, Tetromino& t) -> void {
     for (int y = 0; y < g.rows(); ++y)
         for (int x = 0; x < g.columns(); ++x)
-            if (grid.get(x, y) == Cell::Filled)
-                draw_cell(g, x, y, color_locked);
+            if (g.is_filled(g.get(x, y)))
+                draw_cell(g, x, y, cell_to_color(g.get(x, y)));
 
     for (const auto& p : t.get_blocks())
-        draw_cell(g, p.x, p.y, color_white);
-
-    // std::array<SDL_Point, 4> blocks{tetromino.get_blocks()};
-    // for (int i = 0; i < blocks.size(); ++i) {
-    //     draw_cell(
-    //         blocks[i].x, blocks[i].y,
-    //         {static_cast<Uint8>((20 * i) + 60), static_cast<Uint8>((20 * i) + 60),
-    //          static_cast<Uint8>((20 * i) + 60), 255}
-    //     );
-    // }
+        draw_cell(g, p.x, p.y, cell_to_color(t.get_cell_color()));
 }
 
 auto Game::draw_cell(Grid& g, int x, int y, SDL_Color color) -> void {
     const float size = g.cell_size();
-    const int border_size = std::floor((size / 10) / 2);
+    const int border = std::floor((size / 10) / 2);
     const SDL_FRect area{g.play_area()};
     SDL_FRect rect{
-        area.x + (static_cast<float>(x) * size) + border_size,
-        area.y + (static_cast<float>(y) * size) + border_size, size - border_size,
-        size - border_size
+        area.x + (static_cast<float>(x) * size) + border - (border_size / 2),
+        area.y + (static_cast<float>(y) * size) + border - (border_size / 2), size - border,
+        size - border
     };
 
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
@@ -350,12 +345,20 @@ auto Game::draw_cell(Grid& g, int x, int y, SDL_Color color) -> void {
 }
 
 auto Game::draw_grid(Grid& g, Tetromino& t) -> void {
+    SDL_FRect area{g.play_area()};
+    area.x -= border_size;
+    area.y -= border_size;
+    area.w += border_size * 2;
+    area.h += border_size * 2;
+
     SDL_SetRenderDrawColor(
         renderer, color_game_bg.r, color_game_bg.g, color_game_bg.b, color_game_bg.a
     );
-    SDL_RenderFillRect(renderer, &g.play_area());
+    // SDL_RenderFillRect(renderer, &g.play_area());
+    SDL_RenderFillRect(renderer, &area);
     SDL_SetRenderDrawColor(renderer, color_white.r, color_white.g, color_white.b, color_white.a);
-    SDL_RenderRect(renderer, &g.play_area());
+    // SDL_RenderRect(renderer, &g.play_area());
+    SDL_RenderRect(renderer, &area);
 
     draw_cells(g, t);
 }
@@ -393,7 +396,8 @@ auto Game::draw_messages() -> void {
             break;
         case Game_state::End:
             ui_msg_a.render(ui_msg_text_game_over);
-            ui_msg_b.render(ui_msg_text_replay);
+            ui_msg_b.render(std::format("{} {}", ui_msg_text_final_score, player_score));
+            ui_msg_d.render(ui_msg_text_replay);
             break;
         default:
             break;
@@ -420,7 +424,7 @@ auto Game::try_rotate(Tetromino::Rotation dir) -> bool {
 
 auto Game::lock_piece() -> void {
     for (const auto& b : tetromino.get_blocks())
-        grid.set(b.x, b.y, Cell::Filled);
+        grid.set(b.x, b.y, tetromino.get_cell_color());
 
     score_drop(grid.clear_full_lines());
 }
@@ -439,10 +443,9 @@ auto Game::apply_gravity() -> void {
         tetromino.move(0, 1);
     else {
         lock_piece();
-        // tetromino.remake_random();
         advance_tetrominos();
         for (const auto& b : tetromino.get_blocks())
-            if (grid.get(b.x, b.y) == Cell::Filled)
+            if (grid.is_filled(grid.get(b.x, b.y)))
                 state = Game_state::End;
     }
 }

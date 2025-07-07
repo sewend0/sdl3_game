@@ -6,18 +6,12 @@ auto Tetromino::remake_random() -> Tetromino* {
     type = Type{std::uniform_int_distribution(0, static_cast<int>(shapes.size() - 1))(rng)};
     root = {.x = static_cast<int>(std::floor(grid.columns() / 2)), .y = 1};
     offsets = shapes.at(type);
-
     for (int i = 0; i < std::uniform_int_distribution(0, 3)(rng); ++i)
         rotate(Rotation::CCW);
 
-    int shift{-1};
-    for (auto o : offsets) {
-        if (o.y < -1)
-            shift = 1;
-        else if (o.y < 0)
-            shift = 0;
-    }
-    root.y += shift;
+    SDL_Point shift{shift_by()};
+    root.x += shift.x;
+    root.y += shift.y;
 
     return this;
 }
@@ -27,14 +21,9 @@ auto Tetromino::pass_to(Tetromino& t) -> Tetromino* {
     t.set_root({t.get_grid().columns() / 2, 1});
     t.set_offsets(offsets);
 
-    int shift{-1};
-    for (auto o : t.get_offsets()) {
-        if (o.y < -1)
-            shift = 1;
-        else if (o.y < 0)
-            shift = 0;
-    }
-    t.set_root({t.get_position().x, t.get_position().y + shift});
+    SDL_Point pos{t.get_position()};
+    SDL_Point shift{shift_by()};
+    t.set_root({pos.x + shift.x, pos.y + shift.y});
 
     return this;
 }
@@ -70,5 +59,20 @@ auto Tetromino::get_rotated_blocks(Rotation dir) const -> Shape_points {
     }
 
     return grid_pos;
+}
+
+auto Tetromino::shift_by() -> SDL_Point {
+    SDL_Point shift{0, -1};
+    for (const auto& [x, y] : offsets) {
+        if (y < -1)
+            shift.y = 1;
+        else if (y < 0)
+            shift.y = 0;
+
+        if (x > 1)
+            shift.x = -1;
+    }
+
+    return shift;
 }
 

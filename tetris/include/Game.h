@@ -96,6 +96,7 @@ class Game {
     const std::string ui_msg_text_controls_c{"Quick Drop: SPACE"};
     const std::string ui_msg_text_controls_d{"Instant Drop: ENTER"};
     const std::string ui_msg_text_game_over{"Game over."};
+    const std::string ui_msg_text_final_score{"Final Score:"};
     const std::string ui_msg_text_replay{"Press ENTER to continue."};
 
     const std::string base_path;
@@ -108,6 +109,8 @@ class Game {
     static constexpr SDL_Color color_game_bg{20, 20, 20, 255};
     static constexpr SDL_Color color_white{255, 255, 255, 255};
     static constexpr SDL_Color color_locked{150, 150, 150, 255};
+
+    static constexpr int border_size{2};
 
     static constexpr int score_line_1{40};
     static constexpr int score_line_2{100};
@@ -122,6 +125,16 @@ class Game {
     static constexpr double gravity_initial{1.5};
     static constexpr double gravity_fast_multi{0.3};
     static constexpr double gravity_level_multi{0.10};
+
+    const std::map<Cell, SDL_Color> cell_colors{
+        {Cell::Red, {SDL_Color{255, 102, 102, 255}}},
+        {Cell::Green, {SDL_Color{102, 255, 102, 255}}},
+        {Cell::Blue, {SDL_Color{102, 102, 255, 255}}},
+        {Cell::Cyan, {SDL_Color{102, 255, 255, 255}}},
+        {Cell::Yellow, {SDL_Color{255, 255, 102, 255}}},
+        {Cell::Magenta, {SDL_Color{255, 102, 255, 255}}},
+        {Cell::Orange, {SDL_Color{255, 178, 102, 255}}},
+    };
 
 public:
     Game();
@@ -143,6 +156,7 @@ private:
     auto handle_play_input(const SDL_Event& event) -> void;
     auto handle_menu_input(const SDL_Event& event) -> void;
 
+    auto cell_to_color(Cell c) -> SDL_Color;
     auto draw_cells(Grid& g, Tetromino& t) -> void;
     auto draw_cell(Grid& g, int x, int y, SDL_Color color) -> void;
     auto draw_grid(Grid& g, Tetromino& t) -> void;

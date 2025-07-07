@@ -54,7 +54,7 @@ auto main(int argc, char* args[]) -> int {
 🖼️ 3. Rendering
     X   - Render game grid and locked tiles.
     X   - Render active falling piece.
-    Render pieces in different colors.
+    X   - Render pieces in different colors.
     X   - Render next piece preview.
     X   - Draw basic UI: score, lines cleared, FPS.
 

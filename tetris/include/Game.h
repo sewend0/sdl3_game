@@ -101,7 +101,13 @@ class Game {
 
     const std::string base_path;
     const std::string font_path{base_path + "assets\\font\\pong_font.ttf"};
-    const std::string sfx_bounce_path{base_path + "assets\\audio\\wall_hit.wav"};
+    const std::string sfx_move_path{base_path + "assets\\audio\\move.wav"};
+    const std::string sfx_rotate_path{base_path + "assets\\audio\\rotate.wav"};
+    const std::string sfx_no_move_path{base_path + "assets\\audio\\no-move.wav"};
+    const std::string sfx_fall_path{base_path + "assets\\audio\\fall.wav"};
+    const std::string sfx_lock_path{base_path + "assets\\audio\\lock.wav"};
+    const std::string sfx_clear_path{base_path + "assets\\audio\\clear.wav"};
+    const std::string sfx_lose_path{base_path + "assets\\audio\\lose.wav"};
 
     static constexpr float font_default_size{128};
 
@@ -160,9 +166,10 @@ private:
     auto draw_cells(Grid& g, Tetromino& t) -> void;
     auto draw_cell(Grid& g, int x, int y, SDL_Color color) -> void;
     auto draw_grid(Grid& g, Tetromino& t) -> void;
-    auto draw_grid_area(Grid& g) -> void;
     auto draw_game_text() -> void;
     auto draw_messages() -> void;
+
+    auto play_sound(int channel, int vol, Mix_Chunk* sfx) -> void;
 
     auto try_move(int x, int y) -> bool;
     auto try_rotate(Tetromino::Rotation dir) -> bool;
@@ -177,7 +184,18 @@ private:
     SDL_Window* window{};
     SDL_Renderer* renderer{};
     TTF_Font* font{};
-    Mix_Chunk* sfx_bounce{};
+
+    SDL_AudioDeviceID audio_device{};
+    SDL_AudioSpec audio_spec{SDL_AUDIO_F32, 8, 44100};
+    int audio_volume{MIX_MAX_VOLUME / 2};
+
+    Mix_Chunk* sfx_move{};
+    Mix_Chunk* sfx_rotate{};
+    Mix_Chunk* sfx_no_move{};
+    Mix_Chunk* sfx_fall{};
+    Mix_Chunk* sfx_lock{};
+    Mix_Chunk* sfx_clear{};
+    Mix_Chunk* sfx_lose{};
 
     Game_state state{};
     Timing_controller timer{};

@@ -10,7 +10,7 @@
 
 # Project setup
 cmake_minimum_required(VERSION 3.31)
-project(sdl3_lazy)
+project(sdl3_game)
 set(CMAKE_CXX_STANDARD 23)
 
 # For portable exe file

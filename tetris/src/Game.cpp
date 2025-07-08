@@ -43,8 +43,13 @@ auto Game::initialize() -> bool {
         return false;
     }
 
-    // device id, audio spec*, channels, ....
-    if (!Mix_OpenAudio(0, nullptr)) {
+    audio_device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
+    if (!audio_device) {
+        SDL_Log("Unable to get audio device: %s", SDL_GetError());
+        return false;
+    }
+
+    if (!Mix_OpenAudio(audio_device, &audio_spec)) {
         SDL_Log("Unable to open audio: %s", SDL_GetError());
         return false;
     }
@@ -85,9 +90,45 @@ auto Game::load_font() -> bool {
 }
 
 auto Game::load_audio() -> bool {
-    sfx_bounce = Mix_LoadWAV(sfx_bounce_path.c_str());
-    if (!sfx_bounce) {
-        SDL_Log("Unable to load '%s', %s", sfx_bounce_path.c_str(), SDL_GetError());
+    sfx_move = Mix_LoadWAV(sfx_move_path.c_str());
+    if (!sfx_move) {
+        SDL_Log("Unable to load '%s', %s", sfx_move_path.c_str(), SDL_GetError());
+        return false;
+    }
+
+    sfx_rotate = Mix_LoadWAV(sfx_rotate_path.c_str());
+    if (!sfx_rotate) {
+        SDL_Log("Unable to load '%s', %s", sfx_rotate_path.c_str(), SDL_GetError());
+        return false;
+    }
+
+    sfx_no_move = Mix_LoadWAV(sfx_no_move_path.c_str());
+    if (!sfx_no_move) {
+        SDL_Log("Unable to load '%s', %s", sfx_no_move_path.c_str(), SDL_GetError());
+        return false;
+    }
+
+    sfx_fall = Mix_LoadWAV(sfx_fall_path.c_str());
+    if (!sfx_fall) {
+        SDL_Log("Unable to load '%s', %s", sfx_fall_path.c_str(), SDL_GetError());
+        return false;
+    }
+
+    sfx_lock = Mix_LoadWAV(sfx_lock_path.c_str());
+    if (!sfx_lock) {
+        SDL_Log("Unable to load '%s', %s", sfx_lock_path.c_str(), SDL_GetError());
+        return false;
+    }
+
+    sfx_clear = Mix_LoadWAV(sfx_clear_path.c_str());
+    if (!sfx_clear) {
+        SDL_Log("Unable to load '%s', %s", sfx_clear_path.c_str(), SDL_GetError());
+        return false;
+    }
+
+    sfx_lose = Mix_LoadWAV(sfx_lose_path.c_str());
+    if (!sfx_lose) {
+        SDL_Log("Unable to load '%s', %s", sfx_lose_path.c_str(), SDL_GetError());
         return false;
     }
 
@@ -105,8 +146,20 @@ auto Game::load_media() -> bool {
 
 auto Game::quit() -> void {
 
-    Mix_FreeChunk(sfx_bounce);
-    sfx_bounce = nullptr;
+    Mix_FreeChunk(sfx_move);
+    Mix_FreeChunk(sfx_rotate);
+    Mix_FreeChunk(sfx_no_move);
+    Mix_FreeChunk(sfx_fall);
+    Mix_FreeChunk(sfx_lock);
+    Mix_FreeChunk(sfx_clear);
+    Mix_FreeChunk(sfx_lose);
+    sfx_move = nullptr;
+    sfx_rotate = nullptr;
+    sfx_no_move = nullptr;
+    sfx_fall = nullptr;
+    sfx_lock = nullptr;
+    sfx_clear = nullptr;
+    sfx_lose = nullptr;
 
     TTF_CloseFont(font);
     font = nullptr;
@@ -248,7 +301,8 @@ auto Game::handle_play_input(const SDL_Event& event) -> void {
                 case SDLK_RETURN:
                 case SDLK_RETURN2: {
                     // drop tetromino instantly
-                    instant_drop();
+                    if (event.key.repeat != true)
+                        instant_drop();
                     break;
                 }
                 case SDLK_A:
@@ -404,20 +458,31 @@ auto Game::draw_messages() -> void {
     }
 }
 
+auto Game::play_sound(int channel, int vol, Mix_Chunk* sfx) -> void {
+    Mix_VolumeChunk(sfx, vol);
+    Mix_PlayChannel(channel, sfx, 0);
+}
+
 auto Game::try_move(int x, int y) -> bool {
     for (const auto& b : tetromino.get_blocks(x, y))
-        if (grid.is_occupied(b.x, b.y))
+        if (grid.is_occupied(b.x, b.y)) {
+            play_sound(-1, audio_volume, sfx_no_move);
             return false;
+        }
 
+    play_sound(-1, audio_volume - 30, sfx_move);
     tetromino.move(x, y);
     return true;
 }
 
 auto Game::try_rotate(Tetromino::Rotation dir) -> bool {
     for (const auto& b : tetromino.get_rotated_blocks(dir))
-        if (grid.is_occupied(b.x, b.y))
+        if (grid.is_occupied(b.x, b.y)) {
+            play_sound(-1, audio_volume, sfx_no_move);
             return false;
+        }
 
+    play_sound(-1, audio_volume - 45, sfx_rotate);
     tetromino.rotate(dir);
     return true;
 }
@@ -426,6 +491,7 @@ auto Game::lock_piece() -> void {
     for (const auto& b : tetromino.get_blocks())
         grid.set(b.x, b.y, tetromino.get_cell_color());
 
+    play_sound(-1, audio_volume + 20, sfx_lock);
     score_drop(grid.clear_full_lines());
 }
 
@@ -445,8 +511,10 @@ auto Game::apply_gravity() -> void {
         lock_piece();
         advance_tetrominos();
         for (const auto& b : tetromino.get_blocks())
-            if (grid.is_filled(grid.get(b.x, b.y)))
+            if (grid.is_filled(grid.get(b.x, b.y))) {
+                play_sound(-1, audio_volume + 20, sfx_lose);
                 state = Game_state::End;
+            }
     }
 }
 
@@ -455,6 +523,7 @@ auto Game::instant_drop() -> void {
     while (try_move(0, 1))
         ;
     quick_dropped_rows += tetromino.get_position().y - start_row;
+    play_sound(-1, audio_volume + 20, sfx_fall);
     apply_gravity();
 }
 
@@ -467,9 +536,12 @@ auto Game::score_drop(int lines) -> void {
                     std::min((difficulty_level / 2) * score_quick_drop, score_max_quick_drop_multi);
     quick_dropped_rows = 0;
 
+    if (lines < 1)
+        return;
+
+    play_sound(1, audio_volume + 30, sfx_clear);
+
     switch (lines) {
-        case 0:
-            break;
         case 1:
             player_score += score_line_1 * (difficulty_level + 1);
             break;

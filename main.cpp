@@ -9,12 +9,14 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 const std::string g_app_name{"lander"};
 constexpr int g_window_start_width{400};
 constexpr int g_window_start_height{400};
 
 // Look into how to use SDL_gpu, and using a SDL_GPUDevice rather than a renderer
+// https://www.youtube.com/watch?v=UFuWGECc8w0
 
 // Think i want to separate my app from my game
 // so have an app context here, that setups up minimally what we need?
@@ -23,9 +25,10 @@ constexpr int g_window_start_height{400};
 
 struct App_context {
     SDL_Window* window;
-    SDL_Renderer* renderer;
+    SDL_GPUDevice* gpu_device;
+    // SDL_Renderer* renderer;
     SDL_AudioDeviceID audio_device;
-    TTF_TextEngine* text_engine;
+    // TTF_TextEngine* text_engine;
     TTF_Font* font;
     Mix_Chunk* sfx;    // want an array/vec/hash something of these instead?
     Timing_controller timer;
@@ -43,7 +46,7 @@ auto SDL_Fail() -> SDL_AppResult {
 
 // Runs once at startup
 auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
-    // SDL_SetAppMetadata()...
+    // can SDL_SetAppMetadata()...
 
     if (not SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO))
         return SDL_Fail();
@@ -57,28 +60,54 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     if (window == nullptr)
         return SDL_Fail();
 
-    SDL_Renderer* renderer{SDL_CreateRenderer(window, nullptr)};
-    if (renderer == nullptr)
+    //
+    // GPU //
+    // Create gpu device to use
+    // turn debug flag to false here
+    // vulcan | metal | directx
+    SDL_GPUDevice* gpu_device{SDL_CreateGPUDevice(
+        SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_MSL | SDL_GPU_SHADERFORMAT_DXIL, true,
+        nullptr
+    )};
+    if (not gpu_device)
         return SDL_Fail();
 
-    if (not SDL_SetRenderLogicalPresentation(
-            renderer, g_window_start_width, g_window_start_height,
-            SDL_LOGICAL_PRESENTATION_LETTERBOX
-        ))
+    // Claims a window, creating a swapchain structure for it
+    if (not SDL_ClaimWindowForGPUDevice(gpu_device, window))
         return SDL_Fail();
 
-    if (not SDL_SetRenderVSync(renderer, 1))
-        return SDL_Fail();
+    // Can set any extra parameters after claiming
+    // if (not SDL_SetGPUSwapchainParameters(
+    //         gpu_device, window, SDL_GPU_SWAPCHAINCOMPOSITION_HDR_EXTENDED_LINEAR,
+    //         SDL_GPU_PRESENTMODE_VSYNC
+    //     ))
+    //     return SDL_Fail();
 
-    if (not SDL_SetDefaultTextureScaleMode(renderer, SDL_SCALEMODE_NEAREST))
-        return SDL_Fail();
+    // GPU //
+    //
+
+    // SDL_Renderer* renderer{SDL_CreateRenderer(window, nullptr)};
+    // if (renderer == nullptr)
+    //     return SDL_Fail();
+    //
+    // if (not SDL_SetRenderLogicalPresentation(
+    //         renderer, g_window_start_width, g_window_start_height,
+    //         SDL_LOGICAL_PRESENTATION_LETTERBOX
+    //     ))
+    //     return SDL_Fail();
+    //
+    // if (not SDL_SetRenderVSync(renderer, 1))
+    //     return SDL_Fail();
+    //
+    // if (not SDL_SetDefaultTextureScaleMode(renderer, SDL_SCALEMODE_NEAREST))
+    //     return SDL_Fail();
 
     if (not TTF_Init())
         return SDL_Fail();
 
-    TTF_TextEngine* text_engine{TTF_CreateRendererTextEngine(renderer)};
-    if (text_engine == nullptr)
-        return SDL_Fail();
+    // TTF_TextEngine* text_engine{TTF_CreateRendererTextEngine(renderer)};
+    // if (text_engine == nullptr)
+    //     return SDL_Fail();
 
     SDL_AudioDeviceID audio_device{SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr)};
     if (audio_device == 0)
@@ -104,9 +133,10 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
 
     *appstate = new App_context{
         .window = window,
-        .renderer = renderer,
+        .gpu_device = gpu_device,
+        // .renderer = renderer,
         .audio_device = audio_device,
-        .text_engine = text_engine,
+        // .text_engine = text_engine,
         .font = font,
         .sfx = sfx_clear,
         .timer = {},
@@ -136,6 +166,48 @@ auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
     // update
     // while timer should sim
 
+    //
+    // GPU DEBUG
+    // Create a list of commands, a command buffer
+    // you send them to the gpu
+    // then you go on with your code, and let the gpu handle it in its own time
+    SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(app->gpu_device)};
+    if (not command_buffer)
+        return SDL_Fail();
+
+    // a gpu swapchain texture is essentially one frame
+    SDL_GPUTexture* swapchain_texture{};
+
+    // this can return NULL in some cases, like the window being minimized
+    // you need to check that the pointer isn't null before using it
+    SDL_WaitAndAcquireGPUSwapchainTexture(
+        command_buffer, app->window, &swapchain_texture, nullptr, nullptr
+    );
+    if (swapchain_texture) {
+
+        SDL_GPUColorTargetInfo color_target{};
+        color_target.texture = swapchain_texture;
+        color_target.store_op = SDL_GPU_STOREOP_STORE;    // last operation to do - save
+        color_target.load_op = SDL_GPU_LOADOP_CLEAR;      // first operation to do - clear screen
+        color_target.clear_color = SDL_FColor{1.0f, 0.0f, 0.0f, 1.0f};
+
+        std::vector<SDL_GPUColorTargetInfo> color_targets{color_target};
+        SDL_GPURenderPass* render_pass{SDL_BeginGPURenderPass(
+            command_buffer, color_targets.data(), color_targets.size(), nullptr
+        )};
+
+        SDL_EndGPURenderPass(render_pass);
+    }
+
+    // send our commands to the gpu
+    if (not SDL_SubmitGPUCommandBuffer(command_buffer))
+        return SDL_Fail();
+
+    // @41:26
+
+    // GPU DEBUG
+    //
+
     if (app->timer.should_render()) {
         double alpha{app->timer.interpolation_alpha()};
         // State state = currentstate * alpha + prevstate * (1.0 - alpha);
@@ -143,21 +215,21 @@ auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
 
         //
         // DEBUG/TESTING //
-        SDL_SetRenderDrawColor(app->renderer, 40, 45, 52, 255);
-        SDL_RenderClear(app->renderer);
-
-        TTF_Text* text{TTF_CreateText(app->text_engine, app->font, "hello world", 0)};
-        // app->text_engine->CreateText(void, text);
-        TTF_DrawRendererText(text, 20, 20);
-
-        TTF_Text* text2{TTF_CreateText(app->text_engine, app->font, "goodbye world", 0)};
-        TTF_SetTextColor(text2, 120, 120, 0, 255);
-        // TTF_SetTextFont()
-        TTF_DrawRendererText(text2, 100, 100);
-
-        app->timer.display_debug(app->renderer);
-
-        SDL_RenderPresent(app->renderer);
+        // SDL_SetRenderDrawColor(app->renderer, 40, 45, 52, 255);
+        // SDL_RenderClear(app->renderer);
+        //
+        // TTF_Text* text{TTF_CreateText(app->text_engine, app->font, "hello world", 0)};
+        // // app->text_engine->CreateText(void, text);
+        // TTF_DrawRendererText(text, 20, 20);
+        //
+        // TTF_Text* text2{TTF_CreateText(app->text_engine, app->font, "goodbye world", 0)};
+        // TTF_SetTextColor(text2, 120, 120, 0, 255);
+        // // TTF_SetTextFont()
+        // TTF_DrawRendererText(text2, 100, 100);
+        //
+        // app->timer.display_debug(app->renderer);
+        //
+        // SDL_RenderPresent(app->renderer);
         // DEBUG/TESTING //
         //
 
@@ -177,8 +249,8 @@ auto SDL_AppQuit(void* appstate, SDL_AppResult result) -> void {
         TTF_CloseFont(app->font);
         app->font = nullptr;
 
-        SDL_DestroyRenderer(app->renderer);
-        app->renderer = nullptr;
+        // SDL_DestroyRenderer(app->renderer);
+        // app->renderer = nullptr;
         SDL_DestroyWindow(app->window);
         app->window = nullptr;
 

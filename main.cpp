@@ -5,16 +5,21 @@
 #include <SDL3/SDL_main.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <Timing_controller.h>
 
+#include <filesystem>
 #include <string>
 
-#include "SDL3_ttf/SDL_textengine.h"
-
-const std::string g_app_name{"Lander"};
+const std::string g_app_name{"lander"};
 constexpr int g_window_start_width{400};
 constexpr int g_window_start_height{400};
 
 // Look into how to use SDL_gpu, and using a SDL_GPUDevice rather than a renderer
+
+// Think i want to separate my app from my game
+// so have an app context here, that setups up minimally what we need?
+// then a game context with everything else
+// the main SDL functions here will mostly just call game functions?
 
 struct App_context {
     SDL_Window* window;
@@ -22,6 +27,8 @@ struct App_context {
     SDL_AudioDeviceID audio_device;
     TTF_TextEngine* text_engine;
     TTF_Font* font;
+    Mix_Chunk* sfx;    // want an array/vec/hash something of these instead?
+    Timing_controller timer;
 
     SDL_AppResult app_quit;
 
@@ -81,14 +88,19 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
         return SDL_Fail();
 
     // load media, basepath, any other non init setup here
+    const std::filesystem::path base_path{SDL_GetBasePath()};
+    const std::filesystem::path font_path{"assets\\font"};
+    const std::filesystem::path audio_path{"assets\\audio"};
 
-    // clean this up
-    const std::string base_path;
-    const std::string font_path{base_path + "assets\\font\\pong_font.ttf"};
-    TTF_Font* font = TTF_OpenFont(font_path.c_str(), 32);
-    if (!font)
+    const std::filesystem::path font_file_path{base_path / font_path / "pong_font.ttf"};
+    TTF_Font* font{TTF_OpenFont(font_file_path.string().c_str(), 32)};
+    if (font == nullptr)
         return SDL_Fail();
-    // clean this up
+
+    const std::filesystem::path sfx_clear_file_path{base_path / audio_path / "clear.wav"};
+    Mix_Chunk* sfx_clear{Mix_LoadWAV(sfx_clear_file_path.string().c_str())};
+    if (sfx_clear == nullptr)
+        return SDL_Fail();
 
     *appstate = new App_context{
         .window = window,
@@ -96,6 +108,8 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
         .audio_device = audio_device,
         .text_engine = text_engine,
         .font = font,
+        .sfx = sfx_clear,
+        .timer = {},
         .app_quit = SDL_APP_CONTINUE
     };
 
@@ -117,32 +131,48 @@ auto SDL_AppEvent(void* appstate, SDL_Event* event) -> SDL_AppResult {
 auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
     auto* app{static_cast<App_context*>(appstate)};
 
-    SDL_SetRenderDrawColor(app->renderer, 40, 45, 52, 255);
-    SDL_RenderClear(app->renderer);
+    app->timer.tick();
+    // process input
+    // update
+    // while timer should sim
 
-    //
-    // DEBUG/TESTING //
-    TTF_Text* text{TTF_CreateText(app->text_engine, app->font, "hello world", 0)};
-    // app->text_engine->CreateText(void, text);
-    TTF_DrawRendererText(text, 20, 20);
+    if (app->timer.should_render()) {
+        double alpha{app->timer.interpolation_alpha()};
+        // State state = currentstate * alpha + prevstate * (1.0 - alpha);
+        // render();
 
-    TTF_Text* text2{TTF_CreateText(app->text_engine, app->font, "goodbye world", 0)};
-    TTF_SetTextColor(text2, 120, 120, 0, 255);
-    // TTF_SetTextFont()
-    TTF_DrawRendererText(text2, 100, 100);
-    // DEBUG/TESTING //
-    //
+        //
+        // DEBUG/TESTING //
+        SDL_SetRenderDrawColor(app->renderer, 40, 45, 52, 255);
+        SDL_RenderClear(app->renderer);
 
-    SDL_RenderPresent(app->renderer);
+        TTF_Text* text{TTF_CreateText(app->text_engine, app->font, "hello world", 0)};
+        // app->text_engine->CreateText(void, text);
+        TTF_DrawRendererText(text, 20, 20);
 
+        TTF_Text* text2{TTF_CreateText(app->text_engine, app->font, "goodbye world", 0)};
+        TTF_SetTextColor(text2, 120, 120, 0, 255);
+        // TTF_SetTextFont()
+        TTF_DrawRendererText(text2, 100, 100);
+
+        app->timer.display_debug(app->renderer);
+
+        SDL_RenderPresent(app->renderer);
+        // DEBUG/TESTING //
+        //
+
+        app->timer.mark_render();
+    }
+
+    app->timer.wait_for_next();
     return app->app_quit;
 }
 
 // Runs once at shutdown
 auto SDL_AppQuit(void* appstate, SDL_AppResult result) -> void {
     if (auto* app{static_cast<App_context*>(appstate)}; app) {
-        // Mix_FreeChunk();
-        // nullptr
+        Mix_FreeChunk(app->sfx);
+        app->sfx = nullptr;
 
         TTF_CloseFont(app->font);
         app->font = nullptr;
@@ -157,7 +187,7 @@ auto SDL_AppQuit(void* appstate, SDL_AppResult result) -> void {
 
     Mix_Quit();
     TTF_Quit();
-    SDL_Log("Application quit successfully!");
+    SDL_Log("App quit successfully!");
     SDL_Quit();
 }
 

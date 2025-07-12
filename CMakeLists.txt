@@ -13,6 +13,9 @@ cmake_minimum_required(VERSION 3.31)
 project(sdl3_game)
 set(CMAKE_CXX_STANDARD 23)
 
+# Set output directory
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
 # For portable exe file
 # make variable with flags
 set(RELEASE_STATIC_FLAGS "-static-libgcc -static-libstdc++ -static")
@@ -53,16 +56,42 @@ target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE
         SDL3_ttf::SDL3_ttf
 )
 
-# Use Release config, and 'install' build target
-# Build
-# Installation Rules for creating a portable package
-# Installs the .exe to the 'bin' subfolder of the package
-install(TARGETS ${CMAKE_PROJECT_NAME}
-        RUNTIME DESTINATION bin
+# Path to assets directory in project source
+set(ASSETS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/assets")
+
+# Path to built .exe
+set(ASSETS_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets")
+
+# Custom command to copy assets
+add_custom_command(
+        OUTPUT "${ASSETS_OUTPUT_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${ASSETS_SOURCE_DIR}"
+        "${ASSETS_OUTPUT_DIR}"
+        COMMENT "Copying assets to output directory"
 )
 
-# Installs the 'assets' dir into the 'bin' subfolder
-install(DIRECTORY assets
-        DESTINATION bin
+# Dummy target to ensure copy happens before build
+add_custom_target(copy_assets ALL
+        DEPENDS "${ASSETS_OUTPUT_DIR}"
 )
+
+# Ensure assets are copied before building
+add_dependencies(${CMAKE_PROJECT_NAME} copy_assets)
+
+## Use Release config, and 'install' build target
+## Build
+## Installation Rules for creating a portable package
+## Installs the .exe to the 'bin' subfolder of the package
+#install(TARGETS ${CMAKE_PROJECT_NAME}
+#        RUNTIME DESTINATION bin
+#)
+#
+## Installs the 'assets' dir into the 'bin' subfolder
+#install(DIRECTORY assets
+#        DESTINATION bin
+#)
+#
+## Copy assets (need to regenerate this file to run this)
+#file(COPY assets DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/bin)
 

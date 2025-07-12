@@ -39,6 +39,107 @@ struct App_context {
     // int virtual_height;
 };
 
+// this is from the SDL GPU examples
+// also added the content folder from there, containing the shaders
+// need to provide shaders in multiple formats depending on the backend
+// so it comes with hlsl and compiles them into SPIRV, MSL, and DXIL
+// then load them here
+auto load_shader(
+    SDL_GPUDevice* device, const std::filesystem::path shader_path, const char* shader_filename,
+    const Uint32 sampler_count, const Uint32 uniform_buffer_count,
+    const Uint32 storage_buffer_count, const Uint32 storage_texture_count
+) -> SDL_GPUShader* {
+
+    // Auto-detect the shader stage from the file name for convenience
+    SDL_GPUShaderStage stage;
+    if (SDL_strstr(shader_filename, ".vert")) {
+        stage = SDL_GPU_SHADERSTAGE_VERTEX;
+    } else if (SDL_strstr(shader_filename, ".frag")) {
+        stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+    } else {
+        SDL_Log("Invalid shader stage!");
+        return nullptr;
+    }
+
+    // char full_path[256];
+    std::filesystem::path full_path{shader_path};
+    SDL_GPUShaderFormat backend_formats = SDL_GetGPUShaderFormats(device);
+    SDL_GPUShaderFormat format = SDL_GPU_SHADERFORMAT_INVALID;
+    const char* entrypoint;
+
+    if (backend_formats & SDL_GPU_SHADERFORMAT_SPIRV) {
+        // SDL_snprintf(
+        //     full_path, sizeof(full_path), "%sgpu/Content/Shaders/Compiled/SPIRV/%s.spv",
+        //     SDL_GetBasePath(), shader_filename
+        // );
+
+        full_path = full_path / "SPIRV" / shader_filename += ".spv";
+        // SDL_Log("%s", full_path.string().c_str());
+
+        format = SDL_GPU_SHADERFORMAT_SPIRV;
+        entrypoint = "main";
+    } else if (backend_formats & SDL_GPU_SHADERFORMAT_MSL) {
+        full_path = full_path / "MSL" / shader_filename += ".msl";
+        // SDL_Log("%s", full_path.string().c_str());
+        format = SDL_GPU_SHADERFORMAT_MSL;
+        entrypoint = "main0";
+    } else if (backend_formats & SDL_GPU_SHADERFORMAT_DXIL) {
+        full_path = full_path / "DXIL" / shader_filename += ".dxil";
+        // SDL_Log("%s", full_path.string().c_str());
+        format = SDL_GPU_SHADERFORMAT_DXIL;
+        entrypoint = "main";
+    } else {
+        SDL_Log("%s", "Unrecognized backend shader format!");
+        return nullptr;
+    }
+
+    size_t code_size;
+    void* code = SDL_LoadFile(full_path.string().c_str(), &code_size);
+    if (code == nullptr) {
+        SDL_Log("Failed to load shader from disk! %s", full_path.c_str());
+        return nullptr;
+    }
+
+    // typedef struct SDL_GPUShaderCreateInfo
+    // {
+    //     size_t code_size;             /**< The size in bytes of the code pointed to. */
+    //     const Uint8 *code;            /**< A pointer to shader code. */
+    //     const char *entrypoint;       /**< A pointer to a null-terminated UTF-8 string specifying
+    //     the entry point function name for the shader. */ SDL_GPUShaderFormat format;   /**< The
+    //     format of the shader code. */ SDL_GPUShaderStage stage;     /**< The stage the shader
+    //     program corresponds to. */ Uint32 num_samplers;          /**< The number of samplers
+    //     defined in the shader. */ Uint32 num_storage_textures;  /**< The number of storage
+    //     textures defined in the shader. */ Uint32 num_storage_buffers;   /**< The number of
+    //     storage buffers defined in the shader. */ Uint32 num_uniform_buffers;   /**< The number
+    //     of uniform buffers defined in the shader. */
+    //
+    //     SDL_PropertiesID props;       /**< A properties ID for extensions. Should be 0 if no
+    //     extensions are needed. */
+    // } SDL_GPUShaderCreateInfo;
+
+    SDL_GPUShaderCreateInfo shader_info{
+        .code_size = code_size,
+        .code = static_cast<const Uint8*>(code),
+        .entrypoint = entrypoint,
+        .format = format,
+        .stage = stage,
+        .num_samplers = sampler_count,
+        .num_storage_textures = storage_texture_count,
+        .num_storage_buffers = storage_buffer_count,
+        .num_uniform_buffers = uniform_buffer_count,
+        //.props = 0
+    };
+    SDL_GPUShader* shader = SDL_CreateGPUShader(device, &shader_info);
+    if (shader == nullptr) {
+        SDL_Log("Failed to create shader!");
+        SDL_free(code);
+        return nullptr;
+    }
+
+    SDL_free(code);
+    return shader;
+}
+
 auto SDL_Fail() -> SDL_AppResult {
     SDL_LogError(SDL_LOG_CATEGORY_CUSTOM, "Error %s", SDL_GetError());
     return SDL_APP_FAILURE;
@@ -71,6 +172,7 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     )};
     if (not gpu_device)
         return SDL_Fail();
+    SDL_Log("Using GPU device driver: %s", SDL_GetGPUDeviceDriver(gpu_device));
 
     // Claims a window, creating a swapchain structure for it
     if (not SDL_ClaimWindowForGPUDevice(gpu_device, window))
@@ -120,6 +222,7 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     const std::filesystem::path base_path{SDL_GetBasePath()};
     const std::filesystem::path font_path{"assets\\font"};
     const std::filesystem::path audio_path{"assets\\audio"};
+    const std::filesystem::path shader_path{"assets\\gpu\\Content\\Shaders\\Compiled"};
 
     const std::filesystem::path font_file_path{base_path / font_path / "pong_font.ttf"};
     TTF_Font* font{TTF_OpenFont(font_file_path.string().c_str(), 32)};
@@ -130,6 +233,19 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     Mix_Chunk* sfx_clear{Mix_LoadWAV(sfx_clear_file_path.string().c_str())};
     if (sfx_clear == nullptr)
         return SDL_Fail();
+
+    // Load in our shaders
+    SDL_GPUShader* vertex_shader{
+        load_shader(gpu_device, base_path / shader_path, "RawTriangle.vert", 0, 0, 0, 0)
+    };
+    if (not vertex_shader)
+        SDL_Fail();
+
+    SDL_GPUShader* fragment_shader{
+        load_shader(gpu_device, base_path / shader_path, "SolidColor.frag", 0, 0, 0, 0)
+    };
+    if (not fragment_shader)
+        SDL_Fail();
 
     *appstate = new App_context{
         .window = window,
@@ -203,7 +319,7 @@ auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
     if (not SDL_SubmitGPUCommandBuffer(command_buffer))
         return SDL_Fail();
 
-    // @41:26
+    // 1:03:06
 
     // GPU DEBUG
     //

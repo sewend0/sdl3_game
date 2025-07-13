@@ -8,6 +8,7 @@
 #include <Timing_controller.h>
 
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,7 @@ constexpr int g_window_start_height{400};
 struct App_context {
     SDL_Window* window;
     SDL_GPUDevice* gpu_device;
+    SDL_GPUGraphicsPipeline* gfx_pipeline;
     // SDL_Renderer* renderer;
     SDL_AudioDeviceID audio_device;
     // TTF_TextEngine* text_engine;
@@ -45,18 +47,18 @@ struct App_context {
 // so it comes with hlsl and compiles them into SPIRV, MSL, and DXIL
 // then load them here
 auto load_shader(
-    SDL_GPUDevice* device, const std::filesystem::path shader_path, const char* shader_filename,
+    SDL_GPUDevice* device, const std::filesystem::path& shader_path, std::string shader_filename,
     const Uint32 sampler_count, const Uint32 uniform_buffer_count,
     const Uint32 storage_buffer_count, const Uint32 storage_texture_count
 ) -> SDL_GPUShader* {
 
     // Auto-detect the shader stage from the file name for convenience
     SDL_GPUShaderStage stage;
-    if (SDL_strstr(shader_filename, ".vert")) {
+    if (shader_filename.contains(".vert"))
         stage = SDL_GPU_SHADERSTAGE_VERTEX;
-    } else if (SDL_strstr(shader_filename, ".frag")) {
+    else if (shader_filename.contains(".frag"))
         stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-    } else {
+    else {
         SDL_Log("Invalid shader stage!");
         return nullptr;
     }
@@ -65,61 +67,41 @@ auto load_shader(
     std::filesystem::path full_path{shader_path};
     SDL_GPUShaderFormat backend_formats = SDL_GetGPUShaderFormats(device);
     SDL_GPUShaderFormat format = SDL_GPU_SHADERFORMAT_INVALID;
-    const char* entrypoint;
+    const char* entrypoint = nullptr;
 
     if (backend_formats & SDL_GPU_SHADERFORMAT_SPIRV) {
-        // SDL_snprintf(
-        //     full_path, sizeof(full_path), "%sgpu/Content/Shaders/Compiled/SPIRV/%s.spv",
-        //     SDL_GetBasePath(), shader_filename
-        // );
-
-        full_path = full_path / "SPIRV" / shader_filename += ".spv";
-        // SDL_Log("%s", full_path.string().c_str());
-
         format = SDL_GPU_SHADERFORMAT_SPIRV;
         entrypoint = "main";
+        full_path /= "SPIRV";
+        shader_filename += ".spv";
     } else if (backend_formats & SDL_GPU_SHADERFORMAT_MSL) {
-        full_path = full_path / "MSL" / shader_filename += ".msl";
-        // SDL_Log("%s", full_path.string().c_str());
         format = SDL_GPU_SHADERFORMAT_MSL;
         entrypoint = "main0";
+        full_path /= "MSL";
+        shader_filename += ".msl";
     } else if (backend_formats & SDL_GPU_SHADERFORMAT_DXIL) {
-        full_path = full_path / "DXIL" / shader_filename += ".dxil";
-        // SDL_Log("%s", full_path.string().c_str());
         format = SDL_GPU_SHADERFORMAT_DXIL;
         entrypoint = "main";
+        full_path /= "DXIL";
+        shader_filename += ".dxil";
     } else {
         SDL_Log("%s", "Unrecognized backend shader format!");
         return nullptr;
     }
+    full_path /= shader_filename;
 
-    size_t code_size;
-    void* code = SDL_LoadFile(full_path.string().c_str(), &code_size);
-    if (code == nullptr) {
+    // pull in contents of shader file as binary
+    // make vector from iterator on the stream
+    std::ifstream file{full_path, std::ios::binary};
+    if (not file) {
         SDL_Log("Failed to load shader from disk! %s", full_path.c_str());
         return nullptr;
     }
-
-    // typedef struct SDL_GPUShaderCreateInfo
-    // {
-    //     size_t code_size;             /**< The size in bytes of the code pointed to. */
-    //     const Uint8 *code;            /**< A pointer to shader code. */
-    //     const char *entrypoint;       /**< A pointer to a null-terminated UTF-8 string specifying
-    //     the entry point function name for the shader. */ SDL_GPUShaderFormat format;   /**< The
-    //     format of the shader code. */ SDL_GPUShaderStage stage;     /**< The stage the shader
-    //     program corresponds to. */ Uint32 num_samplers;          /**< The number of samplers
-    //     defined in the shader. */ Uint32 num_storage_textures;  /**< The number of storage
-    //     textures defined in the shader. */ Uint32 num_storage_buffers;   /**< The number of
-    //     storage buffers defined in the shader. */ Uint32 num_uniform_buffers;   /**< The number
-    //     of uniform buffers defined in the shader. */
-    //
-    //     SDL_PropertiesID props;       /**< A properties ID for extensions. Should be 0 if no
-    //     extensions are needed. */
-    // } SDL_GPUShaderCreateInfo;
+    std::vector<Uint8> code{std::istreambuf_iterator<char>(file), {}};
 
     SDL_GPUShaderCreateInfo shader_info{
-        .code_size = code_size,
-        .code = static_cast<const Uint8*>(code),
+        .code_size = code.size(),
+        .code = code.data(),
         .entrypoint = entrypoint,
         .format = format,
         .stage = stage,
@@ -127,21 +109,22 @@ auto load_shader(
         .num_storage_textures = storage_texture_count,
         .num_storage_buffers = storage_buffer_count,
         .num_uniform_buffers = uniform_buffer_count,
-        //.props = 0
+        .props = 0,
     };
     SDL_GPUShader* shader = SDL_CreateGPUShader(device, &shader_info);
     if (shader == nullptr) {
         SDL_Log("Failed to create shader!");
-        SDL_free(code);
         return nullptr;
     }
 
-    SDL_free(code);
     return shader;
 }
 
-auto SDL_Fail() -> SDL_AppResult {
-    SDL_LogError(SDL_LOG_CATEGORY_CUSTOM, "Error %s", SDL_GetError());
+auto SDL_Fail(const std::string& msg = "") -> SDL_AppResult {
+    SDL_LogError(
+        SDL_LOG_CATEGORY_CUSTOM, std::format("{}\nError: {}", msg, SDL_GetError()).c_str()
+    );
+    // SDL_LogError(SDL_LOG_CATEGORY_CUSTOM, "Error %s", SDL_GetError());
     return SDL_APP_FAILURE;
 }
 
@@ -184,7 +167,6 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     //         SDL_GPU_PRESENTMODE_VSYNC
     //     ))
     //     return SDL_Fail();
-
     // GPU //
     //
 
@@ -234,22 +216,53 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     if (sfx_clear == nullptr)
         return SDL_Fail();
 
-    // Load in our shaders
+    //
+    // GPU
+    // Load in shaders
     SDL_GPUShader* vertex_shader{
         load_shader(gpu_device, base_path / shader_path, "RawTriangle.vert", 0, 0, 0, 0)
     };
-    if (not vertex_shader)
+    if (vertex_shader == nullptr)
         SDL_Fail();
 
     SDL_GPUShader* fragment_shader{
         load_shader(gpu_device, base_path / shader_path, "SolidColor.frag", 0, 0, 0, 0)
     };
-    if (not fragment_shader)
+    if (fragment_shader == nullptr)
         SDL_Fail();
+
+    // Fill out info for and then create pipeline
+    SDL_GPUColorTargetDescription color_target_description{};
+    color_target_description.format = SDL_GetGPUSwapchainTextureFormat(gpu_device, window);
+    std::vector color_target_descriptions{color_target_description};
+
+    SDL_GPUGraphicsPipelineTargetInfo target_info{};
+    target_info.color_target_descriptions = color_target_descriptions.data();
+    target_info.num_color_targets = color_target_descriptions.size();
+
+    SDL_GPUGraphicsPipelineCreateInfo gfx_pipeline_create_info{};
+    gfx_pipeline_create_info.vertex_shader = vertex_shader;
+    gfx_pipeline_create_info.fragment_shader = fragment_shader;
+    gfx_pipeline_create_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    gfx_pipeline_create_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+    gfx_pipeline_create_info.target_info = target_info;
+
+    SDL_GPUGraphicsPipeline* gfx_pipeline{
+        SDL_CreateGPUGraphicsPipeline(gpu_device, &gfx_pipeline_create_info)
+    };
+    if (gfx_pipeline == nullptr)
+        SDL_Fail();
+
+    // Release shaders after creating pipeline
+    SDL_ReleaseGPUShader(gpu_device, vertex_shader);
+    SDL_ReleaseGPUShader(gpu_device, fragment_shader);
+    // GPU
+    //
 
     *appstate = new App_context{
         .window = window,
         .gpu_device = gpu_device,
+        .gfx_pipeline = gfx_pipeline,
         // .renderer = renderer,
         .audio_device = audio_device,
         // .text_engine = text_engine,
@@ -305,12 +318,19 @@ auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
         color_target.texture = swapchain_texture;
         color_target.store_op = SDL_GPU_STOREOP_STORE;    // last operation to do - save
         color_target.load_op = SDL_GPU_LOADOP_CLEAR;      // first operation to do - clear screen
-        color_target.clear_color = SDL_FColor{1.0f, 0.0f, 0.0f, 1.0f};
+        color_target.clear_color = SDL_FColor{0.1f, 0.1f, 0.1f, 1.0f};
 
         std::vector<SDL_GPUColorTargetInfo> color_targets{color_target};
         SDL_GPURenderPass* render_pass{SDL_BeginGPURenderPass(
             command_buffer, color_targets.data(), color_targets.size(), nullptr
         )};
+
+        // need to tell render pass to use pipeline
+        SDL_BindGPUGraphicsPipeline(render_pass, app->gfx_pipeline);
+
+        // Draw one instance of three vertices starting from index 0, vertex 0
+        // vertices come from the shader
+        SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
 
         SDL_EndGPURenderPass(render_pass);
     }

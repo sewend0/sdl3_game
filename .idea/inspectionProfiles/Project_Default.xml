@@ -1,0 +1,92 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="ClangTidy" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="clangTidyCheckOptions">
+        <list>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-braces-around-statements.ShortStatementLines" />
+            <option name="optionValue" value="2" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.ClassCase" />
+            <option name="optionValue" value="Leading_upper_snake_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.ClassMemberCase" />
+            <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.ConstexprVariableCase" />
+            <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.EnumConstantCase" />
+            <option name="optionValue" value="Leading_upper_snake_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.FunctionCase" />
+            <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.GlobalConstantCase" />
+            <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.GlobalConstantPrefix" />
+            <option name="optionValue" value="g_" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.GlobalVariableCase" />
+            <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.GlobalVariablePrefix" />
+            <option name="optionValue" value="g_" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.MemberCase" />
+            <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.MemberConstantCase" />
+            <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.NamespaceCase" />
+            <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.StaticConstantCase" />
+            <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.StructCase" />
+            <option name="optionValue" value="Leading_upper_snake_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.TemplateParameterCase" />
+            <option name="optionValue" value="Leading_upper_snake_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.VariableCase" />
+            <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-implicit-bool-conversion.AllowIntegerConditions" />
+            <option name="optionValue" value="true" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-implicit-bool-conversion.AllowPointerConditions" />
+            <option name="optionValue" value="true" />
+          </ClangTidyCheckOption>
+        </list>
+      </option>
+      <option name="clangTidyChecks" value="-*,bugprone-*,modernize-*,mpi-*,performance-*,portability-*,cert-err52-cpp,cert-err60-cpp,cert-err34-c,cert-str34-c,cert-msc50-cpp,cert-msc51-cpp,cert-dcl58-cpp,cert-flp30-c,cppcoreguidelines-pro-type-member-init,cppcoreguidelines-slicing,cppcoreguidelines-interfaces-global-init,cppcoreguidelines-pro-type-static-cast-downcast,hicpp-multiway-paths-covered,hicpp-exception-baseclass,misc-*,-misc-include-cleaner,openmp-use-default-none,readability-*,-readability-identifier-length,-readability-braces-around-statements" />
+    </inspection_tool>
+    <inspection_tool class="CppEnforceCVQualifiersOrder" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="CppEnforceFunctionDeclarationStyle" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="CppUseAuto" enabled="false" level="HINT" enabled_by_default="false" />
+    <inspection_tool class="CppUseAutoForNumeric" enabled="false" level="HINT" enabled_by_default="false" />
+  </profile>
+</component>

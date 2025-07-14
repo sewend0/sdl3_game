@@ -39,48 +39,13 @@ Overview
 The flow will be something like this:
 1. Create a device - requesting access to a compatible GPU
 2. Create buffers - containers of data on the GPU
-3. Create a Graphics Pipeline - tells the GPU how to use these buffers
+3. Crate a Graphics Pipeline - tells the GPU how to use these buffers
 4. Acquire a Command Buffer - used to issue tasks to the GPU
 5. Fill the buffers with data using Transfer Buffer in a Copy Pass
 6. Acquire the Swapchain texture - a texture of a window to draw onto
 7. Issue the Draw Call in a Render Pass
 
-How do we draw anything?
-To make our floats an ints represent something on screen, we need to make a gpu pipeline
-
-First, we create GPU buffers that hold and upload data to GPU buffers
-Vertex Buffers contain positions, colors, textures, UVs, etc.
-There are also Uniform, Storage, and Instance Data Buffers
-You update all of these as the state of your app changes
-You can upload Textures that you want to be available in shaders
-
-Next we need Vertex and Fragment shaders, and then a graphics pipeline that uses them
-The graphics pipelines tells the GPU how to interpret the data provided in buffers and textures
-
-Lastly, we make our draw call after setting the correct state
-You choose which pipeline, texture, buffers, offset, and how many vertices the GPU should draw
-
-Creating and updating buffers
-First we want a Vertex Buffer that we can later use as an input for the vertex shader
-It will contain two things, 3 floats for position, and 4 floats for the color
-
-Notice that the positions of vertices are in the (-1,1) range
-It uses NDC (Normalized Device Coordinates)
-(0,0) is the center, (1,1) is the top right, and (-1,-1) is the bottom left
 */
-
-// the vertex input layout
-struct Vertex {
-    float x, y, z;       // vec3 position
-    float r, g, b, a;    // vec4 color
-};
-
-// a list of vertices
-static Vertex vertices[]{
-    {0.0F, 0.5F, 0.0F, 1.0F, 0.0F, 0.0F, 1.0F},      // top vertex
-    {-0.5F, -0.5F, 0.0F, 1.0F, 1.0F, 0.0F, 1.0F},    // bottom left vertex
-    {0.5F, -0.5F, 0.0F, 1.0F, 0.0F, 1.0F, 1.0F}      // bottom right vertex
-};
 
 struct App_context {
     SDL_Window* window;
@@ -129,111 +94,23 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     //
     // GPU
 
-    // get gpu device meeting specifications
+    /* You specify the shader formats you plan to provide
+     * (it will need shaders for each backend)
+     * The official approach to support every backend is either using only .spv,
+     * or .hlsl and using SDL_shadercross to convert your shaders on the fly or as a build step
+     * You can enable a debugging layer, you need to have installed the SDKs to get
+     * their error messages or their validation layers
+     * You can supply the name of hte driver you want to use
+     * (vulkan, metal, direct3d12, or NULL - SDL handles it automatically)
+     * If no device could be created for the given parameters, the function will return NULL
+     */
     SDL_GPUDevice* gpu_device{SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr)};
     if (not gpu_device)
         return SDL_Fail();
 
-    // attach device for use with window
+    // Once you have a device ready you tell SDL to use it in a specific window
     if (not SDL_ClaimWindowForGPUDevice(gpu_device, window))
         return SDL_Fail();
-
-    /* To upload data from our 'vertices' we need to create and use a GPU buffer
-     * We create a buffer with the size of the vertices list
-     * (3 vertices * 7 floats per vertex * 4 bytes per float)
-     * Specify it will only be used as a vertex buffer
-     * You can change the usage to create 'storage', 'index', and 'indirect' buffers
-     * which will change what the buffer is allowed to be used for
-     * Creating buffers is expensive, so ideally you create them early in you app and reuse them
-     * You must also release a buffer when done with it to free its memory
-     */
-
-    // create the vertex buffer
-    SDL_GPUBufferCreateInfo buffer_info{};
-    buffer_info.size = sizeof(vertices);
-    buffer_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
-    SDL_GPUBuffer* vertex_buffer{SDL_CreateGPUBuffer(gpu_device, &buffer_info)};
-
-    /* The next question is 'what' the content of the buffer should be
-     * On its own, the above buffer is useless
-     * To move the data from the CPU to the GPU we need a special Transfer Buffer
-     * It is a buffer that is first mapped to data on the CPU,
-     * and then later that data is uploaded to the GPU buffer in a copy pass
-     */
-
-    // create a transfer buffer to upload to the vertex buffer
-    SDL_GPUTransferBufferCreateInfo transfer_info{};
-    transfer_info.size = sizeof(vertices);
-    transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    SDL_GPUTransferBuffer* transfer_buffer{SDL_CreateGPUTransferBuffer(gpu_device, &transfer_info)};
-
-    // map the transfer buffer to a pointer
-    Vertex* data{static_cast<Vertex*>(SDL_MapGPUTransferBuffer(gpu_device, transfer_buffer, false))
-    };
-
-    // copy the data
-    // data[0] = vertices[0];
-    // data[1] = vertices[1];
-    // data[2] = vertices[2];
-    SDL_memcpy(data, vertices, sizeof(vertices));
-
-    // unmap the pointer when you are done updating the transfer buffer
-    SDL_UnmapGPUTransferBuffer(gpu_device, transfer_buffer);
-
-    /* Finally, the last problem is 'how' should the vertex buffer be updated
-     * We need to transfer data from the transfer buffer to the vertex buffer
-     * To do this, we need to start and use a Copy Pass
-     * We specify what we are copying, where it is going, and then actually do it
-     * You can do this every frame, before your render pass to dynamically update changing data
-     * In our case, we have a static triangle, so we can just do it once at the beginning
-     * After these steps, our triangle will live inside the GPU buffer and is accessible
-     * to be used by the GPU
-     * Similar to other buffers, the transfer buffer should be
-     * cached, reused and released once they are no longer needed
-     */
-
-    // start a copy pass
-    SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(gpu_device)};
-    SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
-
-    // where is the data
-    SDL_GPUTransferBufferLocation location{};
-    location.transfer_buffer = transfer_buffer;
-    location.offset = 0;    // start from the beginning
-
-    // where to upload the data
-    SDL_GPUBufferRegion region{};
-    region.buffer = vertex_buffer;
-    region.size = sizeof(vertices);    // size of data in bytes
-    region.offset = 0;                 // begin writing from the first vertex
-
-    // upload the data
-    SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
-
-    // end the copy pass
-    SDL_EndGPUCopyPass(copy_pass);
-    SDL_SubmitGPUCommandBuffer(command_buffer);
-
-    // release buffers
-    SDL_ReleaseGPUTransferBuffer(gpu_device, transfer_buffer);
-    SDL_ReleaseGPUBuffer(gpu_device, vertex_buffer);
-
-    /* Vertex Shaders
-     * Now that the GPU knows about our triangle, it still doesn't know what to do with it
-     * So, we create little GPU programs called shaders that tell the GPU
-     * how it should interpret the vertices our output the colors
-     * You have to provide at least one vertex shader and one fragment shader to draw anything
-     * The main purpose of a vertex shader is to set the position of the vertices
-     * Typically the shader gets some inputs or 'attributes' that it uses to do this,
-     * then it can set outputs or 'varyings' that are sent to the next step,
-     * which is a fragment shader in SDL_gpu's case
-     * SDL doesnt care how you create your shaders, as long as they are in the right format
-     * Creating shaders is an expensive operation, so only do this at the beginning of your
-     * app and then cache and reuse them as needed
-     * We can use the GLSL format for this demo
-     */
-
-    // @ Now, we need to load the shader in SDL.
 
     // GPU
     //
@@ -322,42 +199,102 @@ auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
     //
     // GPU
 
-    // acquire the command buffer
+    /* What are command buffers?
+     * A buffer is simply a container of data
+     * it can be an array of positions, colors, etc
+     * A command buffer is simply a 'buffer' or an array of 'commands',
+     * it is a list of tasks you expect the GPU to execute in order
+     * it is more efficient to pack up and send a set of commands rather than
+     * sending one and waiting on its result then sending another
+     * Command buffers also allow for multithreading, so you can split different
+     * tasks like updating a buffers data on a thread and drawing geometry on another
+     * For each command buffer you create, you must submit it when you are done with it
+     * If you do not, you end up with memory leaks
+     * Once submitted, the GPU will start to executing your instructions
+     */
     SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(app->gpu_device)};
     if (command_buffer) {
 
-        // acquire the swapchain texture
+        /* The window's swapchain texture
+         * A texture is a lot like a buffer, it is just a container
+         * it contains the image pixel data in a certain format
+         * A swapchain is a collection of textures that are 'swapped' on the window surface
+         * one after the other
+         * This means you can be updating a frame while the previous is being displayed to a screen,
+         * and when the new frame is ready you swap it out with the old one
+         * Use SDL_WaitAndAcquireGPUSwapchainTexture to acquire and fill the swapchain texture
+         * with a texture and update a width and height variable
+         * these variables are more reliable than just using the window size and may be useful later
+         * Note we do not use SDL_AcquireGPUSwapchainTexture, if not used correctly on some backends
+         * this can result in memory leaks, it also essentially blocks the thread until a swapchain
+         * texture is available
+         * Finally, the swapchain texture returned can be NULL in some situations
+         * (like the window being minimized) so you must always check before using it
+         */
+
         SDL_GPUTexture* swapchain_texture;
         Uint32 width;
         Uint32 height;
-
-        // if swapchain is not available go straight to the required submit
         if (SDL_WaitAndAcquireGPUSwapchainTexture(
                 command_buffer, app->window, &swapchain_texture, &width, &height
             )) {
 
-            // create the color target
+            /* Color Targets
+             * When you want to draw anything, you first need to give the GPU some info
+             * where to draw, what to do with the previous targets content,
+             * and how to deal with the new data
+             * Here we want to clear the window with a color then store the resulting pixels
+             * Another example may be updating an offscreen texture without clearing the previous
+             * content Use a SDL_GPUColorTargetInfo struct to describe how the GPU should start a
+             * Render Pass there are many properties, for simplicity we just use a few here
+             */
+
+            // discard previous content and clear to a color
             SDL_GPUColorTargetInfo color_target_info{};
             color_target_info.clear_color = {
-                240 / 255.0F, 240 / 255.0F, 240 / 255.0F, 255 / 255.0F
+                255 / 255.0F, 219 / 255.0F, 187 / 255.0F, 255 / 255.0F
             };
-            color_target_info.load_op = SDL_GPU_LOADOP_CLEAR;
+            color_target_info.load_op =
+                SDL_GPU_LOADOP_CLEAR;    // or SDL_GPU_LOADOP_LOAD to use previous
+
+            // store the content to the texture
             color_target_info.store_op = SDL_GPU_STOREOP_STORE;
+
+            // where do we store the result?
             color_target_info.texture = swapchain_texture;
 
-            // begin render pass
+            /* Render Passes
+             * A command buffer consists of passes
+             * These passes can be a Copy Pass where you upload data to the GPU
+             * (like updating a buffer or uploading a texture)
+             * A Render Pass where you actually draw something onto a color target
+             * Or a Compute Pass where you can pass heavy calculations to be done using compute
+             * shaders To use a pass, you first 'begin' the pass, do your thing, then 'end' it You
+             * cannot be 'inside' two passes at the same time, so if you begin one, you must first
+             * end it before you can begin another The render pass will be where all of our draw
+             * commands go, and it requires a color target
+             * The second parameter is an array of the SDL_GPUColorTargetInfo structs
+             * this lets you render to multiple color targets at the same time
+             * using our single SDL_GPUColorTargetInfo as a pointer makes it treated as
+             * the only element of an array
+             * The third parameter is where we specify the size of the previous array
+             * The last parameter is useful in the context of 3d applications
+             */
+
+            // begin the render pass
             SDL_GPURenderPass* render_pass{
                 SDL_BeginGPURenderPass(command_buffer, &color_target_info, 1, nullptr)
             };
 
             // draw something here
 
-            // end render pass
+            // end the render pass
             SDL_EndGPURenderPass(render_pass);
         }
     }
 
-    // must always submit a created command buffer
+    // do i want to fail it here? no right...
+    // except you always need to submit the buffer, so maybe it would be good to fail if not work
     if (not SDL_SubmitGPUCommandBuffer(command_buffer))
         return SDL_Fail();
 

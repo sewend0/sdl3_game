@@ -36,10 +36,20 @@ add_executable("${CMAKE_PROJECT_NAME}" main.cpp)
 # Add sources and headers
 target_sources("${CMAKE_PROJECT_NAME}"
         PRIVATE
-        lander/src/Timing_controller.cpp
+        lander/src/App.cpp
+        lander/src/Audio.cpp
+        lander/src/Game.cpp
+        lander/src/Graphics.cpp
+        lander/src/Text.cpp
+        lander/src/Timer.cpp
 
         PUBLIC
-        lander/include/Timing_controller.h
+        lander/include/App.h
+        lander/include/Audio.h
+        lander/include/Game.h
+        lander/include/Graphics.h
+        lander/include/Text.h
+        lander/include/Timer.h
 )
 
 # Set included directories for this project

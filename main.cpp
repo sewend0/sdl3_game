@@ -5,7 +5,7 @@
 #include <SDL3/SDL_main.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
-#include <Timing_controller.h>
+#include <Timer.h>
 
 #include <filesystem>
 #include <fstream>
@@ -91,7 +91,7 @@ struct App_context {
     // TTF_TextEngine* text_engine;
     TTF_Font* font;
     Mix_Chunk* sfx;    // want an array/vec/hash something of these instead?
-    Timing_controller timer;
+    Timer timer;
 
     SDL_AppResult app_quit;
 

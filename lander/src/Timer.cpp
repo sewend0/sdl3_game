@@ -1,11 +1,11 @@
 
-#include <Timing_controller.h>
+#include <Timer.h>
 
-Timing_controller::Timing_controller() :
+Timer::Timer() :
     last_timestamp{SDL_GetTicksNS()}, last_render{last_timestamp}, last_fps_time{last_timestamp} {
 }
 
-auto Timing_controller::tick() -> void {
+auto Timer::tick() -> void {
     const nanoseconds now{SDL_GetTicksNS()};
     nanoseconds frame_time{now - last_timestamp};
 
@@ -16,33 +16,33 @@ auto Timing_controller::tick() -> void {
     accumulator += frame_time;
 }
 
-auto Timing_controller::should_sim() const -> bool {
+auto Timer::should_sim() const -> bool {
     return accumulator >= sim_dt;
 }
 
-auto Timing_controller::advance_sim() -> void {
+auto Timer::advance_sim() -> void {
     sim_time += sim_dt;
     accumulator -= sim_dt;
 }
 
-auto Timing_controller::interpolation_alpha() const -> double {
+auto Timer::interpolation_alpha() const -> double {
     return static_cast<double>(accumulator) / static_cast<double>(sim_dt);
 }
 
-auto Timing_controller::get_fps() const -> double {
+auto Timer::get_fps() const -> double {
     return current_fps;
 }
 
-auto Timing_controller::should_render() const -> bool {
+auto Timer::should_render() const -> bool {
     return last_timestamp - last_render >= rend_dt;
 }
 
-auto Timing_controller::mark_render() -> void {
+auto Timer::mark_render() -> void {
     last_render = last_timestamp;
     update_fps();
 }
 
-auto Timing_controller::wait_for_next() const -> void {
+auto Timer::wait_for_next() const -> void {
     const nanoseconds now{SDL_GetTicksNS()};
     const nanoseconds next_sim{last_timestamp + (should_sim() ? 0 : sim_dt)};
     const nanoseconds next_render{last_render + rend_dt};
@@ -53,11 +53,11 @@ auto Timing_controller::wait_for_next() const -> void {
     }
 }
 
-auto Timing_controller::sim_delta_seconds() -> double {
+auto Timer::sim_delta_seconds() -> double {
     return static_cast<double>(sim_dt) / one_s;
 }
 
-auto Timing_controller::display_debug(SDL_Renderer* renderer) const -> void {
+auto Timer::display_debug(SDL_Renderer* renderer) const -> void {
     SDL_SetRenderScale(renderer, debug_scale, debug_scale);
     SDL_SetRenderDrawColor(renderer, color_debug.r, color_debug.g, color_debug.b, color_debug.a);
     SDL_RenderDebugText(
@@ -66,7 +66,7 @@ auto Timing_controller::display_debug(SDL_Renderer* renderer) const -> void {
     SDL_SetRenderScale(renderer, 1.0, 1.0);
 }
 
-auto Timing_controller::update_fps() -> void {
+auto Timer::update_fps() -> void {
     ++frame_count;
     if (const nanoseconds now{last_timestamp}; now - last_fps_time >= fps_sample_window) {
         current_fps =

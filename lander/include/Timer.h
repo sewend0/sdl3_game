@@ -1,7 +1,7 @@
 
 
-#ifndef TIMING_CONTROLLER_H
-#define TIMING_CONTROLLER_H
+#ifndef TIMER_H
+#define TIMER_H
 
 #include <SDL3/SDL.h>
 
@@ -12,7 +12,9 @@
 // and keep the previous and current state
 // so that we can interpolate between the two
 
-class Timing_controller {
+// Manages timing of physics and rendering updates
+
+class Timer {
     using nanoseconds = Uint64;
     static constexpr int simulation_rate{120};
     static constexpr int render_rate{60};
@@ -27,7 +29,7 @@ class Timing_controller {
     static constexpr int debug_offset{10};
 
 public:
-    Timing_controller();
+    Timer();
 
     // Called every frame to update internal timing state
     auto tick() -> void;
@@ -73,4 +75,4 @@ private:
     auto update_fps() -> void;
 };
 
-#endif    // TIMING_CONTROLLER_H
+#endif    // TIMER_H

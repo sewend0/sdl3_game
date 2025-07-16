@@ -107,9 +107,6 @@ auto SDL_Fail(const std::string& msg = "") -> SDL_AppResult {
     return SDL_APP_FAILURE;
 }
 
-auto gpu_demo() -> void {
-}
-
 // Runs once at startup
 auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     // can SDL_SetAppMetadata()...

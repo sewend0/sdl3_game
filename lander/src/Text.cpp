@@ -2,23 +2,52 @@
 
 #include <Text.h>
 
+#include <ranges>
+
+auto Text_system::init(
+    const std::filesystem::path& assets_path, const std::vector<std::string>& file_names
+) -> bool {
+    if (not TTF_Init())
+        return false;
+
+    m_assets_path = assets_path;
+
+    for (const auto& file : file_names)
+        if (not load_font(file, m_font_size))
+            return false;
+
+    // TTF_TextEngine* text_engine{TTF_CreateRendererTextEngine(renderer)};
+    // if (text_engine == nullptr)
+    //     return SDL_Fail();
+
+    // TTF_TextEngine* text_engine{TTF_CreateGPUTextEngine(gpu_device)};
+
+    return true;
+}
+
 auto Text_system::load_font(const std::string& file_name, float size) -> bool {
-    TTF_Font* font{TTF_OpenFont((assets_path / file_name).string().c_str(), size)};
+    TTF_Font* font{TTF_OpenFont((m_assets_path / file_name).string().c_str(), size)};
     if (not font)
         return false;
 
-    auto [_, snd]{fonts.emplace(file_name, font)};
+    auto [_, snd]{m_fonts.emplace(file_name, font)};
     return snd;
 }
 
 Text_system::~Text_system() {
 
-    // TTF_CloseFont(app->font);
-    // app->font = nullptr;
-}
+    for (auto& [_, font] : m_fonts) {
+        TTF_CloseFont(font);
+        font = nullptr;
+    }
 
-// const std::filesystem::path font_file_path{base_path / font_path / "pong_font.ttf"};
-// TTF_Font* font{TTF_OpenFont(font_file_path.string().c_str(), 32)};
-// if (font == nullptr)
-//     return fail();
+    // for (auto& font : m_fonts | std::views::values) {
+    //     TTF_CloseFont(font);
+    //     font = nullptr;
+    // }
+
+    // TTF_DestroyGPUTextEngine(engine);
+
+    TTF_Quit();
+}
 

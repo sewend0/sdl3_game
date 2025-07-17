@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 // Encapsulate TTF text engine, fonts
 // Supports multi-font and dynamic strings
@@ -18,18 +19,26 @@
 // get an assets path
 // release all the assets, quit subsystems
 
-class Text_system : virtual System {
+struct Text_engine_deleter {
+    auto operator()(TTF_TextEngine* ptr) const -> void { TTF_DestroyGPUTextEngine(ptr); }
+};
+
+class Text_system : public System {
 public:
-    Text_system(const std::filesystem::path& fonts_path) : assets_path{fonts_path} {}
-    ~Text_system();
+    Text_system() = default;
+    ~Text_system() override;
+
+    auto init(const std::filesystem::path& assets_path, const std::vector<std::string>& file_names)
+        -> bool override;
 
     auto load_font(const std::string& file_name, float size) -> bool;
 
 private:
-    const std::filesystem::path assets_path;
-    std::unique_ptr<TTF_TextEngine> engine;
-    std::unordered_map<std::string, TTF_Font*> fonts;
+    // std::unique_ptr<TTF_TextEngine> m_engine;
+    std::unordered_map<std::string, TTF_Font*> m_fonts;
     // TTF_Font
+
+    float m_font_size{32.0F};
 };
 
 // const std::filesystem::path base_path{SDL_GetBasePath()};

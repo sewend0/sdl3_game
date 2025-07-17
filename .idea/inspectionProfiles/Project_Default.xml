@@ -53,6 +53,10 @@
             <option name="optionValue" value="lower_case" />
           </ClangTidyCheckOption>
           <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.ClassMemberPrefix" />
+            <option name="optionValue" value="m_" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
             <option name="optionName" value="readability-identifier-naming.NamespaceCase" />
             <option name="optionValue" value="lower_case" />
           </ClangTidyCheckOption>

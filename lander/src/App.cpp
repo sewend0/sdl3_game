@@ -14,9 +14,11 @@ auto App::init() -> SDL_AppResult {
     //     return SDL_APP_FAILURE;
 
     APP_REQUIRE(init_window());
-    APP_REQUIRE(init_text());
+    // APP_REQUIRE(init_text());
+    // APP_REQUIRE(init_timer());
 
     // ...
+    return SDL_APP_CONTINUE;
 }
 
 auto App::fail(const std::string& msg) -> SDL_AppResult {
@@ -49,41 +51,94 @@ auto App::init_window() -> SDL_AppResult {
     if (not window)
         return fail();
 
+    m_window.reset(window);
+
     return SDL_APP_CONTINUE;
 }
 
-// TODO: make this use Text_system properly
-auto App::init_text() -> SDL_AppResult {
-    if (not TTF_Init())
-        return fail();
+// auto App::init_text() -> SDL_AppResult {
+//     Text_system text{};
+//     if (not text.init(font_path, font_files))
+//         return fail();
+//
+//     m_text.reset(&text);
+//
+//     // if (not m_text->init(font_path, font_files))
+//     //     return fail();
+//
+//     return SDL_APP_CONTINUE;
+// }
 
-    // if not load_font then return fail
+// // TODO: make this use Audio_system properly
+// auto App::init_audio() -> SDL_AppResult {
+//     SDL_AudioDeviceID audio_device{SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+//     nullptr)}; if (audio_device == 0)
+//         return fail();
+//
+//     if (not Mix_OpenAudio(audio_device, nullptr))
+//         return fail();
+//
+//     return SDL_APP_CONTINUE;
+// }
+
+// auto App::init_timer() -> SDL_AppResult {
+//     Timer timer{};
+//     m_timer.reset(&timer);
+//     return SDL_APP_CONTINUE;
+// }
+
+auto App::shutdown() -> void {
+    // destructors should be built into systems, so no need
+
+    // delete m_window;
+    // delete m_text;
+    // delete m_timer;
+    // delete pointer to systems/etc ?
+
+    // if (auto* app{static_cast<App*>(appstate)}; app) {
+    //     Mix_FreeChunk(app->sfx);
+    //     app->sfx = nullptr;
+    //
+    //     TTF_CloseFont(app->font);
+    //     app->font = nullptr;
+    //
+    //     //
+    //     // GPU
+    //
+    //     SDL_ReleaseGPUGraphicsPipeline(app->gpu_device, app->gfx_pipeline);
+    //     SDL_DestroyGPUDevice(app->gpu_device);
+    //
+    //     // GPU
+    //     //
+    //
+    //     // SDL_DestroyRenderer(app->renderer);
+    //     // app->renderer = nullptr;
+    //     SDL_DestroyWindow(app->window);
+    //     app->window = nullptr;
+    //
+    //     delete app;
+    // }
+    //
+    // Mix_Quit();
+    // TTF_Quit();
+    // SDL_Log("App quit successfully!");
+    // SDL_Quit();
 }
 
-// TODO: make this use Audio_system properly
-auto App::init_audio() -> SDL_AppResult {
-    SDL_AudioDeviceID audio_device{SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr)};
-    if (audio_device == 0)
-        return fail();
-
-    if (not Mix_OpenAudio(audio_device, nullptr))
-        return fail();
-}
-
-auto App::init_paths() -> SDL_AppResult {
-
-    // load media, basepath, any other non init setup here
-    const std::filesystem::path base_path{SDL_GetBasePath()};
-    const std::filesystem::path font_path{"assets\\font"};
-    const std::filesystem::path audio_path{"assets\\audio"};
-
-    const std::filesystem::path font_file_path{base_path / font_path / "pong_font.ttf"};
-    TTF_Font* font{TTF_OpenFont(font_file_path.string().c_str(), 32)};
-    if (font == nullptr)
-        return fail();
-
-    const std::filesystem::path sfx_clear_file_path{base_path / audio_path / "clear.wav"};
-    Mix_Chunk* sfx_clear{Mix_LoadWAV(sfx_clear_file_path.string().c_str())};
-    if (sfx_clear == nullptr)
-        return fail();
-}
+// auto App::init_paths() -> SDL_AppResult {
+//
+//     // load media, basepath, any other non init setup here
+//     const std::filesystem::path base_path{SDL_GetBasePath()};
+//     const std::filesystem::path font_path{"assets\\font"};
+//     const std::filesystem::path audio_path{"assets\\audio"};
+//
+//     const std::filesystem::path font_file_path{base_path / font_path / "pong_font.ttf"};
+//     TTF_Font* font{TTF_OpenFont(font_file_path.string().c_str(), 32)};
+//     if (font == nullptr)
+//         return fail();
+//
+//     const std::filesystem::path sfx_clear_file_path{base_path / audio_path / "clear.wav"};
+//     Mix_Chunk* sfx_clear{Mix_LoadWAV(sfx_clear_file_path.string().c_str())};
+//     if (sfx_clear == nullptr)
+//         return fail();
+// }

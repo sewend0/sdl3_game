@@ -5,6 +5,7 @@
 
 #include <SDL3_ttf/SDL_ttf.h>
 #include <System.h>
+#include <Utils.h>
 
 #include <filesystem>
 #include <memory>
@@ -14,14 +15,15 @@
 // Encapsulate TTF text engine, fonts
 // Supports multi-font and dynamic strings
 
-// These systems should inherit from a virtual systems class
-// need an init function to setup
-// get an assets path
-// release all the assets, quit subsystems
+// struct Text_engine_deleter {
+//     auto operator()(TTF_TextEngine* ptr) const -> void { TTF_DestroyGPUTextEngine(ptr); }
+// };
 
-struct Text_engine_deleter {
-    auto operator()(TTF_TextEngine* ptr) const -> void { TTF_DestroyGPUTextEngine(ptr); }
+struct TTF_font_deleter {
+    auto operator()(TTF_Font* ptr) const -> void { TTF_CloseFont(ptr); }
 };
+
+using TTF_font_ptr = std::unique_ptr<TTF_Font, TTF_font_deleter>;
 
 class Text_system : public System {
 public:
@@ -31,23 +33,12 @@ public:
     auto init(const std::filesystem::path& assets_path, const std::vector<std::string>& file_names)
         -> bool override;
 
-    auto load_font(const std::string& file_name, float size) -> bool;
+    auto load_file(const std::string& file_name) -> bool override;
 
 private:
     // std::unique_ptr<TTF_TextEngine> m_engine;
-    std::unordered_map<std::string, TTF_Font*> m_fonts;
-    // TTF_Font
-
+    std::unordered_map<std::string, TTF_font_ptr> m_fonts;
     float m_font_size{32.0F};
 };
-
-// const std::filesystem::path base_path{SDL_GetBasePath()};
-// const std::filesystem::path font_path{"assets\\font"};
-// const std::filesystem::path audio_path{"assets\\audio"};
-//
-// const std::filesystem::path font_file_path{base_path / font_path / "pong_font.ttf"};
-// TTF_Font* font{TTF_OpenFont(font_file_path.string().c_str(), 32)};
-// if (font == nullptr)
-//     return fail();
 
 #endif    // TEXT_H

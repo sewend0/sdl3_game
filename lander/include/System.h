@@ -6,12 +6,6 @@
 #include <filesystem>
 #include <vector>
 
-// These systems should inherit from a virtual systems class
-// need an init function to setup
-// get an assets path
-// store assets
-// release all the assets, quit subsystems
-
 class System {
 
 protected:
@@ -20,10 +14,12 @@ protected:
     std::filesystem::path m_assets_path;
 
 public:
+    virtual ~System() = default;
+
     virtual auto init(
         const std::filesystem::path& assets_path, const std::vector<std::string>& file_names
     ) -> bool = 0;
-    virtual ~System() = default;
+    virtual auto load_file(const std::string& file_name) -> bool = 0;
 };
 
 #endif    // SYSTEM_H

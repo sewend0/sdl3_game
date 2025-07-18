@@ -42,6 +42,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         lander/src/Graphics.cpp
         lander/src/Text.cpp
         lander/src/Timer.cpp
+        lander/src/Utils.cpp
 
         PUBLIC
         lander/include/App.h
@@ -51,6 +52,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         lander/include/System.h
         lander/include/Text.h
         lander/include/Timer.h
+        lander/include/Utils.h
 )
 
 # Set included directories for this project

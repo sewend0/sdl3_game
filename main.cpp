@@ -37,7 +37,7 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     auto app{std::make_unique<App>()};
     // if (not app->init())
     //     return SDL_APP_FAILURE;
-    if (app->init() == SDL_APP_FAILURE)
+    if (not app->init())
         return SDL_APP_FAILURE;
 
     // give ownership to SDL
@@ -51,9 +51,11 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
 auto SDL_AppEvent(void* appstate, SDL_Event* event) -> SDL_AppResult {
     auto* app{static_cast<App*>(appstate)};
 
+    // if (event->type == SDL_EVENT_QUIT)
+    //     return SDL_APP_SUCCESS;
+
     if (event->type == SDL_EVENT_QUIT)
-        return SDL_APP_SUCCESS;
-    // app->app_quit = SDL_APP_SUCCESS;
+        app->app_quit = SDL_APP_SUCCESS;
     // return app->should_quit() ? SDL_APP_SUCCESS : SDL_APP_CONTINUE;
 
     return SDL_APP_CONTINUE;
@@ -77,9 +79,9 @@ auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
     //
     // app->timer()->wait_for_next();
 
-    // return app->app_quit;
+    return app->app_quit;
     // return app->should_quit() ? SDL_APP_SUCCESS : SDL_APP_CONTINUE;
-    return SDL_APP_CONTINUE;
+    // return SDL_APP_CONTINUE;
 }
 
 // Runs once at shutdown

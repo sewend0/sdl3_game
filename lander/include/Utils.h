@@ -11,6 +11,7 @@
 namespace utils {
 
     auto fail(const std::string& msg = "") -> bool;
+    auto log_fail(const std::string& msg) -> bool;
     auto log(const std::string& msg) -> void;
 
 }    // namespace utils

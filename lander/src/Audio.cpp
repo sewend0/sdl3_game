@@ -3,6 +3,7 @@
 #include <Audio.h>
 
 Audio_system::~Audio_system() {
+    m_sounds.clear();
     Mix_CloseAudio();
     Mix_Quit();
 }
@@ -22,16 +23,18 @@ auto Audio_system::init(
 
     for (const auto& file : file_names)
         if (not load_file(file))
-            return utils::fail();
+            return false;
 
     return true;
 }
 
 auto Audio_system::load_file(const std::string& file_name) -> bool {
-    Mix_chunk_ptr clip{Mix_LoadWAV((m_assets_path / file_name).string().c_str())};
-    if (not clip)
-        return false;
+    Mix_Chunk* clip_ptr{Mix_LoadWAV((m_assets_path / file_name).string().c_str())};
+    if (not clip_ptr)
+        return utils::fail();
 
+    Mix_chunk_ptr clip{clip_ptr, Mix_chunk_deleter{}};
     m_sounds.emplace(file_name, std::move(clip));
+
     return true;
 }

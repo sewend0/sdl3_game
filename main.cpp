@@ -34,6 +34,9 @@ constexpr int g_window_start_height{400};
 auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     // can SDL_SetAppMetadata()...
 
+    // for debugging
+    SDL_SetLogPriority(SDL_LOG_CATEGORY_CUSTOM, SDL_LOG_PRIORITY_DEBUG);
+
     auto app{std::make_unique<App>()};
     // if (not app->init())
     //     return SDL_APP_FAILURE;
@@ -88,9 +91,10 @@ auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
 auto SDL_AppQuit(void* appstate, SDL_AppResult result) -> void {
     auto* app{static_cast<App*>(appstate)};
 
-    app->shutdown();
+    // app->shutdown();
     delete static_cast<App*>(appstate);
 
-    SDL_Log("App quit successfully!");
+    result == SDL_APP_SUCCESS ? SDL_Log("App quit successfully!") : SDL_Log("App failure.");
+    // SDL_Log("App quit successfully!");
     SDL_Quit();
 }

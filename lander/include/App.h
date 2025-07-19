@@ -44,7 +44,7 @@ public:
     // auto handle_event(const SDL_Event& e) -> void;
     // auto update(double dt) -> void;
     // auto render() -> void;
-    auto shutdown() -> void;
+    // auto shutdown() -> void;
 
     // auto fail(const std::string& msg = "") -> bool;
     // auto log(const std::string& msg) -> void;
@@ -61,6 +61,7 @@ private:
     // SDL_Window* window;
     // SDL_GPUDevice* device;
     // SDL_GPUGraphicsPipeline* gfx_pipeline;
+
     std::unique_ptr<SDL_Window, Window_deleter> m_window;
     // std::unique_ptr<SDL_GPUDevice> m_device;
     // std::unique_ptr<SDL_GPUGraphicsPipeline> m_pipeline;

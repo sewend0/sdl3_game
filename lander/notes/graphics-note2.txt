@@ -1,0 +1,267 @@
+
+
+#include <Graphics.h>
+
+Graphics_system::~Graphics_system() {
+    // auto pipeline_ptr{static_cast<SDL_GPUGraphicsPipeline*>(m_gfx_pipeline.get())};
+    // auto device_ptr{static_cast<SDL_GPUDevice*>(m_gpu_device.get())};
+    // SDL_ReleaseGPUGraphicsPipeline(device_ptr, pipeline_ptr);
+    // SDL_DestroyGPUDevice(device_ptr);
+
+    // SDL_ReleaseGPUGraphicsPipeline(m_gpu_device.get(), m_gfx_pipeline.get());
+    // SDL_DestroyGPUDevice(m_gpu_device.get());
+
+    // calls destructors - order is important here
+    m_gfx_pipeline.reset();
+    m_gpu_device.reset();
+}
+
+auto Graphics_system::init(
+    const std::filesystem::path& assets_path, const std::vector<std::string>& file_names,
+    SDL_Window* window
+) -> bool {
+
+    m_assets_path = assets_path;
+
+    // get gpu device meeting specifications
+    SDL_GPUDevice* gpu_device{SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr)};
+    if (not gpu_device)
+        return utils::fail();
+
+    // attach device for use with window
+    if (not SDL_ClaimWindowForGPUDevice(gpu_device, window))
+        return utils::fail();
+
+    // create the vertex buffer
+    SDL_GPUBufferCreateInfo buffer_info{};
+    buffer_info.size = sizeof(vertices);
+    buffer_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+    SDL_GPUBuffer* vertex_buffer{SDL_CreateGPUBuffer(gpu_device, &buffer_info)};
+
+    // create a transfer buffer to upload to the vertex buffer
+    SDL_GPUTransferBufferCreateInfo transfer_info{};
+    transfer_info.size = sizeof(vertices);
+    transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+    SDL_GPUTransferBuffer* transfer_buffer{SDL_CreateGPUTransferBuffer(gpu_device, &transfer_info)};
+
+    // map the transfer buffer to a pointer
+    Vertex* data{static_cast<Vertex*>(SDL_MapGPUTransferBuffer(gpu_device, transfer_buffer, false))
+    };
+
+    // copy the data - data[0] = vertices[0]; data[1] = vertices[1]; ...
+    SDL_memcpy(data, vertices, sizeof(vertices));
+
+    // unmap the pointer when you are done updating the transfer buffer
+    SDL_UnmapGPUTransferBuffer(gpu_device, transfer_buffer);
+
+    // start a copy pass
+    SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(gpu_device)};
+    SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
+
+    // where is the data
+    SDL_GPUTransferBufferLocation location{};
+    location.transfer_buffer = transfer_buffer;
+    location.offset = 0;    // start from the beginning
+
+    // where to upload the data
+    SDL_GPUBufferRegion region{};
+    region.buffer = vertex_buffer;
+    region.size = sizeof(vertices);    // size of data in bytes
+    region.offset = 0;                 // begin writing from the first vertex
+
+    // upload the data
+    SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
+
+    // end the copy pass
+    SDL_EndGPUCopyPass(copy_pass);
+    SDL_SubmitGPUCommandBuffer(command_buffer);
+
+    // release buffers
+    SDL_ReleaseGPUTransferBuffer(gpu_device, transfer_buffer);
+    SDL_ReleaseGPUBuffer(gpu_device, vertex_buffer);
+
+    // load the vertex shader code
+    size_t vertex_code_size;
+    void* vertex_code{SDL_LoadFile((assets_path / "vertex.spv").string().c_str(), &vertex_code_size)
+    };
+    utils::log((assets_path / "vertex.spv").string());
+
+    // create the vertex shader
+    SDL_GPUShaderCreateInfo vertex_info{};
+    vertex_info.code = static_cast<Uint8*>(vertex_code);
+    vertex_info.code_size = vertex_code_size;
+    vertex_info.entrypoint = "main";
+    vertex_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    vertex_info.stage = SDL_GPU_SHADERSTAGE_VERTEX;
+    vertex_info.num_samplers = 0;
+    vertex_info.num_storage_buffers = 0;
+    vertex_info.num_storage_textures = 0;
+    vertex_info.num_uniform_buffers = 0;
+    SDL_GPUShader* vertex_shader{SDL_CreateGPUShader(gpu_device, &vertex_info)};
+    if (not vertex_shader)
+        return utils::fail();
+
+    // free the file
+    SDL_free(vertex_code);
+
+    // create the fragment shader
+    size_t fragment_code_size;
+    void* fragment_code{
+        SDL_LoadFile((assets_path / "fragment.spv").string().c_str(), &fragment_code_size)
+    };
+    utils::log((assets_path / "fragment.spv").string());
+
+    // create the fragment shader
+    SDL_GPUShaderCreateInfo fragment_info{};
+    fragment_info.code = static_cast<Uint8*>(fragment_code);
+    fragment_info.code_size = fragment_code_size;
+    fragment_info.entrypoint = "main";
+    fragment_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    fragment_info.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+    fragment_info.num_samplers = 0;
+    fragment_info.num_storage_buffers = 0;
+    fragment_info.num_storage_textures = 0;
+    fragment_info.num_uniform_buffers = 0;
+    SDL_GPUShader* fragment_shader{SDL_CreateGPUShader(gpu_device, &fragment_info)};
+
+    // free the file
+    SDL_free(fragment_code);
+
+    SDL_GPUGraphicsPipelineCreateInfo pipeline_info{};
+
+    // bind shaders
+    pipeline_info.vertex_shader = vertex_shader;
+    pipeline_info.fragment_shader = fragment_shader;
+
+    // draw triangles
+    pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+
+    // describe the vertex buffers
+    SDL_GPUVertexBufferDescription vertex_buffer_descriptions[1];
+    vertex_buffer_descriptions[0].slot = 0;
+    vertex_buffer_descriptions[0].input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+    vertex_buffer_descriptions[0].instance_step_rate = 0;
+    vertex_buffer_descriptions[0].pitch = sizeof(Vertex);
+
+    pipeline_info.vertex_input_state.num_vertex_buffers = 1;
+    pipeline_info.vertex_input_state.vertex_buffer_descriptions = vertex_buffer_descriptions;
+
+    // describe the vertex attribute
+    SDL_GPUVertexAttribute vertex_attributes[2];
+
+    // a_position
+    vertex_attributes[0].buffer_slot = 0;    // fetch data from buffer at slot 0
+    vertex_attributes[0].location = 0;       // layout (location = 0) in shader
+    vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;    // vec3
+    vertex_attributes[0].offset = 0;    // start from first byte of current buffer
+
+    // a_color
+    vertex_attributes[1].buffer_slot = 0;    // use buffer at slot 0
+    vertex_attributes[1].location = 1;       // layout (location = 1) in shader
+    vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;    // vec4
+    vertex_attributes[1].offset = sizeof(float) * 3;    // 4th float from current buffer
+
+    pipeline_info.vertex_input_state.num_vertex_attributes = 2;
+    pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
+
+    // describe the color target
+    SDL_GPUColorTargetDescription color_target_descriptions[1];
+    color_target_descriptions[0] = {};
+    color_target_descriptions[0].blend_state.enable_blend = true;
+    color_target_descriptions[0].blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+    color_target_descriptions[0].blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+    color_target_descriptions[0].blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    color_target_descriptions[0].blend_state.dst_color_blendfactor =
+        SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    color_target_descriptions[0].blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    color_target_descriptions[0].blend_state.dst_alpha_blendfactor =
+        SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    color_target_descriptions[0].format = SDL_GetGPUSwapchainTextureFormat(gpu_device, window);
+
+    pipeline_info.target_info.num_color_targets = 1;
+    pipeline_info.target_info.color_target_descriptions = color_target_descriptions;
+
+    // create the pipeline
+    SDL_GPUGraphicsPipeline* graphics_pipeline{
+        SDL_CreateGPUGraphicsPipeline(gpu_device, &pipeline_info)
+    };
+    if (not graphics_pipeline)
+        return utils::fail();
+
+    // we don't need to store the shaders after the pipeline is created
+    SDL_ReleaseGPUShader(gpu_device, vertex_shader);
+    SDL_ReleaseGPUShader(gpu_device, fragment_shader);
+
+    // GPU
+    //
+
+    /////////////////////////////////////////////////////// ADD CLASS MEMBERS
+    // m_gpu_device.reset(gpu_device);
+    // m_gfx_pipeline.reset(graphics_pipeline);
+
+    m_gpu_device = Device_ptr{gpu_device, Device_deleter{}};
+    m_gfx_pipeline = Pipeline_ptr{graphics_pipeline, Pipeline_deleter{gpu_device}};
+    // m_gpu_device.reset(Device_ptr{gpu_device, Device_deleter{}}.get());
+    // m_gfx_pipeline.reset(Pipeline_ptr{graphics_pipeline, Pipeline_deleter{gpu_device}}.get());
+
+    return true;
+}
+
+auto Graphics_system::load_file(const std::string& file_name, SDL_GPUShaderCreateInfo* shader_info)
+    -> bool {
+    size_t code_size;
+    void* code{SDL_LoadFile((m_assets_path / file_name).string().c_str(), &code_size)};
+    if (not code)
+        return utils::fail();
+
+    shader_info->code = static_cast<Uint8*>(code);
+    shader_info->code_size = code_size;
+
+    // free the file
+    SDL_free(code);
+
+    return true;
+}
+
+auto Graphics_system::make_gpu_shader(const std::string& file_name, SDL_GPUShaderStage stage)
+    -> SDL_GPUShader* {
+
+    // load the vertex shader code
+    // size_t code_size;
+    // void* code{SDL_LoadFile("shaders/vertex.spv", &code_size)};
+
+    // create the vertex/fragment shader
+    SDL_GPUShaderCreateInfo vertex_info{};
+
+    // if (not load_file(file_name, &vertex_info)) {
+    //     utils::log("Failed to load shader file's code.");
+    //     return nullptr;
+    // }
+    if (not load_file(file_name, &vertex_info))
+        return static_cast<SDL_GPUShader*>(utils::log_null("Failed to load shader file's code."));
+
+    vertex_info.entrypoint = "main";
+    vertex_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    vertex_info.stage = stage;
+    vertex_info.num_samplers = 0;
+    vertex_info.num_storage_buffers = 0;
+    vertex_info.num_storage_textures = 0;
+    vertex_info.num_uniform_buffers = 0;
+
+    SDL_GPUShader* shader{SDL_CreateGPUShader(m_gpu_device.get(), &vertex_info)};
+    if (not shader)
+        return static_cast<SDL_GPUShader*>(utils::fail_null());
+
+    return shader;
+}
+
+auto Graphics_system::init(
+    const std::filesystem::path& assets_path, const std::vector<std::string>& file_names
+) -> bool {
+    return utils::fail("This should not be called");
+}
+
+auto Graphics_system::load_file(const std::string& file_name) -> bool {
+    return utils::fail("This should not be called");
+}
+

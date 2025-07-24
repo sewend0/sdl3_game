@@ -2,9 +2,15 @@
 
 #include <Graphics.h>
 
-#include <cassert>
-
 Graphics_system::~Graphics_system() {
+    // auto pipeline_ptr{static_cast<SDL_GPUGraphicsPipeline*>(m_gfx_pipeline.get())};
+    // auto device_ptr{static_cast<SDL_GPUDevice*>(m_gpu_device.get())};
+    // SDL_ReleaseGPUGraphicsPipeline(device_ptr, pipeline_ptr);
+    // SDL_DestroyGPUDevice(device_ptr);
+
+    // SDL_ReleaseGPUGraphicsPipeline(m_gpu_device.get(), m_gfx_pipeline.get());
+    // SDL_DestroyGPUDevice(m_gpu_device.get());
+
     // calls destructors - order is important here
     m_gfx_pipeline.reset();
     m_gpu_device.reset();
@@ -28,39 +34,11 @@ auto Graphics_system::init(
     if (not SDL_ClaimWindowForGPUDevice(m_gpu_device.get(), window))
         return utils::fail();
 
-    if (not copy_pass())
-        return utils::log_fail("Failed to perform copy pass");
-
-    // create shaders
-    SDL_GPUShader* vertex_shader{make_shader(file_names[0], SDL_GPU_SHADERSTAGE_VERTEX)};
-    if (not vertex_shader)
-        return utils::log_fail("Failed to create vertex shader");
-
-    SDL_GPUShader* fragment_shader{make_shader(file_names[1], SDL_GPU_SHADERSTAGE_FRAGMENT)};
-    if (not fragment_shader)
-        return utils::log_fail("Failed to create fragment shader");
-
-    SDL_GPUGraphicsPipeline* pipeline{make_pipeline(window, vertex_shader, fragment_shader)};
-    if (not pipeline)
-        return utils::log_fail("Failed to create graphics pipeline");
-
-    // don't need to store the shaders after the pipeline is created
-    SDL_ReleaseGPUShader(m_gpu_device.get(), vertex_shader);
-    SDL_ReleaseGPUShader(m_gpu_device.get(), fragment_shader);
-
-    m_gfx_pipeline = Pipeline_ptr{pipeline, Pipeline_deleter{gpu_device}};
-
-    return true;
-}
-
-auto Graphics_system::copy_pass() -> bool {
     // create the vertex buffer
     SDL_GPUBufferCreateInfo buffer_info{};
     buffer_info.size = sizeof(vertices);
     buffer_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
     SDL_GPUBuffer* vertex_buffer{SDL_CreateGPUBuffer(m_gpu_device.get(), &buffer_info)};
-    if (not vertex_buffer)
-        return utils::fail();
 
     // create a transfer buffer to upload to the vertex buffer
     SDL_GPUTransferBufferCreateInfo transfer_info{};
@@ -69,17 +47,16 @@ auto Graphics_system::copy_pass() -> bool {
     SDL_GPUTransferBuffer* transfer_buffer{
         SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &transfer_info)
     };
-    if (not transfer_buffer)
-        return utils::fail();
 
     // map the transfer buffer to a pointer
     Vertex* data{
         static_cast<Vertex*>(SDL_MapGPUTransferBuffer(m_gpu_device.get(), transfer_buffer, false))
     };
-    if (not data)
-        return utils::fail();
 
-    // copy the data - data[0] = vertices[0]; data[1] = vertices[1]; etc...
+    // copy the data
+    // data[0] = vertices[0];
+    // data[1] = vertices[1];
+    // data[2] = vertices[2];
     SDL_memcpy(data, vertices, sizeof(vertices));
 
     // unmap the pointer when you are done updating the transfer buffer
@@ -87,8 +64,6 @@ auto Graphics_system::copy_pass() -> bool {
 
     // start a copy pass
     SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(m_gpu_device.get())};
-    if (not command_buffer)
-        return utils::fail();
     SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
 
     // where is the data
@@ -107,59 +82,26 @@ auto Graphics_system::copy_pass() -> bool {
 
     // end the copy pass
     SDL_EndGPUCopyPass(copy_pass);
-    if (not SDL_SubmitGPUCommandBuffer(command_buffer))
-        return utils::fail();
-
-    // // Wait for GPU work to finish, test-only
-    // SDL_WaitForGPUIdle(m_gpu_device.get());
+    SDL_SubmitGPUCommandBuffer(command_buffer);
 
     // release buffers
     SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), transfer_buffer);
     SDL_ReleaseGPUBuffer(m_gpu_device.get(), vertex_buffer);
 
-    return true;
-}
+    // create shaders
+    SDL_GPUShader* vertex_shader{make_gpu_shader(file_names[0], SDL_GPU_SHADERSTAGE_VERTEX)};
+    if (not vertex_shader)
+        return utils::log_fail("Failed to create vertex shader.");
 
-auto Graphics_system::make_shader(const std::string& file_name, SDL_GPUShaderStage stage)
-    -> SDL_GPUShader* {
-
-    // load the shader code
-    size_t code_size;
-    void* code{SDL_LoadFile((m_assets_path / file_name).string().c_str(), &code_size)};
-    if (not code)
-        return static_cast<SDL_GPUShader*>(utils::log_null("Failed to load shader file's code"));
-
-    // create the vertex/fragment shader
-    SDL_GPUShaderCreateInfo shader_info{};
-    shader_info.code = static_cast<Uint8*>(code);
-    shader_info.code_size = code_size;
-    shader_info.entrypoint = "main";
-    shader_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
-    shader_info.stage = stage;
-    shader_info.num_samplers = 0;
-    shader_info.num_storage_buffers = 0;
-    shader_info.num_storage_textures = 0;
-    shader_info.num_uniform_buffers = 0;
-
-    SDL_GPUShader* shader{SDL_CreateGPUShader(m_gpu_device.get(), &shader_info)};
-    if (not shader)
-        return static_cast<SDL_GPUShader*>(utils::fail_null("Failed to create shader"));
-
-    // free the file
-    SDL_free(code);
-
-    return shader;
-}
-
-auto Graphics_system::make_pipeline(
-    SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment
-) -> SDL_GPUGraphicsPipeline* {
+    SDL_GPUShader* fragment_shader{make_gpu_shader(file_names[1], SDL_GPU_SHADERSTAGE_FRAGMENT)};
+    if (not fragment_shader)
+        return utils::log_fail("Failed to create fragment shader.");
 
     SDL_GPUGraphicsPipelineCreateInfo pipeline_info{};
 
     // bind shaders
-    pipeline_info.vertex_shader = vertex;
-    pipeline_info.fragment_shader = fragment;
+    pipeline_info.vertex_shader = vertex_shader;
+    pipeline_info.fragment_shader = fragment_shader;
 
     // draw triangles
     pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
@@ -215,9 +157,70 @@ auto Graphics_system::make_pipeline(
         SDL_CreateGPUGraphicsPipeline(m_gpu_device.get(), &pipeline_info)
     };
     if (not graphics_pipeline)
-        return static_cast<SDL_GPUGraphicsPipeline*>(utils::fail_null());
+        return utils::fail();
 
-    return graphics_pipeline;
+    // we don't need to store the shaders after the pipeline is created
+    SDL_ReleaseGPUShader(m_gpu_device.get(), vertex_shader);
+    SDL_ReleaseGPUShader(m_gpu_device.get(), fragment_shader);
+
+    /////////////////////////////////////////////////////// ADD CLASS MEMBERS
+    // m_gpu_device.reset(gpu_device);
+    // m_gfx_pipeline.reset(graphics_pipeline);
+
+    // m_gpu_device = Device_ptr{gpu_device, Device_deleter{}};
+    m_gfx_pipeline = Pipeline_ptr{graphics_pipeline, Pipeline_deleter{gpu_device}};
+    // m_gpu_device.reset(Device_ptr{gpu_device, Device_deleter{}}.get());
+    // m_gfx_pipeline.reset(Pipeline_ptr{graphics_pipeline, Pipeline_deleter{gpu_device}}.get());
+
+    return true;
+}
+
+auto Graphics_system::load_file(const std::string& file_name, SDL_GPUShaderCreateInfo* shader_info)
+    -> bool {
+    size_t code_size;
+    void* code{SDL_LoadFile((m_assets_path / file_name).string().c_str(), &code_size)};
+    if (not code)
+        return utils::fail();
+
+    shader_info->code = static_cast<Uint8*>(code);
+    shader_info->code_size = code_size;
+
+    // free the file
+    SDL_free(code);
+
+    return true;
+}
+
+auto Graphics_system::make_gpu_shader(const std::string& file_name, SDL_GPUShaderStage stage)
+    -> SDL_GPUShader* {
+
+    // load the vertex shader code
+    // size_t code_size;
+    // void* code{SDL_LoadFile("shaders/vertex.spv", &code_size)};
+
+    // create the vertex/fragment shader
+    SDL_GPUShaderCreateInfo vertex_info{};
+
+    // if (not load_file(file_name, &vertex_info)) {
+    //     utils::log("Failed to load shader file's code.");
+    //     return nullptr;
+    // }
+    if (not load_file(file_name, &vertex_info))
+        return static_cast<SDL_GPUShader*>(utils::log_null("Failed to load shader file's code."));
+
+    vertex_info.entrypoint = "main";
+    vertex_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    vertex_info.stage = stage;
+    vertex_info.num_samplers = 0;
+    vertex_info.num_storage_buffers = 0;
+    vertex_info.num_storage_textures = 0;
+    vertex_info.num_uniform_buffers = 0;
+
+    SDL_GPUShader* shader{SDL_CreateGPUShader(m_gpu_device.get(), &vertex_info)};
+    if (not shader)
+        return static_cast<SDL_GPUShader*>(utils::fail_null());
+
+    return shader;
 }
 
 auto Graphics_system::init(

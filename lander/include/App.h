@@ -5,6 +5,7 @@
 
 #include <Audio.h>
 #include <Game.h>
+#include <Graphics.h>
 #include <SDL3/SDL.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -31,9 +32,11 @@ class App {
     const std::filesystem::path base_path{SDL_GetBasePath()};
     const std::filesystem::path font_path{"assets\\font"};
     const std::filesystem::path audio_path{"assets\\audio"};
+    const std::filesystem::path shader_path{"assets\\shaders"};
 
     const std::vector<std::string> font_files{"pong_font.ttf"};
     const std::vector<std::string> audio_files{"fall.wav", "move.wav"};
+    const std::vector<std::string> shader_files{"vertex.spv", "fragment.spv"};
 
 public:
     // App() = default;
@@ -65,13 +68,14 @@ private:
     std::unique_ptr<SDL_Window, Window_deleter> m_window;
     // std::unique_ptr<SDL_GPUDevice> m_device;
     // std::unique_ptr<SDL_GPUGraphicsPipeline> m_pipeline;
+    std::unique_ptr<Graphics_system> m_graphics;
     std::unique_ptr<Audio_system> m_audio;
     // std::unique_ptr<Game> m_game;
     std::unique_ptr<Text_system> m_text;
     std::unique_ptr<Timer> m_timer;
 
     auto init_window() -> bool;
-    // auto init_gpu() -> SDL_AppResult;
+    auto init_graphics() -> bool;
     auto init_text() -> bool;
     auto init_audio() -> bool;
     // auto init_paths() -> SDL_AppResult;

@@ -19,13 +19,23 @@ namespace utils {
 
         return false;
     }
+    auto fail_null(const std::string& msg) -> void* {
+        fail(msg);
+        return nullptr;
+    }
+
+    auto log(const std::string& msg) -> void {
+        SDL_LogDebug(SDL_LOG_CATEGORY_CUSTOM, "%s", msg.c_str());
+    }
 
     auto log_fail(const std::string& msg) -> bool {
         SDL_LogDebug(SDL_LOG_CATEGORY_CUSTOM, "%s", msg.c_str());
         return false;
     }
 
-    auto log(const std::string& msg) -> void {
+    auto log_null(const std::string& msg) -> void* {
         SDL_LogDebug(SDL_LOG_CATEGORY_CUSTOM, "%s", msg.c_str());
+        return nullptr;
     }
+
 }    // namespace utils

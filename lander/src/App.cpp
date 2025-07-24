@@ -15,6 +15,9 @@ auto App::init() -> bool {
     if (not init_text())
         return false;
 
+    if (not init_graphics())
+        return false;
+
     // ...
     return true;
 }
@@ -53,5 +56,12 @@ auto App::init_audio() -> bool {
 
 auto App::init_timer() -> bool {
     m_timer = std::make_unique<Timer>();
+    return true;
+}
+
+auto App::init_graphics() -> bool {
+    m_graphics = std::make_unique<Graphics_system>();
+    if (not m_graphics->init(base_path / shader_path, shader_files, m_window.get()))
+        return utils::log_fail("App failed to initialize graphics system");
     return true;
 }

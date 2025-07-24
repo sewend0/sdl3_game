@@ -45,7 +45,7 @@ public:
     // placeholders
     auto init() -> bool;
     // auto handle_event(const SDL_Event& e) -> void;
-    // auto update(double dt) -> void;
+    auto update() -> void;
     // auto render() -> void;
     // auto shutdown() -> void;
 
@@ -61,13 +61,7 @@ public:
     SDL_AppResult app_quit{SDL_APP_CONTINUE};
 
 private:
-    // SDL_Window* window;
-    // SDL_GPUDevice* device;
-    // SDL_GPUGraphicsPipeline* gfx_pipeline;
-
     std::unique_ptr<SDL_Window, Window_deleter> m_window;
-    // std::unique_ptr<SDL_GPUDevice> m_device;
-    // std::unique_ptr<SDL_GPUGraphicsPipeline> m_pipeline;
     std::unique_ptr<Graphics_system> m_graphics;
     std::unique_ptr<Audio_system> m_audio;
     // std::unique_ptr<Game> m_game;

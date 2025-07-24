@@ -18,7 +18,7 @@ struct Mix_chunk_deleter {
 
 using Mix_chunk_ptr = std::unique_ptr<Mix_Chunk, Mix_chunk_deleter>;
 
-class Audio_system : public System {
+class Audio_system : public Simple_system {
 public:
     Audio_system() = default;
     ~Audio_system() override;

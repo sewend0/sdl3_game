@@ -57,7 +57,7 @@ auto SDL_AppEvent(void* appstate, SDL_Event* event) -> SDL_AppResult {
     // if (event->type == SDL_EVENT_QUIT)
     //     return SDL_APP_SUCCESS;
 
-    if (event->type == SDL_EVENT_QUIT)
+    if (event->type == SDL_EVENT_QUIT || event->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
         app->app_quit = SDL_APP_SUCCESS;
     // return app->should_quit() ? SDL_APP_SUCCESS : SDL_APP_CONTINUE;
 
@@ -81,6 +81,8 @@ auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
     // }
     //
     // app->timer()->wait_for_next();
+
+    app->update();
 
     return app->app_quit;
     // return app->should_quit() ? SDL_APP_SUCCESS : SDL_APP_CONTINUE;

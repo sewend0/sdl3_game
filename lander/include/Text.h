@@ -25,7 +25,7 @@ struct TTF_font_deleter {
 
 using TTF_font_ptr = std::unique_ptr<TTF_Font, TTF_font_deleter>;
 
-class Text_system : public System {
+class Text_system : public Simple_system {
 public:
     Text_system() = default;
     ~Text_system() override;

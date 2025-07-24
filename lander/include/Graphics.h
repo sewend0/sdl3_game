@@ -54,27 +54,25 @@ public:
         SDL_Window* window
     ) -> bool;
 
-    // auto load_file(const std::string& file_name, SDL_GPUShaderCreateInfo* shader_info) -> bool;
     auto copy_pass() -> bool;
     auto make_shader(const std::string& file_name, SDL_GPUShaderStage stage) -> SDL_GPUShader*;
     auto make_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
         -> SDL_GPUGraphicsPipeline*;
 
-    auto init(const std::filesystem::path& assets_path, const std::vector<std::string>& file_names)
-        -> bool override;
-    auto load_file(const std::string& file_name) -> bool override;
+    auto try_render_pass(SDL_Window* window) -> bool;
+    auto begin_render_pass(
+        SDL_Window* window, SDL_GPUCommandBuffer*& command_buffer, SDL_GPURenderPass*& render_pass
+    ) -> bool;
+    auto end_render_pass(SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass)
+        -> bool;
+    auto draw_call(SDL_GPURenderPass*& render_pass) -> bool;
 
 private:
-    // shaders
-    // std::unordered_map<std::string, Mix_chunk_ptr> m_sounds;
-
-    // keep a ref/ptr to the window pass in here from init as well?
-
-    // std::unique_ptr<SDL_GPUDevice> m_gpu_device;
-    // std::unique_ptr<SDL_GPUGraphicsPipeline> m_gfx_pipeline;
-
     Device_ptr m_gpu_device;
     Pipeline_ptr m_gfx_pipeline;
+
+    SDL_GPUTransferBuffer* m_transfer_buffer;
+    SDL_GPUBuffer* m_vertex_buffer;
 };
 
 #endif    // GRAPHICS_H

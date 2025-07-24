@@ -5,6 +5,10 @@
 #include <cassert>
 
 Graphics_system::~Graphics_system() {
+    // release buffers
+    SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
+    SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
+
     // calls destructors - order is important here
     m_gfx_pipeline.reset();
     m_gpu_device.reset();
@@ -23,6 +27,9 @@ auto Graphics_system::init(
         return utils::fail();
 
     m_gpu_device = Device_ptr{gpu_device, Device_deleter{}};
+
+    // debug
+    // utils::log(SDL_GetGPUDeviceDriver(m_gpu_device.get()));
 
     // attach device for use with window
     if (not SDL_ClaimWindowForGPUDevice(m_gpu_device.get(), window))
@@ -58,23 +65,29 @@ auto Graphics_system::copy_pass() -> bool {
     SDL_GPUBufferCreateInfo buffer_info{};
     buffer_info.size = sizeof(vertices);
     buffer_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
-    SDL_GPUBuffer* vertex_buffer{SDL_CreateGPUBuffer(m_gpu_device.get(), &buffer_info)};
-    if (not vertex_buffer)
+    // SDL_GPUBuffer* vertex_buffer{SDL_CreateGPUBuffer(m_gpu_device.get(), &buffer_info)};
+    // if (not vertex_buffer)
+    //     return utils::fail();
+    m_vertex_buffer = SDL_CreateGPUBuffer(m_gpu_device.get(), &buffer_info);
+    if (not m_vertex_buffer)
         return utils::fail();
 
     // create a transfer buffer to upload to the vertex buffer
     SDL_GPUTransferBufferCreateInfo transfer_info{};
     transfer_info.size = sizeof(vertices);
     transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    SDL_GPUTransferBuffer* transfer_buffer{
-        SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &transfer_info)
-    };
-    if (not transfer_buffer)
+    // SDL_GPUTransferBuffer* transfer_buffer{
+    //     SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &transfer_info)
+    // };
+    // if (not transfer_buffer)
+    //     return utils::fail();
+    m_transfer_buffer = SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &transfer_info);
+    if (not m_transfer_buffer)
         return utils::fail();
 
     // map the transfer buffer to a pointer
     Vertex* data{
-        static_cast<Vertex*>(SDL_MapGPUTransferBuffer(m_gpu_device.get(), transfer_buffer, false))
+        static_cast<Vertex*>(SDL_MapGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer, false))
     };
     if (not data)
         return utils::fail();
@@ -83,7 +96,7 @@ auto Graphics_system::copy_pass() -> bool {
     SDL_memcpy(data, vertices, sizeof(vertices));
 
     // unmap the pointer when you are done updating the transfer buffer
-    SDL_UnmapGPUTransferBuffer(m_gpu_device.get(), transfer_buffer);
+    SDL_UnmapGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
 
     // start a copy pass
     SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(m_gpu_device.get())};
@@ -93,12 +106,12 @@ auto Graphics_system::copy_pass() -> bool {
 
     // where is the data
     SDL_GPUTransferBufferLocation location{};
-    location.transfer_buffer = transfer_buffer;
+    location.transfer_buffer = m_transfer_buffer;
     location.offset = 0;    // start from the beginning
 
     // where to upload the data
     SDL_GPUBufferRegion region{};
-    region.buffer = vertex_buffer;
+    region.buffer = m_vertex_buffer;
     region.size = sizeof(vertices);    // size of data in bytes
     region.offset = 0;                 // begin writing from the first vertex
 
@@ -110,12 +123,9 @@ auto Graphics_system::copy_pass() -> bool {
     if (not SDL_SubmitGPUCommandBuffer(command_buffer))
         return utils::fail();
 
-    // // Wait for GPU work to finish, test-only
-    // SDL_WaitForGPUIdle(m_gpu_device.get());
-
-    // release buffers
-    SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), transfer_buffer);
-    SDL_ReleaseGPUBuffer(m_gpu_device.get(), vertex_buffer);
+    // // release buffers
+    // SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
+    // SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
 
     return true;
 }
@@ -220,12 +230,79 @@ auto Graphics_system::make_pipeline(
     return graphics_pipeline;
 }
 
-auto Graphics_system::init(
-    const std::filesystem::path& assets_path, const std::vector<std::string>& file_names
-) -> bool {
-    return utils::fail("This should not be called");
+auto Graphics_system::try_render_pass(SDL_Window* window) -> bool {
+
+    SDL_GPUCommandBuffer* command_buffer{};
+    SDL_GPURenderPass* render_pass{};
+
+    if (not begin_render_pass(window, command_buffer, render_pass))
+        return utils::fail();
+
+    draw_call(render_pass);
+
+    if (not end_render_pass(command_buffer, render_pass))
+        return utils::fail();
+
+    return true;
 }
 
-auto Graphics_system::load_file(const std::string& file_name) -> bool {
-    return utils::fail("This should not be called");
+auto Graphics_system::begin_render_pass(
+    SDL_Window* window, SDL_GPUCommandBuffer*& command_buffer, SDL_GPURenderPass*& render_pass
+) -> bool {
+
+    // acquire the command buffer
+    command_buffer = SDL_AcquireGPUCommandBuffer(m_gpu_device.get());
+    if (not command_buffer)
+        return utils::fail();
+
+    // get the swapchain texture
+    SDL_GPUTexture* swapchain_texture;
+    Uint32 width;
+    Uint32 height;
+
+    // end the frame early if swapchain texture is not available
+    if (not SDL_WaitAndAcquireGPUSwapchainTexture(
+            command_buffer, window, &swapchain_texture, &width, &height
+        )) {
+        // must always submit the command buffer
+        SDL_SubmitGPUCommandBuffer(command_buffer);
+        return false;
+    }
+
+    // create the color target
+    SDL_GPUColorTargetInfo color_target{};
+    color_target.clear_color = {240 / 255.0F, 240 / 255.0F, 240 / 255.0F, 255 / 255.0F};
+    color_target.load_op = SDL_GPU_LOADOP_CLEAR;
+    color_target.store_op = SDL_GPU_STOREOP_STORE;
+    color_target.texture = swapchain_texture;
+
+    // begin a render pass
+    render_pass = SDL_BeginGPURenderPass(command_buffer, &color_target, 1, nullptr);
+    if (not render_pass)
+        return utils::fail();
+
+    // bind the graphics pipeline
+    SDL_BindGPUGraphicsPipeline(render_pass, m_gfx_pipeline.get());
+
+    // bind the vertex buffer
+    SDL_GPUBufferBinding buffer_bindings[1];
+    buffer_bindings[0].buffer = m_vertex_buffer;                     // index 0 is slot 0 in example
+    buffer_bindings[0].offset = 0;                                   // start from first byte
+    SDL_BindGPUVertexBuffers(render_pass, 0, buffer_bindings, 1);    // bind 1 buffer from slot 0
+
+    return true;
+}
+
+auto Graphics_system::draw_call(SDL_GPURenderPass*& render_pass) -> bool {
+    // issue a draw call - ask GPU to render 3 vertices in one instance
+    // starting from first vertex and first instance
+    SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
+    return true;
+}
+
+auto Graphics_system::end_render_pass(
+    SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass
+) -> bool {
+    SDL_EndGPURenderPass(render_pass);
+    return SDL_SubmitGPUCommandBuffer(command_buffer);
 }

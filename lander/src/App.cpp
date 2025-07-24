@@ -22,6 +22,41 @@ auto App::init() -> bool {
     return true;
 }
 
+// app->timer()->tick();
+// // process input
+// // update
+// // while timer should sim
+//
+// if (app->timer()->should_render()) {
+//     double alpha{app->timer()->interpolation_alpha()};
+//     // State state = currentstate * alpha + prevstate * (1.0 - alpha);
+//     // render();
+//     app->timer()->mark_render();
+// }
+//
+// app->timer()->wait_for_next();
+
+auto App::update() -> void {
+    m_timer->tick();
+    // process input
+    // update
+    // while timer should sim
+
+    if (m_timer->should_render()) {
+        double alpha{m_timer->interpolation_alpha()};
+
+        // State state = currentstate * alpha + prevstate * (1.0 - alpha);
+        // render();
+
+        if (not m_graphics->try_render_pass(m_window.get()))
+            utils::log("Unable to complete render pass");
+
+        m_timer->mark_render();
+    }
+
+    m_timer->wait_for_next();
+}
+
 auto App::init_window() -> bool {
     if (not SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO))
         return utils::fail();

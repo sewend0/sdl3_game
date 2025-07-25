@@ -149,7 +149,7 @@ auto Graphics_system::make_shader(const std::string& file_name, SDL_GPUShaderSta
     shader_info.num_samplers = 0;
     shader_info.num_storage_buffers = 0;
     shader_info.num_storage_textures = 0;
-    shader_info.num_uniform_buffers = 0;
+    shader_info.num_uniform_buffers = 1;    // don't forget to change these
 
     SDL_GPUShader* shader{SDL_CreateGPUShader(m_gpu_device.get(), &shader_info)};
     if (not shader)
@@ -289,6 +289,11 @@ auto Graphics_system::begin_render_pass(
     buffer_bindings[0].buffer = m_vertex_buffer;                     // index 0 is slot 0 in example
     buffer_bindings[0].offset = 0;                                   // start from first byte
     SDL_BindGPUVertexBuffers(render_pass, 0, buffer_bindings, 1);    // bind 1 buffer from slot 0
+
+    // make sense here or in draw?
+    // update the time uniform
+    time_uniform.time = SDL_GetTicksNS() / 1e9f;
+    SDL_PushGPUFragmentUniformData(command_buffer, 0, &time_uniform, sizeof(Uniform_buffer));
 
     return true;
 }

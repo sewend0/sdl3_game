@@ -12,11 +12,11 @@
 // Load and play audio via keys or tags
 // No scattered Mix_PlayChannel() calls
 
-struct Mix_chunk_deleter {
-    auto operator()(Mix_Chunk* ptr) const -> void { Mix_FreeChunk(ptr); }
+struct Mix_audio_deleter {
+    auto operator()(MIX_Audio* ptr) const -> void { MIX_DestroyAudio(ptr); }
 };
 
-using Mix_chunk_ptr = std::unique_ptr<Mix_Chunk, Mix_chunk_deleter>;
+using Mix_audio_ptr = std::unique_ptr<MIX_Audio, Mix_audio_deleter>;
 
 class Audio_system : public Simple_system {
 public:
@@ -29,8 +29,9 @@ public:
     auto load_file(const std::string& file_name) -> bool override;
 
 private:
-    std::unordered_map<std::string, Mix_chunk_ptr> m_sounds;
+    std::unordered_map<std::string, Mix_audio_ptr> m_sounds;
     SDL_AudioDeviceID m_device_id{};
+    MIX_Mixer* m_mixer;
 };
 
 #endif    // AUDIO_H

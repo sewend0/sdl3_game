@@ -12,6 +12,13 @@
 // Abstract GPU logic (shaders, pipelines, etc.)
 // Keep GPU code clean, portable
 
+// universal properties to set before draw call
+struct Uniform_buffer {
+    float time;
+};
+
+static Uniform_buffer time_uniform{};
+
 // the vertex input layout
 struct Vertex {
     float x, y, z;       // vec3 position

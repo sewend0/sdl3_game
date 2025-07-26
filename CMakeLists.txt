@@ -7,7 +7,8 @@
 # go to thirdparty/SDL_ttf/external and run powershell script
 # go to thirdparty/SDL_shadercross/external and run powershell script
 # force static linkage of these libraries, and switch to using llvm's lld linker vs mingw32's GNU linker ld. lld is orders of magnitude faster, and if you don't it will hang during build
-# add to CMake options: -DCMAKE_LINKER=lld -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" -DBUILD_SHARED_LIBS=OFF -DSDLTTF_HARFBUZZ=ON -DSDLTTF_VENDORED=ON -DSDLTTF_FREETYPE_VENDORED=ON -DSDLSHADERCROSS_VENDORED=ON
+# add to CMake options: -DCMAKE_LINKER=lld -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" -DBUILD_SHARED_LIBS=OFF -DSDLTTF_HARFBUZZ=ON -DSDLTTF_VENDORED=ON -DSDLTTF_FREETYPE_VENDORED=ON -DSDLSHADERCROSS_STATIC=ON -DSDLSHADERCROSS_SHARED=OFF -DSDLSHADERCROSS_CLI=OFF -DSDLSHADERCROSS_VENDORED=ON -DSDLSHADERCROSS_DXC=OFF
+# DXC OFF, disables the direct x compiler
 # to update: git submodule update --remote
 
 # Project setup
@@ -34,7 +35,7 @@ add_subdirectory(thirdparty/SDL)
 add_subdirectory(thirdparty/SDL_image)
 add_subdirectory(thirdparty/SDL_mixer)
 add_subdirectory(thirdparty/SDL_ttf)
-#add_subdirectory(thirdparty/SDL_shadercross)
+add_subdirectory(thirdparty/SDL_shadercross)
 
 # Make executable and link files
 add_executable("${CMAKE_PROJECT_NAME}" main.cpp)
@@ -73,6 +74,7 @@ target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE
         SDL3_image::SDL3_image
         SDL3_mixer::SDL3_mixer
         SDL3_ttf::SDL3_ttf
+        SDL3_shadercross::SDL3_shadercross
 )
 
 # Path to assets directory in project source

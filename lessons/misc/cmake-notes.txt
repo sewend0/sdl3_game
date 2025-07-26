@@ -1,0 +1,19 @@
+Like to try this someday
+
+# Add SDL3
+set(SDL_SHARED Off)
+set(SDL_STATIC On)
+FetchContent_Declare(SDL3 GIT_REPOSITORY https://github.com/libsdl-org/SDL GIT_TAG main OVERRIDE_FIND_PACKAGE)
+FetchContent_GetProperties(SDL3 SOURCE_DIR SDL3_SOURCE_DIR)
+FetchContent_MakeAvailable(SDL3)
+
+# Add SDL_shadercross
+set(SDLSHADERCROSS_STATIC ON)
+set(SDLSHADERCROSS_SHARED Off)
+set(SDLSHADERCROSS_CLI Off)
+set(SDLSHADERCROSS_VENDORED On)
+FetchContent_Declare(SDL_shadercross GIT_REPOSITORY https://github.com/libsdl-org/SDL_shadercross GIT_TAG main)
+FetchContent_MakeAvailable(SDL_shadercross)
+
+
+

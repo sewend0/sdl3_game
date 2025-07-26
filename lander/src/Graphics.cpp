@@ -22,7 +22,10 @@ auto Graphics_system::init(
     m_assets_path = assets_path;
 
     // get gpu device meeting specifications
-    SDL_GPUDevice* gpu_device{SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr)};
+    // SDL_GPUDevice* gpu_device{SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr)};
+    SDL_GPUDevice* gpu_device{
+        SDL_CreateGPUDevice(SDL_ShaderCross_GetSPIRVShaderFormats(), true, nullptr)
+    };
     if (not gpu_device)
         return utils::fail();
 
@@ -39,11 +42,14 @@ auto Graphics_system::init(
         return utils::log_fail("Failed to perform copy pass");
 
     // create shaders
-    SDL_GPUShader* vertex_shader{make_shader(file_names[0], SDL_GPU_SHADERSTAGE_VERTEX)};
+    // SDL_GPUShader* vertex_shader{make_shader(file_names[0], SDL_GPU_SHADERSTAGE_VERTEX)};
+    SDL_GPUShader* vertex_shader{make_shader(file_names[0], SDL_SHADERCROSS_SHADERSTAGE_VERTEX)};
     if (not vertex_shader)
         return utils::log_fail("Failed to create vertex shader");
 
-    SDL_GPUShader* fragment_shader{make_shader(file_names[1], SDL_GPU_SHADERSTAGE_FRAGMENT)};
+    // SDL_GPUShader* fragment_shader{make_shader(file_names[1], SDL_GPU_SHADERSTAGE_FRAGMENT)};
+    SDL_GPUShader* fragment_shader{make_shader(file_names[1], SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT)
+    };
     if (not fragment_shader)
         return utils::log_fail("Failed to create fragment shader");
 
@@ -130,8 +136,10 @@ auto Graphics_system::copy_pass() -> bool {
     return true;
 }
 
-auto Graphics_system::make_shader(const std::string& file_name, SDL_GPUShaderStage stage)
+auto Graphics_system::make_shader(const std::string& file_name, SDL_ShaderCross_ShaderStage stage)
     -> SDL_GPUShader* {
+    // auto Graphics_system::make_shader(const std::string& file_name, SDL_GPUShaderStage stage)
+    //     -> SDL_GPUShader* {
 
     // load the shader code
     size_t code_size;
@@ -140,22 +148,38 @@ auto Graphics_system::make_shader(const std::string& file_name, SDL_GPUShaderSta
         return static_cast<SDL_GPUShader*>(utils::log_null("Failed to load shader file's code"));
 
     // create the vertex/fragment shader
-    SDL_GPUShaderCreateInfo shader_info{};
-    shader_info.code = static_cast<Uint8*>(code);
-    shader_info.code_size = code_size;
-    shader_info.entrypoint = "main";
-    shader_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
-    shader_info.stage = stage;
-    shader_info.num_samplers = 0;
-    shader_info.num_storage_buffers = 0;
-    shader_info.num_storage_textures = 0;
-    shader_info.num_uniform_buffers = 1;    // don't forget to change these
+    // SDL_GPUShaderCreateInfo shader_info{};
+    // shader_info.code = static_cast<Uint8*>(code);
+    // shader_info.code_size = code_size;
+    // shader_info.entrypoint = "main";
+    // shader_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    // shader_info.stage = stage;
+    // shader_info.num_samplers = 0;
+    // shader_info.num_storage_buffers = 0;
+    // shader_info.num_storage_textures = 0;
+    // shader_info.num_uniform_buffers = 1;    // don't forget to change these
 
-    SDL_GPUShader* shader{SDL_CreateGPUShader(m_gpu_device.get(), &shader_info)};
+    SDL_ShaderCross_SPIRV_Info shader_info{};
+    shader_info.bytecode = static_cast<Uint8*>(code);
+    shader_info.bytecode_size = code_size;
+    shader_info.entrypoint = "main";
+    shader_info.shader_stage = stage;
+
+    // figure out shader metadata
+    SDL_ShaderCross_GraphicsShaderMetadata* shader_metadata{
+        SDL_ShaderCross_ReflectGraphicsSPIRV(shader_info.bytecode, shader_info.bytecode_size, 0)
+    };
+
+    // SDL_GPUShader* shader{SDL_CreateGPUShader(m_gpu_device.get(), &shader_info)};
+    // cross compile to appropriate format and create object
+    SDL_GPUShader* shader{SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(
+        m_gpu_device.get(), &shader_info, shader_metadata, 0
+    )};
     if (not shader)
         return static_cast<SDL_GPUShader*>(utils::fail_null("Failed to create shader"));
 
-    // free the file
+    // free resources no longer needed
+    SDL_free(shader_metadata);
     SDL_free(code);
 
     return shader;

@@ -4,6 +4,7 @@
 #define GRAPHICS_H
 
 #include <SDL3/SDL.h>
+#include <SDL3_shadercross/SDL_shadercross.h>
 #include <System.h>
 #include <Utils.h>
 
@@ -62,7 +63,9 @@ public:
     ) -> bool;
 
     auto copy_pass() -> bool;
-    auto make_shader(const std::string& file_name, SDL_GPUShaderStage stage) -> SDL_GPUShader*;
+    // auto make_shader(const std::string& file_name, SDL_GPUShaderStage stage) -> SDL_GPUShader*;
+    auto make_shader(const std::string& file_name, SDL_ShaderCross_ShaderStage stage)
+        -> SDL_GPUShader*;
     auto make_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
         -> SDL_GPUGraphicsPipeline*;
 

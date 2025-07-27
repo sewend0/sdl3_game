@@ -2,6 +2,10 @@
 
 #include <App.h>
 
+App::~App() {
+    m_graphics->quit(m_window.get());
+}
+
 auto App::init() -> bool {
 
     if (not init_window())

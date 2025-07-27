@@ -5,13 +5,10 @@
 #include <cassert>
 
 Graphics_system::~Graphics_system() {
-    // release buffers
-    SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
-    SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
-
     // calls destructors - order is important here
-    m_gfx_pipeline.reset();
-    m_gpu_device.reset();
+    // should automatically go in reverse order of declaration
+    // m_gfx_pipeline.reset();
+    // m_gpu_device.reset();
 }
 
 auto Graphics_system::init(
@@ -22,7 +19,6 @@ auto Graphics_system::init(
     m_assets_path = assets_path;
 
     // get gpu device meeting specifications
-    // SDL_GPUDevice* gpu_device{SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr)};
     SDL_GPUDevice* gpu_device{
         SDL_CreateGPUDevice(SDL_ShaderCross_GetSPIRVShaderFormats(), true, nullptr)
     };
@@ -42,14 +38,11 @@ auto Graphics_system::init(
         return utils::log_fail("Failed to perform copy pass");
 
     // create shaders
-    // SDL_GPUShader* vertex_shader{make_shader(file_names[0], SDL_GPU_SHADERSTAGE_VERTEX)};
-    SDL_GPUShader* vertex_shader{make_shader(file_names[0], SDL_SHADERCROSS_SHADERSTAGE_VERTEX)};
+    SDL_GPUShader* vertex_shader{make_shader(file_names[0])};
     if (not vertex_shader)
         return utils::log_fail("Failed to create vertex shader");
 
-    // SDL_GPUShader* fragment_shader{make_shader(file_names[1], SDL_GPU_SHADERSTAGE_FRAGMENT)};
-    SDL_GPUShader* fragment_shader{make_shader(file_names[1], SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT)
-    };
+    SDL_GPUShader* fragment_shader{make_shader(file_names[1])};
     if (not fragment_shader)
         return utils::log_fail("Failed to create fragment shader");
 
@@ -66,14 +59,20 @@ auto Graphics_system::init(
     return true;
 }
 
+auto Graphics_system::quit(SDL_Window* window) -> void {
+    // release buffers
+    SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
+    SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
+
+    // release swapchain
+    SDL_ReleaseWindowFromGPUDevice(m_gpu_device.get(), window);
+}
+
 auto Graphics_system::copy_pass() -> bool {
     // create the vertex buffer
     SDL_GPUBufferCreateInfo buffer_info{};
     buffer_info.size = sizeof(vertices);
     buffer_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
-    // SDL_GPUBuffer* vertex_buffer{SDL_CreateGPUBuffer(m_gpu_device.get(), &buffer_info)};
-    // if (not vertex_buffer)
-    //     return utils::fail();
     m_vertex_buffer = SDL_CreateGPUBuffer(m_gpu_device.get(), &buffer_info);
     if (not m_vertex_buffer)
         return utils::fail();
@@ -82,11 +81,6 @@ auto Graphics_system::copy_pass() -> bool {
     SDL_GPUTransferBufferCreateInfo transfer_info{};
     transfer_info.size = sizeof(vertices);
     transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    // SDL_GPUTransferBuffer* transfer_buffer{
-    //     SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &transfer_info)
-    // };
-    // if (not transfer_buffer)
-    //     return utils::fail();
     m_transfer_buffer = SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &transfer_info);
     if (not m_transfer_buffer)
         return utils::fail();
@@ -129,17 +123,21 @@ auto Graphics_system::copy_pass() -> bool {
     if (not SDL_SubmitGPUCommandBuffer(command_buffer))
         return utils::fail();
 
-    // // release buffers
-    // SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
-    // SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
-
     return true;
 }
 
-auto Graphics_system::make_shader(const std::string& file_name, SDL_ShaderCross_ShaderStage stage)
-    -> SDL_GPUShader* {
-    // auto Graphics_system::make_shader(const std::string& file_name, SDL_GPUShaderStage stage)
-    //     -> SDL_GPUShader* {
+auto Graphics_system::make_shader(const std::string& file_name) -> SDL_GPUShader* {
+
+    // auto-detect the shader stage from file name for convenience
+    SDL_ShaderCross_ShaderStage stage;
+    if (file_name.contains(".vert"))
+        stage = SDL_SHADERCROSS_SHADERSTAGE_VERTEX;
+    else if (file_name.contains(".frag"))
+        stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT;
+    else if (file_name.contains(".comp"))
+        stage = SDL_SHADERCROSS_SHADERSTAGE_COMPUTE;
+    else
+        return static_cast<SDL_GPUShader*>(utils::log_null("Invalid shader stage"));
 
     // load the shader code
     size_t code_size;
@@ -148,17 +146,6 @@ auto Graphics_system::make_shader(const std::string& file_name, SDL_ShaderCross_
         return static_cast<SDL_GPUShader*>(utils::log_null("Failed to load shader file's code"));
 
     // create the vertex/fragment shader
-    // SDL_GPUShaderCreateInfo shader_info{};
-    // shader_info.code = static_cast<Uint8*>(code);
-    // shader_info.code_size = code_size;
-    // shader_info.entrypoint = "main";
-    // shader_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
-    // shader_info.stage = stage;
-    // shader_info.num_samplers = 0;
-    // shader_info.num_storage_buffers = 0;
-    // shader_info.num_storage_textures = 0;
-    // shader_info.num_uniform_buffers = 1;    // don't forget to change these
-
     SDL_ShaderCross_SPIRV_Info shader_info{};
     shader_info.bytecode = static_cast<Uint8*>(code);
     shader_info.bytecode_size = code_size;
@@ -170,7 +157,6 @@ auto Graphics_system::make_shader(const std::string& file_name, SDL_ShaderCross_
         SDL_ShaderCross_ReflectGraphicsSPIRV(shader_info.bytecode, shader_info.bytecode_size, 0)
     };
 
-    // SDL_GPUShader* shader{SDL_CreateGPUShader(m_gpu_device.get(), &shader_info)};
     // cross compile to appropriate format and create object
     SDL_GPUShader* shader{SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(
         m_gpu_device.get(), &shader_info, shader_metadata, 0
@@ -295,7 +281,7 @@ auto Graphics_system::begin_render_pass(
 
     // create the color target
     SDL_GPUColorTargetInfo color_target{};
-    color_target.clear_color = {240 / 255.0F, 240 / 255.0F, 240 / 255.0F, 255 / 255.0F};
+    color_target.clear_color = {0.15F, 0.17F, 0.20F, 1.00F};
     color_target.load_op = SDL_GPU_LOADOP_CLEAR;
     color_target.store_op = SDL_GPU_STOREOP_STORE;
     color_target.texture = swapchain_texture;

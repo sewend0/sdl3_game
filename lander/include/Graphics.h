@@ -62,10 +62,11 @@ public:
         SDL_Window* window
     ) -> bool;
 
+    auto quit(SDL_Window* window) -> void;
+
     auto copy_pass() -> bool;
     // auto make_shader(const std::string& file_name, SDL_GPUShaderStage stage) -> SDL_GPUShader*;
-    auto make_shader(const std::string& file_name, SDL_ShaderCross_ShaderStage stage)
-        -> SDL_GPUShader*;
+    auto make_shader(const std::string& file_name) -> SDL_GPUShader*;
     auto make_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
         -> SDL_GPUGraphicsPipeline*;
 

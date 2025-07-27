@@ -36,11 +36,11 @@ class App {
 
     const std::vector<std::string> font_files{"pong_font.ttf"};
     const std::vector<std::string> audio_files{"fall.wav", "move.wav"};
-    const std::vector<std::string> shader_files{"vertex.spv", "fragment.spv"};
+    const std::vector<std::string> shader_files{"demo.vert.spv", "demo.frag.spv"};
 
 public:
     // App() = default;
-    // ~App() { shutdown(); }
+    ~App();
 
     // placeholders
     auto init() -> bool;
@@ -72,7 +72,6 @@ private:
     auto init_graphics() -> bool;
     auto init_text() -> bool;
     auto init_audio() -> bool;
-    // auto init_paths() -> SDL_AppResult;
     auto init_timer() -> bool;
 };
 

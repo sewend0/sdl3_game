@@ -30,6 +30,8 @@ constexpr int g_window_start_height{400};
  * 7. Issue the Draw Call in a Render Pass
  */
 
+// https://moonside.games/posts/sdl-gpu-sprite-batcher/
+
 // Runs once at startup
 auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     // can SDL_SetAppMetadata()...

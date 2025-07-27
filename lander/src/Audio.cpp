@@ -6,8 +6,6 @@ Audio_system::~Audio_system() {
     m_sounds.clear();
     // MIX_DestroyMixer(m_mixer);
     MIX_Quit();
-
-    // this is a test
 }
 
 auto Audio_system::init(

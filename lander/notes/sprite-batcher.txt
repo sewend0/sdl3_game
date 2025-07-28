@@ -1,0 +1,302 @@
+https://moonside.games/posts/sdl-gpu-sprite-batcher/
+https://github.com/TheSpydog/SDL_gpu_examples/blob/main/Examples/PullSpriteBatch.c
+
+The Problem
+You don't want to just bind your graphics pipeline and your sprite texture, and then issue a draw call. This is akin to baking a cookie one at a time.
+
+The key to GPU workload optimization is minimizing state changes.
+
+
+Sprite Atlas
+A sprite atlas is just a bunch of sprites packed into a single texture, each individual sprite is at a 'texture coordinate' - a range [0, 1] for an x and y coordinate.
+
+
+Encoding Information
+The general structure of a graphics pipeline, a review:
+A draw call specifies a vertex count. Vertices are taken from a vertex buffer and transformed in parallel by a vertex shader. The resulting triangles from the shader are rasterized (the pixels contained inside the shape are identified). The resulting pixels (or fragments) from rasterization are then colored in parallel by a fragment shader. Lastly, these colors are written to the render target with the selected blend mode.
+
+To eliminate state changes, we can encode information into a buffer that is available to the vertex shader. This lets the GPU be efficient as possible, it no longer needs to stop working to change state. It is now, just pulling data out of a bound buffer.
+
+We need some information to draw a sprite. We will want rectangles and the ability to rotate and scale them. We will need to sample specific regions of a texture to draw in our rectangle. We might also want to blend a color. We can represent all of this information in a storage buffer.
+
+
+The old-fashioned way
+A possible approach to sprite batching, is to build a vertex buffer in CPU code.
+
+SpriteVertex *spriteMapPointer = SDL_MapGPUTransferBuffer(myTransferBuffer);
+
+// transform and calculate left, top, right, and bottom coordinates here
+spriteMapPointer[0].position = (left, top);
+spriteMapPointer[1].position = (right, top);
+spriteMapPointer[2].position = (left, bottom);
+spriteMapPointer[3].position = (right, bottom);
+
+// write other fields here
+SDL_UnmapGPUTransferBuffer(myTransferBuffer);
+
+// upload, etc
+
+This is fine, but CPU executes all of this serially, and we could get an enormous performance boost by letting the GPU do this in parallel.
+
+
+The Vertex Shader
+When issuing draw calls you don't actually need to have a bound vertex buffer. If there is no vertex buffer input, the vertex shader function can take in an ID and we can build outputs using that ID.
+
+struct SpriteData
+{
+    float3 Position;
+    float Rotation;
+    float2 Scale;
+    float2 Padding;
+    float TexU, TexV, TexW, TexH;
+    float4 Color;
+};
+
+StructuredBuffer<SpriteData> DataBuffer : register(t0, space0);
+
+struct Output
+{
+    float2 Texcoord : TEXCOORD0;
+    float4 Color : TEXCOORD1;
+    float4 Position : SV_Position;
+};
+
+We have DataBuffer bound as a storage buffer. It is a buffer of SpriteData structs. Each SpriteData struct contains what we need to render the sprite.
+
+It is very important to note that storage buffers have to follow the GLSL std140 layout specification. For us, this means that a float3 and float4 fields must be aligned to 16 bytes. Since we have a float2 field, it means the following float4 field will automatically be placed on the next 16-byte alignment. The padding field is added to make it obvious this is occurring.
+
+The output to the fragment shader will be  a texture coordinate, a color value, and the position of the vertex.
+
+static const uint triangleIndices[6] = {0, 1, 2, 3, 2, 1};
+static const float2 vertexPos[4] = {
+    {0.0f, 0.0f},
+    {1.0f, 0.0f},
+    {0.0f, 1.0f},
+    {1.0f, 1.0f}
+};
+
+This static array represents the vertices of a 1x1 quad with the top-left at (0, 0). These vertices will be transformed to obtain our final quad geometry.
+
+cbuffer UniformBlock : register(b0, space1)
+{
+    float4x4 ViewProjectionMatrix : packoffset(c0);
+};
+
+The uniform buffer contains a view-projection matrix, which will be used to transform the vertex position from world space to screen space.
+
+Output main(uint id : SV_VertexID)
+{
+    uint spriteIndex = id / 6;
+    uint vert = triangleIndices[spriteIndex % 6];
+    SpriteData sprite = DataBuffer[spriteIndex];
+
+    float2 texcoord[4] = {
+        {sprite.TexU,               sprite.TexV              },
+        {sprite.TexU + sprite.TexW, sprite.TexV              },
+        {sprite.TexU,               sprite.TexV + sprite.TexH},
+        {sprite.TexU + sprite.TexW, sprite.TexV + sprite.TexH}
+    };
+
+    float c = cos(sprite.Rotation);
+    float s = sin(sprite.Rotation);
+
+    float2 coord = vertexPos[vert];
+    coord *= sprite.Scale;
+    float2x2 rotation = {c, s, -s, c};
+    coord = mul(coord, rotation);
+
+    float3 coordWithDepth = float3(coord + sprite.Position.xy, sprite.Position.z);
+
+    Output output;
+
+    output.Position = mul(ViewProjectionMatrix, float4(coordWithDepth, 1.0f));
+    output.Texcoord = texcoord[vert];
+    output.Color = sprite.Color;
+
+    return output;
+}
+
+Unlike most vertex shaders, our input is not a vertex structure - it is just an ID which ranges from 0 to the number of vertices in the draw call. The ID is provided automatically, and each invocation of the vertex shader gets its own ID - the first vertex is ID 0, the second is ID 1, etc. First, integer division of the ID by 6 will give us an index to use with our DataBuffer. Then we take the ID % 6 with an index lookup to find which vertex of the quad we are transforming - 0 is top-left, 1 is top-right, 2 is bottom-left, and 3 is bottom-right.
+
+Once we get the position of the vertex after scaling, rotation, and translation, we multiply it by the view-projection matrix to get the coordinate in screen space. We get the texture coordinate based on the vertex. Color is just passed through from the input.
+
+
+The Fragment Shader
+Texture2D<float4> Texture : register(t0, space2);
+SamplerState Sampler : register(s0, space2);
+
+struct Input
+{
+    float2 TexCoord : TEXCOORD0;
+    float4 Color : TEXCOORD1;
+};
+
+float4 main(Input input) : SV_Target0
+{
+    return input.Color * Texture.Sample(Sampler, input.TexCoord);
+}
+
+We sample from the bound texture using the texture coordinate we get from the vertex shader, and multiply it by the color we also get from the vertex shader.
+
+
+The Graphics Pipeline
+SpritePipeline = SDL_CreateGPUGraphicsPipeline(
+    myDevice,
+    &(SDL_GPUGraphicsPipelineCreateInfo){
+        .target_info = (SDL_GPUGraphicsPipelineTargetInfo){
+            .num_color_targets = 1,
+            .color_target_descriptions = (SDL_GPUColorTargetDescription[]){{
+                .format = SDL_GetGPUSwapchainTextureFormat(myDevice, myWindow),
+                .blend_state = {
+                    .enable_blend = true,
+                    .color_blend_op = SDL_GPU_BLENDOP_ADD,
+                    .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+                    .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+                    .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                    .src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+                    .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                }
+            }}
+        },
+        .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+        .vertex_shader = pullSpriteVertShader,
+        .fragment_shader = texturedQuadFragShader
+    }
+);
+
+Creation of the graphics pipeline is as simple as it gets, because there is no vertex input state required. The primitive type is a triangle list. We give the pipeline our compiled shaders. This example assumes we are drawing straight to the swapchain, but you could use a different texture format, and even optionally include a depth buffer here if you wanted.
+
+The blend state is a standard alpha blending setup - pixels in the texture with an alpha value of 0 will not draw over existing colors.
+
+
+The Sprite Storage Buffer
+typedef struct SpriteInstance
+{
+	float x, y, z;
+	float rotation;
+	float w, h;
+    float padding_a, padding_b;
+	float tex_u, tex_v, tex_w, tex_h;
+	float r, g, b, a;
+} SpriteInstance;
+
+static float uCoords[4] = { 0.0f, 0.5f, 0.0f, 0.5f };
+static float vCoords[4] = { 0.0f, 0.0f, 0.5f, 0.5f };
+
+...
+
+// Build sprite instance transfer
+SpriteInstance* dataPtr = SDL_MapGPUTransferBuffer(
+    context->Device,
+    SpriteDataTransferBuffer,
+    true
+);
+
+for (Uint32 i = 0; i < SPRITE_COUNT; i += 1)
+{
+    int ravioli = rand() % 4;
+    dataPtr[i].x = (float)(rand() % 640);
+    dataPtr[i].y = (float)(rand() % 480);
+    dataPtr[i].z = 0;
+    dataPtr[i].rotation = 0;
+    dataPtr[i].w = 32;
+    dataPtr[i].h = 32;
+    dataPtr[i].tex_u = uCoords[ravioli];
+    dataPtr[i].tex_v = vCoords[ravioli];
+    dataPtr[i].tex_w = 0.5f;
+    dataPtr[i].tex_h = 0.5f;
+    dataPtr[i].r = 1.0f;
+    dataPtr[i].g = 1.0f;
+    dataPtr[i].b = 1.0f;
+    dataPtr[i].a = 1.0f;
+}
+
+SDL_UnmapGPUTransferBuffer(context->Device, SpriteDataTransferBuffer);
+
+This buffer will cause random sprites to be drawn all over the place. Once this data has been built into the transfer buffer, we have to upload it.
+
+// Upload sprite data
+SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(cmdBuf);
+SDL_UploadToGPUBuffer(
+    copyPass,
+    &(SDL_GPUTransferBufferLocation) {
+        .transfer_buffer = SpriteDataTransferBuffer,
+        .offset = 0
+    },
+    &(SDL_GPUBufferRegion) {
+        .buffer = SpriteDataBuffer,
+        .offset = 0,
+        .size = SPRITE_COUNT * sizeof(SpriteInstance)
+    },
+    true
+);
+SDL_EndGPUCopyPass(copyPass);
+
+
+Rendering
+With everything now in place for our draw call, all we have left to do is set up the render state.
+
+// Render to the swapchain texture
+SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(
+    cmdBuf,
+    &(SDL_GPUColorTargetInfo){
+        .texture = swapchainTexture,
+        .cycle = false,
+        .load_op = SDL_GPU_LOADOP_CLEAR,
+        .store_op = SDL_GPU_STOREOP_STORE,
+        .clear_color = { 0, 0, 0, 1 }
+    },
+    1,
+    NULL
+);
+
+// Bind the sprite pipeline
+SDL_BindGPUGraphicsPipeline(renderPass, SpritePipeline);
+
+// Bind the sprite data buffer as a storage buffer
+SDL_BindGPUVertexStorageBuffers(
+    renderPass,
+    0,
+    &SpriteDataBuffer,
+    1
+);
+
+// Bind the ravioli atlas
+SDL_BindGPUFragmentSamplers(
+    renderPass,
+    0,
+    &(SDL_GPUTextureSamplerBinding){
+        .texture = Texture,
+        .sampler = Sampler
+    },
+    1
+);
+
+Matrix4x4 cameraMatrix = Matrix4x4_CreateOrthographicOffCenter(
+    0,
+    640,
+    480,
+    0,
+    0,
+    -1
+);
+
+// Push the view-projection matrix as vertex uniform data
+SDL_PushGPUVertexUniformData(
+    cmdBuf,
+    0,
+    &cameraMatrix,
+    sizeof(Matrix4x4)
+);
+
+// Draw 6 vertices per sprite!
+SDL_DrawGPUPrimitives(
+    renderPass,
+    SPRITE_COUNT * 6,
+    1,
+    0,
+    0
+);
+
+SDL_EndGPURenderPass(renderPass);
+

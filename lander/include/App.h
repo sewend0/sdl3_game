@@ -32,11 +32,16 @@ class App {
     const std::filesystem::path base_path{SDL_GetBasePath()};
     const std::filesystem::path font_path{"assets\\font"};
     const std::filesystem::path audio_path{"assets\\audio"};
-    const std::filesystem::path shader_path{"assets\\shaders"};
+    const std::filesystem::path image_path{"assets\\image"};
+    const std::filesystem::path shader_path{"assets\\shader"};
 
     const std::vector<std::string> font_files{"pong_font.ttf"};
     const std::vector<std::string> audio_files{"fall.wav", "move.wav"};
     const std::vector<std::string> shader_files{"demo.vert.spv", "demo.frag.spv"};
+    const std::vector<std::string> shader2_files{
+        "pull_sprite_batch.vert.spv", "textured_quad_color.frag.spv"
+    };
+    const std::string atlas_file{"face_atlas.bmp"};
 
 public:
     // App() = default;

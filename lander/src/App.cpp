@@ -100,7 +100,10 @@ auto App::init_timer() -> bool {
 
 auto App::init_graphics() -> bool {
     m_graphics = std::make_unique<Graphics_system>();
-    if (not m_graphics->init(base_path / shader_path, shader_files, m_window.get()))
+    if (not m_graphics->init(
+            base_path / shader_path, base_path / image_path / atlas_file, shader2_files,
+            m_window.get()
+        ))
         return utils::log_fail("App failed to initialize graphics system");
     return true;
 }

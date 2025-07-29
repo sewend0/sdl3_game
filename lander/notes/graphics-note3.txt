@@ -1,5 +1,172 @@
 
 
+#ifndef GRAPHICS_H
+#define GRAPHICS_H
+
+#include <SDL3/SDL.h>
+// #include <SDL3_image/SDL_image.h>
+#include <SDL3_shadercross/SDL_shadercross.h>
+#include <System.h>
+#include <Utils.h>
+
+#include <cassert>
+#include <unordered_map>
+
+// Abstract GPU logic (shaders, pipelines, etc.)
+// Keep GPU code clean, portable
+
+/*
+🧠 Mental Models:
+CPU builds the logic, GPU does the rendering.
+All visuals must be turned into vertex data.
+Shaders control how data is drawn (e.g., color, shape deformation).
+Uniforms = constant per-frame values (e.g., transform matrix).
+Buffers = long-term memory for vertex data.
+*/
+
+//
+// Triangle Demo
+// universal properties to set before draw call
+struct Uniform_buffer {
+    float time;
+};
+
+static Uniform_buffer time_uniform{};
+
+// the vertex input layout
+struct Vertex {
+    float x, y, z;       // vec3 position
+    float r, g, b, a;    // vec4 color
+};
+
+// a list of vertices
+static Vertex vertices[]{
+    {0.0F, 0.5F, 0.0F, 1.0F, 0.0F, 0.0F, 1.0F},      // top vertex
+    {-0.5F, -0.5F, 0.0F, 1.0F, 1.0F, 0.0F, 1.0F},    // bottom left vertex
+    {0.5F, -0.5F, 0.0F, 1.0F, 0.0F, 1.0F, 1.0F}      // bottom right vertex
+};
+// Triangle Demo
+//
+
+//
+// Sprite Batch Demo
+struct Sprite_instance {
+    float x, y, z;
+    float rotation;
+    float w, h, padding_a, padding_b;
+    float tex_u, tex_v, tex_w, tex_h;
+    float r, g, b, a;
+};
+
+struct Matrix4x4 {
+    float m11, m12, m13, m14;
+    float m21, m22, m23, m24;
+    float m31, m32, m33, m34;
+    float m41, m42, m43, m44;
+};
+
+static constexpr Uint32 sprite_count{8192};
+
+static std::array<float, 4> ucoords{0.0F, 0.5F, 0.0F, 0.5F};
+static std::array<float, 4> vcoords{0.0F, 0.0F, 0.5F, 0.5F};
+
+// Sprite Batch Demo
+//
+
+struct Pipeline_deleter {
+    SDL_GPUDevice* device{nullptr};
+
+    void operator()(SDL_GPUGraphicsPipeline* pipeline) const {
+        if (device && pipeline)
+            SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
+    }
+};
+
+struct Device_deleter {
+    void operator()(SDL_GPUDevice* device) const {
+        if (device)
+            SDL_DestroyGPUDevice(device);
+    }
+};
+
+using Pipeline_ptr = std::unique_ptr<SDL_GPUGraphicsPipeline, Pipeline_deleter>;
+using Device_ptr = std::unique_ptr<SDL_GPUDevice, Device_deleter>;
+
+class Graphics_system : public System {
+public:
+    Graphics_system() = default;
+    ~Graphics_system() override;
+
+    // auto init(
+    //     const std::filesystem::path& assets_path, const std::vector<std::string>& file_names,
+    //     SDL_Window* window
+    // ) -> bool;
+    auto init(
+        const std::filesystem::path& assets_path, const std::filesystem::path& image_path,
+        const std::vector<std::string>& file_names, SDL_Window* window
+    ) -> bool;
+    auto quit(SDL_Window* window) -> void;
+
+    auto prepare_device(SDL_Window* window) -> bool;
+    auto copy_pass() -> bool;
+    // auto make_shader(const std::string& file_name, SDL_GPUShaderStage stage) -> SDL_GPUShader*;
+    auto make_shader(const std::string& file_name) -> SDL_GPUShader*;
+    auto make_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
+        -> SDL_GPUGraphicsPipeline*;
+
+    auto try_render_pass(SDL_Window* window) -> bool;
+    auto begin_render_pass(
+        SDL_Window* window, SDL_GPUCommandBuffer*& command_buffer, SDL_GPURenderPass*& render_pass
+    ) -> bool;
+    auto end_render_pass(SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass)
+        -> bool;
+    auto draw_call(SDL_GPURenderPass*& render_pass) -> bool;
+
+    //
+    // Triangle Demo
+    auto load_image(const std::string& file_name) -> SDL_Surface*;
+    // Triangle Demo
+    //
+
+    //
+    // Sprite Batch Demo
+    auto Matrix4x4_CreateOrthographicOffCenter(
+        float left, float right, float bottom, float top, float zNearPlane, float zFarPlane
+    ) -> Matrix4x4;
+    // Sprite Batch Demo
+    //
+
+private:
+    Device_ptr m_gpu_device;
+    Pipeline_ptr m_gfx_pipeline;
+
+    //
+    // Triangle Demo
+    SDL_GPUTransferBuffer* m_transfer_buffer;
+    SDL_GPUBuffer* m_vertex_buffer;
+    // Triangle Demo
+    //
+
+    //
+    // Sprite Batch Demo
+    std::filesystem::path m_image_path;
+    SDL_GPUSampler* m_sampler;
+    SDL_GPUTexture* m_texture;
+    SDL_GPUTransferBuffer* m_sprite_transfer_buffer;
+    SDL_GPUBuffer* m_sprite_data_buffer;
+    // Sprite Batch Demo
+    //
+};
+
+#endif    // GRAPHICS_H
+
+
+
+
+
+
+
+
 #include <Graphics.h>
 
 Graphics_system::~Graphics_system() {
@@ -604,129 +771,3 @@ auto Graphics_system::Matrix4x4_CreateOrthographicOffCenter(
                        zNearPlane / (zNearPlane - zFarPlane),
                        1};
 }
-
-auto Lander_renderer::init(SDL_GPUDevice* device) -> bool {
-    // create vertex buffer
-    SDL_GPUBufferCreateInfo buffer_create_info{
-        .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
-        .size = sizeof(lander_vertices),
-    };
-    m_vertex_buffer = SDL_CreateGPUBuffer(device, &buffer_create_info);
-    if (not m_vertex_buffer)
-        return utils::fail();
-
-    // create transfer buffer to upload to vertex buffer
-    SDL_GPUTransferBufferCreateInfo transfer_create_info{
-        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-        .size = sizeof(lander_vertices),
-    };
-    m_transfer_buffer = SDL_CreateGPUTransferBuffer(device, &transfer_create_info);
-    if (not m_transfer_buffer)
-        return utils::fail();
-
-    // map transfer buffer to a pointer
-    Vertex_2d* transfer_ptr{
-        static_cast<Vertex_2d*>(SDL_MapGPUTransferBuffer(device, m_transfer_buffer, false))
-    };
-    if (not transfer_ptr)
-        return utils::fail();
-
-    // copy the data, and unmap when finished updating transfer buffer
-    // is this right? .data()?
-    SDL_memcpy(transfer_ptr, lander_vertices.data(), sizeof(lander_vertices));
-    SDL_UnmapGPUTransferBuffer(device, m_transfer_buffer);
-
-    // start a copy pass
-    SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(device)};
-    if (not command_buffer)
-        return utils::fail();
-
-    SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
-    if (not copy_pass)
-        return utils::fail();
-
-    // locate the data
-    SDL_GPUTransferBufferLocation location{
-        .offset = 0,
-        .transfer_buffer = m_transfer_buffer,
-    };
-
-    // locate upload destination
-    SDL_GPUBufferRegion region{
-        .offset = 0,
-        .size = sizeof(lander_vertices),
-        .buffer = m_vertex_buffer,
-    };
-
-    // upload the data, end the copy pass, and submit command buffer
-    SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
-    SDL_EndGPUCopyPass(copy_pass);
-    if (not SDL_SubmitGPUCommandBuffer(command_buffer))
-        return utils::fail();
-
-    return true;
-}
-
-auto Lander_renderer::destroy(SDL_GPUDevice* device) -> void {
-    SDL_ReleaseGPUBuffer(device, m_vertex_buffer);
-    SDL_ReleaseGPUTransferBuffer(device, m_transfer_buffer);
-}
-
-auto Lander_renderer::draw(
-    SDL_GPUDevice* device, SDL_Window* window, SDL_GPUGraphicsPipeline* pipeline, SDL_FPoint pos,
-    float rot
-) -> bool {
-
-    Transform transform{pos.x, pos.y, rot};
-    // acquire the command buffer
-    SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(device)};
-    if (not command_buffer)
-        return utils::fail();
-
-    // get the swapchain texture
-    SDL_GPUTexture* swapchain_texture;
-    Uint32 width;
-    Uint32 height;
-
-    // end the frame early if swapchain is not available
-    if (not SDL_WaitAndAcquireGPUSwapchainTexture(
-            command_buffer, window, &swapchain_texture, &width, &height
-        )) {
-        SDL_SubmitGPUCommandBuffer(command_buffer);
-        return utils::fail();
-    }
-
-    // DEBUG - MAKE BACKGROUND / create the color target
-    SDL_GPUColorTargetInfo color_target{};
-    color_target.clear_color = {0.15F, 0.17F, 0.20F, 1.00F};
-    color_target.load_op = SDL_GPU_LOADOP_CLEAR;
-    color_target.store_op = SDL_GPU_STOREOP_STORE;
-    color_target.texture = swapchain_texture;
-
-    // begin a render pass
-    SDL_GPURenderPass* render_pass{SDL_BeginGPURenderPass(command_buffer, &color_target, 1, nullptr)
-    };
-    if (not render_pass)
-        return utils::fail();
-
-    // bind the graphics pipeline
-    SDL_BindGPUGraphicsPipeline(render_pass, pipeline);
-
-    // bind the vertex buffer
-    SDL_GPUBufferBinding buffer_binding{
-        .offset = 0,
-        .buffer = m_vertex_buffer,
-    };
-    SDL_BindGPUVertexBuffers(render_pass, 0, &buffer_binding, 1);
-
-    // update the uniform data
-    SDL_PushGPUVertexUniformData(command_buffer, 0, &m_uniform_transform, sizeof(Transform));
-
-    // issue draw call for vertices
-    SDL_DrawGPUPrimitives(render_pass, lander_vertices.size(), 1, 0, 0);
-
-    // end render pass and submit command buffer
-    SDL_EndGPURenderPass(render_pass);
-    return SDL_SubmitGPUCommandBuffer(command_buffer);
-}
-

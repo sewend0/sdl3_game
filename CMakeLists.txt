@@ -47,6 +47,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         lander/src/Audio.cpp
         lander/src/Game.cpp
         lander/src/Graphics.cpp
+        lander/src/Lander.cpp
         lander/src/Text.cpp
         lander/src/Timer.cpp
         lander/src/Utils.cpp
@@ -56,6 +57,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         lander/include/Audio.h
         lander/include/Game.h
         lander/include/Graphics.h
+        lander/include/Lander.h
         lander/include/System.h
         lander/include/Text.h
         lander/include/Timer.h

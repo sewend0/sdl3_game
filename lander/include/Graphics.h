@@ -15,6 +15,41 @@
 // Abstract GPU logic (shaders, pipelines, etc.)
 // Keep GPU code clean, portable
 
+/*
+🧠 Mental Models:
+CPU builds the logic, GPU does the rendering.
+All visuals must be turned into vertex data.
+Shaders control how data is drawn (e.g., color, shape deformation).
+Uniforms = constant per-frame values (e.g., transform matrix).
+Buffers = long-term memory for vertex data.
+
+🚀 Step-by-Step Roadmap:
+Step 1: Draw the lander statically
+    Make a vertex array (CPU-side) for the lander’s shape.
+    Upload once to a GPU buffer.
+    Draw it every frame at a fixed screen position.
+
+Step 2: Move the lander
+    Add a uniform for position and rotation.
+    Update those per frame based on game state.
+    Apply the transform in the vertex shader.
+
+Step 3: Draw terrain
+    Create a series of connected lines or triangles.
+    Upload to a GPU buffer.
+    If static, do this once; otherwise, update as needed.
+
+Step 4: Add explosion effect
+    Break lander shape into independent parts.
+    On explosion, push each part outward in CPU logic.
+    Store the parts as vertex groups with separate velocities.
+
+Step 5: Particle system (optional)
+    Keep a buffer of quads or points.
+    Update positions each frame.
+    Reupload and draw in batches.
+*/
+
 //
 // Triangle Demo
 // universal properties to set before draw call
@@ -63,6 +98,23 @@ static std::array<float, 4> vcoords{0.0F, 0.0F, 0.5F, 0.5F};
 
 // Sprite Batch Demo
 //
+
+struct Vertex_2d {
+    SDL_FPoint pos;
+    SDL_FColor color;
+};
+
+constexpr std::array<Vertex_2d, 3> lander_vertices{
+    Vertex_2d{.pos = {0.0F, 10.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+    Vertex_2d{.pos = {-5.0F, -5.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+    Vertex_2d{.pos = {5.0F, 5.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+};
+
+struct Transform {
+    float x, y;
+    float r;
+    float padding;    // to align to 16 bytes (std140)
+};
 
 struct Pipeline_deleter {
     SDL_GPUDevice* device{nullptr};
@@ -148,5 +200,31 @@ private:
     // Sprite Batch Demo
     //
 };
+
+class Lander_renderer {
+public:
+    auto init(SDL_GPUDevice* device) -> bool;    // upload shape
+    auto destroy(SDL_GPUDevice* device) -> void;
+    auto draw(
+        SDL_GPUDevice* device, SDL_Window* window, SDL_GPUGraphicsPipeline* pipeline,
+        SDL_FPoint pos, float rot
+    ) -> bool;    // should just be pos, rotation, not lander
+
+private:
+    SDL_GPUBuffer* m_vertex_buffer;
+    SDL_GPUTransferBuffer* m_transfer_buffer;
+    // SDL_GPUBuffer* m_uniform_buffer;
+    // SDL_GPUTransferBuffer* m_uniform_transfer_buffer;
+    // SDL_GPUGraphicsPipeline m_pipeline; // should be graphics systems... so not here
+    // You SDL_PushGPUFragmentUniformData() right before a draw call
+    // you do not need to create any more buffers or copy passes
+
+    Transform m_uniform_transform;
+};
+
+// next steps are...
+// create shader files...
+// make/hook into already created pipeline
+// comment out all the unused stuffs
 
 #endif    // GRAPHICS_H

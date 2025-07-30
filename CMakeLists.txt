@@ -58,6 +58,8 @@ target_sources("${CMAKE_PROJECT_NAME}"
         lander/include/Game.h
         lander/include/Graphics.h
         lander/include/Lander.h
+        lander/include/Render_instance.h
+        lander/include/Render_instance_builder.h
         lander/include/System.h
         lander/include/Text.h
         lander/include/Timer.h

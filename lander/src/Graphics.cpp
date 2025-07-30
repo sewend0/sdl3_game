@@ -15,7 +15,7 @@ auto Graphics_system::init(
 ) -> bool {
 
     m_assets_path = assets_path;
-    m_image_path = image_path;
+    // m_image_path = image_path;
 
     // seeds random gen for sprite batch demo
     SDL_srand(0);
@@ -24,17 +24,9 @@ auto Graphics_system::init(
     if (not prepare_device(window))
         return utils::log_fail("Unable to get a prepare GPU device");
 
+    // triangle demo
     // if (not copy_pass())
     //     return utils::log_fail("Failed to perform copy pass");
-    //
-    // // create shaders
-    // SDL_GPUShader* vertex_shader{make_shader(file_names[0])};
-    // if (not vertex_shader)
-    //     return utils::log_fail("Failed to create vertex shader");
-    //
-    // SDL_GPUShader* fragment_shader{make_shader(file_names[1])};
-    // if (not fragment_shader)
-    //     return utils::log_fail("Failed to create fragment shader");
 
     // create shaders
     SDL_GPUShader* vertex_shader{make_shader(file_names[0])};
@@ -55,22 +47,30 @@ auto Graphics_system::init(
 
     m_gfx_pipeline = Pipeline_ptr{pipeline, Pipeline_deleter{m_gpu_device.get()}};
 
-    if (not copy_pass())
-        return utils::log_fail("Failed to perform copy pass");
+    // sprite demo
+    // if (not copy_pass())
+    //     return utils::log_fail("Failed to perform copy pass");
+
+    m_lander = Lander_renderer{};
+    if (not m_lander.init(m_gpu_device.get()))
+        return utils::log_fail("Failed to create lander renderer");
 
     return true;
 }
 
 auto Graphics_system::quit(SDL_Window* window) -> void {
     // release buffers
-    SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
-    SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
+    // SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
+    // SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
 
-    // release resources - sprite demo
-    SDL_ReleaseGPUSampler(m_gpu_device.get(), m_sampler);
-    SDL_ReleaseGPUTexture(m_gpu_device.get(), m_texture);
-    SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_sprite_transfer_buffer);
-    SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_sprite_data_buffer);
+    // // release resources - sprite demo
+    // SDL_ReleaseGPUSampler(m_gpu_device.get(), m_sampler);
+    // SDL_ReleaseGPUTexture(m_gpu_device.get(), m_texture);
+    // SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_sprite_transfer_buffer);
+    // SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_sprite_data_buffer);
+
+    // release renderers
+    m_lander.destroy(m_gpu_device.get());
 
     // release swapchain
     SDL_ReleaseWindowFromGPUDevice(m_gpu_device.get(), window);
@@ -110,160 +110,160 @@ auto Graphics_system::prepare_device(SDL_Window* window) -> bool {
     return true;
 }
 
-auto Graphics_system::copy_pass() -> bool {
-    // // create the vertex buffer
-    // SDL_GPUBufferCreateInfo buffer_info{};
-    // buffer_info.size = sizeof(vertices);
-    // buffer_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
-    // m_vertex_buffer = SDL_CreateGPUBuffer(m_gpu_device.get(), &buffer_info);
-    // if (not m_vertex_buffer)
-    //     return utils::fail();
-    //
-    // // create a transfer buffer to upload to the vertex buffer
-    // SDL_GPUTransferBufferCreateInfo transfer_info{};
-    // transfer_info.size = sizeof(vertices);
-    // transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    // m_transfer_buffer = SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &transfer_info);
-    // if (not m_transfer_buffer)
-    //     return utils::fail();
-    //
-    // // map the transfer buffer to a pointer
-    // Vertex* data{
-    //     static_cast<Vertex*>(SDL_MapGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer,
-    //     false))
-    // };
-    // if (not data)
-    //     return utils::fail();
-    //
-    // // copy the data - data[0] = vertices[0]; data[1] = vertices[1]; etc...
-    // SDL_memcpy(data, vertices, sizeof(vertices));
-    //
-    // // unmap the pointer when you are done updating the transfer buffer
-    // SDL_UnmapGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
-    //
-    // // start a copy pass
-    // SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(m_gpu_device.get())};
-    // if (not command_buffer)
-    //     return utils::fail();
-    // SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
-    //
-    // // where is the data
-    // SDL_GPUTransferBufferLocation location{};
-    // location.transfer_buffer = m_transfer_buffer;
-    // location.offset = 0;    // start from the beginning
-    //
-    // // where to upload the data
-    // SDL_GPUBufferRegion region{};
-    // region.buffer = m_vertex_buffer;
-    // region.size = sizeof(vertices);    // size of data in bytes
-    // region.offset = 0;                 // begin writing from the first vertex
-    //
-    // // upload the data
-    // SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
-    //
-    // // end the copy pass
-    // SDL_EndGPUCopyPass(copy_pass);
-    // if (not SDL_SubmitGPUCommandBuffer(command_buffer))
-    //     return utils::fail();
-    //
-    // return true;
-
-    // load image data
-    SDL_Surface* image_data{load_image(m_image_path.string())};
-    if (not image_data)
-        return utils::fail();
-
-    SDL_GPUTransferBufferCreateInfo texture_transfer_create_info{
-        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-        .size = static_cast<Uint32>(image_data->w * image_data->h * 4)
-    };
-
-    SDL_GPUTransferBuffer* texture_transfer_buffer{
-        SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &texture_transfer_create_info)
-    };
-
-    Uint8* texture_transfer_ptr{static_cast<Uint8*>(
-        SDL_MapGPUTransferBuffer(m_gpu_device.get(), texture_transfer_buffer, false)
-    )};
-
-    SDL_memcpy(texture_transfer_ptr, image_data->pixels, image_data->w * image_data->h * 4);
-    SDL_UnmapGPUTransferBuffer(m_gpu_device.get(), texture_transfer_buffer);
-
-    // Create GPU resources
-    SDL_GPUTextureCreateInfo texture_create_info{
-        .type = SDL_GPU_TEXTURETYPE_2D,
-        .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
-        .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
-        .width = static_cast<Uint32>(image_data->w),
-        .height = static_cast<Uint32>(image_data->h),
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-    };
-    m_texture = SDL_CreateGPUTexture(m_gpu_device.get(), &texture_create_info);
-    if (not m_texture)
-        return utils::fail();
-
-    SDL_GPUSamplerCreateInfo sampler_create_info{
-        .min_filter = SDL_GPU_FILTER_NEAREST,
-        .mag_filter = SDL_GPU_FILTER_NEAREST,
-        .mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
-        .address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
-        .address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
-        .address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
-    };
-    m_sampler = SDL_CreateGPUSampler(m_gpu_device.get(), &sampler_create_info);
-    if (not m_sampler)
-        return utils::fail();
-
-    SDL_GPUTransferBufferCreateInfo sprite_transfer_create_info{
-        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-        .size = sprite_count * sizeof(Sprite_instance),
-    };
-    m_sprite_transfer_buffer =
-        SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &sprite_transfer_create_info);
-    if (not m_sprite_transfer_buffer)
-        return utils::fail();
-
-    SDL_GPUBufferCreateInfo sprite_buffer_create_info{
-        .usage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
-        .size = sprite_count * sizeof(Sprite_instance),
-    };
-    m_sprite_data_buffer = SDL_CreateGPUBuffer(m_gpu_device.get(), &sprite_buffer_create_info);
-    if (not m_sprite_data_buffer)
-        return utils::fail();
-
-    // transfer the up-front data
-    SDL_GPUCommandBuffer* upload_cmd_buf{SDL_AcquireGPUCommandBuffer(m_gpu_device.get())};
-    if (not upload_cmd_buf)
-        return utils::fail();
-
-    SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(upload_cmd_buf)};
-    if (not copy_pass)
-        return utils::fail();
-
-    SDL_GPUTextureTransferInfo transfer_info{
-        .transfer_buffer = texture_transfer_buffer,
-        .offset = 0,    // zeroes out the rest
-    };
-
-    SDL_GPUTextureRegion region{
-        .texture = m_texture,
-        .w = static_cast<Uint32>(image_data->w),
-        .h = static_cast<Uint32>(image_data->h),
-        .d = 1,
-    };
-
-    SDL_UploadToGPUTexture(copy_pass, &transfer_info, &region, false);
-
-    SDL_EndGPUCopyPass(copy_pass);
-    if (not SDL_SubmitGPUCommandBuffer(upload_cmd_buf))
-        return utils::fail();
-
-    SDL_DestroySurface(image_data);
-    SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), texture_transfer_buffer);
-
-    return true;
-}
+// auto Graphics_system::copy_pass() -> bool {
+//     // // create the vertex buffer
+//     // SDL_GPUBufferCreateInfo buffer_info{};
+//     // buffer_info.size = sizeof(vertices);
+//     // buffer_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+//     // m_vertex_buffer = SDL_CreateGPUBuffer(m_gpu_device.get(), &buffer_info);
+//     // if (not m_vertex_buffer)
+//     //     return utils::fail();
+//     //
+//     // // create a transfer buffer to upload to the vertex buffer
+//     // SDL_GPUTransferBufferCreateInfo transfer_info{};
+//     // transfer_info.size = sizeof(vertices);
+//     // transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+//     // m_transfer_buffer = SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &transfer_info);
+//     // if (not m_transfer_buffer)
+//     //     return utils::fail();
+//     //
+//     // // map the transfer buffer to a pointer
+//     // Vertex* data{
+//     //     static_cast<Vertex*>(SDL_MapGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer,
+//     //     false))
+//     // };
+//     // if (not data)
+//     //     return utils::fail();
+//     //
+//     // // copy the data - data[0] = vertices[0]; data[1] = vertices[1]; etc...
+//     // SDL_memcpy(data, vertices, sizeof(vertices));
+//     //
+//     // // unmap the pointer when you are done updating the transfer buffer
+//     // SDL_UnmapGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
+//     //
+//     // // start a copy pass
+//     // SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(m_gpu_device.get())};
+//     // if (not command_buffer)
+//     //     return utils::fail();
+//     // SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
+//     //
+//     // // where is the data
+//     // SDL_GPUTransferBufferLocation location{};
+//     // location.transfer_buffer = m_transfer_buffer;
+//     // location.offset = 0;    // start from the beginning
+//     //
+//     // // where to upload the data
+//     // SDL_GPUBufferRegion region{};
+//     // region.buffer = m_vertex_buffer;
+//     // region.size = sizeof(vertices);    // size of data in bytes
+//     // region.offset = 0;                 // begin writing from the first vertex
+//     //
+//     // // upload the data
+//     // SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
+//     //
+//     // // end the copy pass
+//     // SDL_EndGPUCopyPass(copy_pass);
+//     // if (not SDL_SubmitGPUCommandBuffer(command_buffer))
+//     //     return utils::fail();
+//     //
+//     // return true;
+//
+//     // load image data
+//     SDL_Surface* image_data{load_image(m_image_path.string())};
+//     if (not image_data)
+//         return utils::fail();
+//
+//     SDL_GPUTransferBufferCreateInfo texture_transfer_create_info{
+//         .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+//         .size = static_cast<Uint32>(image_data->w * image_data->h * 4)
+//     };
+//
+//     SDL_GPUTransferBuffer* texture_transfer_buffer{
+//         SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &texture_transfer_create_info)
+//     };
+//
+//     Uint8* texture_transfer_ptr{static_cast<Uint8*>(
+//         SDL_MapGPUTransferBuffer(m_gpu_device.get(), texture_transfer_buffer, false)
+//     )};
+//
+//     SDL_memcpy(texture_transfer_ptr, image_data->pixels, image_data->w * image_data->h * 4);
+//     SDL_UnmapGPUTransferBuffer(m_gpu_device.get(), texture_transfer_buffer);
+//
+//     // Create GPU resources
+//     SDL_GPUTextureCreateInfo texture_create_info{
+//         .type = SDL_GPU_TEXTURETYPE_2D,
+//         .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+//         .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
+//         .width = static_cast<Uint32>(image_data->w),
+//         .height = static_cast<Uint32>(image_data->h),
+//         .layer_count_or_depth = 1,
+//         .num_levels = 1,
+//     };
+//     m_texture = SDL_CreateGPUTexture(m_gpu_device.get(), &texture_create_info);
+//     if (not m_texture)
+//         return utils::fail();
+//
+//     SDL_GPUSamplerCreateInfo sampler_create_info{
+//         .min_filter = SDL_GPU_FILTER_NEAREST,
+//         .mag_filter = SDL_GPU_FILTER_NEAREST,
+//         .mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+//         .address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+//         .address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+//         .address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+//     };
+//     m_sampler = SDL_CreateGPUSampler(m_gpu_device.get(), &sampler_create_info);
+//     if (not m_sampler)
+//         return utils::fail();
+//
+//     SDL_GPUTransferBufferCreateInfo sprite_transfer_create_info{
+//         .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+//         .size = sprite_count * sizeof(Sprite_instance),
+//     };
+//     m_sprite_transfer_buffer =
+//         SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &sprite_transfer_create_info);
+//     if (not m_sprite_transfer_buffer)
+//         return utils::fail();
+//
+//     SDL_GPUBufferCreateInfo sprite_buffer_create_info{
+//         .usage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
+//         .size = sprite_count * sizeof(Sprite_instance),
+//     };
+//     m_sprite_data_buffer = SDL_CreateGPUBuffer(m_gpu_device.get(), &sprite_buffer_create_info);
+//     if (not m_sprite_data_buffer)
+//         return utils::fail();
+//
+//     // transfer the up-front data
+//     SDL_GPUCommandBuffer* upload_cmd_buf{SDL_AcquireGPUCommandBuffer(m_gpu_device.get())};
+//     if (not upload_cmd_buf)
+//         return utils::fail();
+//
+//     SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(upload_cmd_buf)};
+//     if (not copy_pass)
+//         return utils::fail();
+//
+//     SDL_GPUTextureTransferInfo transfer_info{
+//         .transfer_buffer = texture_transfer_buffer,
+//         .offset = 0,    // zeroes out the rest
+//     };
+//
+//     SDL_GPUTextureRegion region{
+//         .texture = m_texture,
+//         .w = static_cast<Uint32>(image_data->w),
+//         .h = static_cast<Uint32>(image_data->h),
+//         .d = 1,
+//     };
+//
+//     SDL_UploadToGPUTexture(copy_pass, &transfer_info, &region, false);
+//
+//     SDL_EndGPUCopyPass(copy_pass);
+//     if (not SDL_SubmitGPUCommandBuffer(upload_cmd_buf))
+//         return utils::fail();
+//
+//     SDL_DestroySurface(image_data);
+//     SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), texture_transfer_buffer);
+//
+//     return true;
+// }
 
 auto Graphics_system::make_shader(const std::string& file_name) -> SDL_GPUShader* {
 
@@ -285,11 +285,12 @@ auto Graphics_system::make_shader(const std::string& file_name) -> SDL_GPUShader
         return static_cast<SDL_GPUShader*>(utils::log_null("Failed to load shader file's code"));
 
     // create the vertex/fragment shader
-    SDL_ShaderCross_SPIRV_Info shader_info{};
-    shader_info.bytecode = static_cast<Uint8*>(code);
-    shader_info.bytecode_size = code_size;
-    shader_info.entrypoint = "main";
-    shader_info.shader_stage = stage;
+    SDL_ShaderCross_SPIRV_Info shader_info{
+        .bytecode = static_cast<Uint8*>(code),
+        .bytecode_size = code_size,
+        .entrypoint = "main",
+        .shader_stage = stage,
+    };
 
     // figure out shader metadata
     SDL_ShaderCross_GraphicsShaderMetadata* shader_metadata{
@@ -380,6 +381,64 @@ auto Graphics_system::make_pipeline(
     //
     // return graphics_pipeline;
 
+    // SDL_GPUColorTargetBlendState blend_state{
+    //     .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+    //     .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+    //     .color_blend_op = SDL_GPU_BLENDOP_ADD,
+    //     .src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+    //     .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+    //     .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+    //     .enable_blend = true,
+    // };
+    //
+    // std::array<SDL_GPUColorTargetDescription, 1> target_descriptions{
+    //     SDL_GetGPUSwapchainTextureFormat(m_gpu_device.get(), window), blend_state
+    // };
+    //
+    // SDL_GPUGraphicsPipelineTargetInfo target_info{
+    //     .color_target_descriptions = &target_descriptions[0],
+    //     .num_color_targets = 1,
+    // };
+    //
+    // SDL_GPUGraphicsPipelineCreateInfo create_info{
+    //     .vertex_shader = vertex,
+    //     .fragment_shader = fragment,
+    //     .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+    //     .target_info = target_info,
+    // };
+    //
+    // SDL_GPUGraphicsPipeline* render_pipeline{
+    //     SDL_CreateGPUGraphicsPipeline(m_gpu_device.get(), &create_info)
+    // };
+    // if (not render_pipeline)
+    //     return static_cast<SDL_GPUGraphicsPipeline*>(utils::fail_null());
+    //
+    // return render_pipeline;
+
+    // describe vertex buffers
+    std::array<SDL_GPUVertexBufferDescription, 1> vertex_buffer_descriptions{{
+        .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+        .instance_step_rate = 0,
+        .pitch = sizeof(Vertex_2d),
+        .slot = 0,
+    }};
+
+    // describe vertex attributes
+    SDL_GPUVertexAttribute a_position{
+        .buffer_slot = 0,
+        .location = 0,
+        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+        .offset = 0,
+    };
+    SDL_GPUVertexAttribute a_color{
+        .buffer_slot = 0,
+        .location = 1,
+        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT,
+        .offset = sizeof(float) * 2,
+    };
+    std::array<SDL_GPUVertexAttribute, 2> vertex_attributes{a_position, a_color};
+
+    // describe color target
     SDL_GPUColorTargetBlendState blend_state{
         .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
         .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
@@ -389,221 +448,228 @@ auto Graphics_system::make_pipeline(
         .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
         .enable_blend = true,
     };
-
     std::array<SDL_GPUColorTargetDescription, 1> target_descriptions{
         SDL_GetGPUSwapchainTextureFormat(m_gpu_device.get(), window), blend_state
     };
 
+    // create pipeline - bind shaders
     SDL_GPUGraphicsPipelineTargetInfo target_info{
-        .color_target_descriptions = &target_descriptions[0],
+        .color_target_descriptions = target_descriptions.data(),
         .num_color_targets = 1,
     };
-
+    SDL_GPUVertexInputState vertex_input_state{
+        .num_vertex_buffers = 1,
+        .vertex_buffer_descriptions = vertex_buffer_descriptions.data(),
+        .num_vertex_attributes = 2,
+        .vertex_attributes = vertex_attributes.data(),
+    };
     SDL_GPUGraphicsPipelineCreateInfo create_info{
         .vertex_shader = vertex,
         .fragment_shader = fragment,
         .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
         .target_info = target_info,
+        .vertex_input_state = vertex_input_state,
     };
-
-    SDL_GPUGraphicsPipeline* render_pipeline{
+    SDL_GPUGraphicsPipeline* pipeline{
         SDL_CreateGPUGraphicsPipeline(m_gpu_device.get(), &create_info)
     };
-    if (not render_pipeline)
+    if (not pipeline)
         return static_cast<SDL_GPUGraphicsPipeline*>(utils::fail_null());
 
-    return render_pipeline;
+    return pipeline;
 }
 
-auto Graphics_system::try_render_pass(SDL_Window* window) -> bool {
-
-    SDL_GPUCommandBuffer* command_buffer{};
-    SDL_GPURenderPass* render_pass{};
-
-    if (not begin_render_pass(window, command_buffer, render_pass))
-        return utils::fail();
-
-    draw_call(render_pass);
-
-    if (not end_render_pass(command_buffer, render_pass))
-        return utils::fail();
-
-    return true;
-}
-
-auto Graphics_system::begin_render_pass(
-    SDL_Window* window, SDL_GPUCommandBuffer*& command_buffer, SDL_GPURenderPass*& render_pass
-) -> bool {
-
-    // acquire the command buffer
-    command_buffer = SDL_AcquireGPUCommandBuffer(m_gpu_device.get());
-    if (not command_buffer)
-        return utils::fail();
-
-    // get the swapchain texture
-    SDL_GPUTexture* swapchain_texture;
-    Uint32 width;
-    Uint32 height;
-
-    // end the frame early if swapchain texture is not available
-    if (not SDL_WaitAndAcquireGPUSwapchainTexture(
-            command_buffer, window, &swapchain_texture, &width, &height
-        )) {
-        // must always submit the command buffer
-        SDL_SubmitGPUCommandBuffer(command_buffer);
-        return false;
-    }
-
-    // // create the color target
-    // SDL_GPUColorTargetInfo color_target{};
-    // color_target.clear_color = {0.15F, 0.17F, 0.20F, 1.00F};
-    // color_target.load_op = SDL_GPU_LOADOP_CLEAR;
-    // color_target.store_op = SDL_GPU_STOREOP_STORE;
-    // color_target.texture = swapchain_texture;
-    //
-    // // begin a render pass
-    // render_pass = SDL_BeginGPURenderPass(command_buffer, &color_target, 1, nullptr);
-    // if (not render_pass)
-    //     return utils::fail();
-    //
-    // // bind the graphics pipeline
-    // SDL_BindGPUGraphicsPipeline(render_pass, m_gfx_pipeline.get());
-    //
-    // // bind the vertex buffer
-    // SDL_GPUBufferBinding buffer_bindings[1];
-    // buffer_bindings[0].buffer = m_vertex_buffer;                     // index 0 is slot 0 in
-    // example buffer_bindings[0].offset = 0;                                   // start from first
-    // byte SDL_BindGPUVertexBuffers(render_pass, 0, buffer_bindings, 1);    // bind 1 buffer from
-    // slot 0
-    //
-    // // make sense here or in draw?
-    // // update the time uniform
-    // time_uniform.time = SDL_GetTicksNS() / 1e9f;
-    // SDL_PushGPUFragmentUniformData(command_buffer, 0, &time_uniform, sizeof(Uniform_buffer));
-
-    Matrix4x4 camera_matrix{Matrix4x4_CreateOrthographicOffCenter(0, width, height, 0, 0, -1)};
-
-    // build sprite instance transfer
-    Sprite_instance* data_ptr{static_cast<Sprite_instance*>(
-        SDL_MapGPUTransferBuffer(m_gpu_device.get(), m_sprite_transfer_buffer, true)
-    )};
-    if (not data_ptr)
-        return utils::fail();
-
-    for (Uint32 i = 0; i < sprite_count; ++i) {
-        int face = SDL_rand(4);
-        data_ptr[i].x = static_cast<float>(SDL_rand(width));
-        data_ptr[i].y = static_cast<float>(SDL_rand(height));
-        data_ptr[i].z = 0;
-        data_ptr[i].rotation = SDL_randf() * SDL_PI_F * 2;
-        data_ptr[i].w = 32;
-        data_ptr[i].h = 32;
-        data_ptr[i].tex_u = ucoords[face];
-        data_ptr[i].tex_v = vcoords[face];
-        data_ptr[i].tex_w = 0.5F;
-        data_ptr[i].tex_h = 0.5F;
-        data_ptr[i].r = 1.0F;
-        data_ptr[i].g = 1.0F;
-        data_ptr[i].b = 1.0F;
-        data_ptr[i].a = 1.0F;
-    }
-
-    SDL_UnmapGPUTransferBuffer(m_gpu_device.get(), m_sprite_transfer_buffer);
-
-    // upload instance data
-    SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
-    SDL_GPUTransferBufferLocation location{
-        .transfer_buffer = m_sprite_transfer_buffer,
-        .offset = 0,
-    };
-    SDL_GPUBufferRegion region{
-        .buffer = m_sprite_data_buffer,
-        .offset = 0,
-        .size = sprite_count * sizeof(Sprite_instance),
-    };
-
-    SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
-    SDL_EndGPUCopyPass(copy_pass);
-
-    // Render sprites
-    SDL_GPUColorTargetInfo color_target_info{
-        .texture = swapchain_texture,
-        .clear_color = {0, 0, 0, 1},
-        .load_op = SDL_GPU_LOADOP_CLEAR,
-        .store_op = SDL_GPU_STOREOP_STORE,
-        .cycle = false,
-    };
-    render_pass = SDL_BeginGPURenderPass(command_buffer, &color_target_info, 1, nullptr);
-
-    SDL_BindGPUGraphicsPipeline(render_pass, m_gfx_pipeline.get());
-    SDL_BindGPUVertexStorageBuffers(render_pass, 0, &m_sprite_data_buffer, 1);
-
-    SDL_GPUTextureSamplerBinding sampler_binding{
-        .texture = m_texture,
-        .sampler = m_sampler,
-    };
-    SDL_BindGPUFragmentSamplers(render_pass, 0, &sampler_binding, 1);
-    SDL_PushGPUVertexUniformData(command_buffer, 0, &camera_matrix, sizeof(Matrix4x4));
-
-    return true;
-}
-
-auto Graphics_system::draw_call(SDL_GPURenderPass*& render_pass) -> bool {
-    // issue a draw call - ask GPU to render 3 vertices in one instance
-    // starting from first vertex and first instance
-    // SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
-
-    SDL_DrawGPUPrimitives(render_pass, sprite_count * 6, 1, 0, 0);
-
-    return true;
-}
-
-auto Graphics_system::end_render_pass(
-    SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass
-) -> bool {
-    SDL_EndGPURenderPass(render_pass);
-    return SDL_SubmitGPUCommandBuffer(command_buffer);
-}
-
-auto Graphics_system::load_image(const std::string& file_name) -> SDL_Surface* {
-
-    SDL_PixelFormat format{SDL_PIXELFORMAT_ABGR8888};
-    SDL_Surface* image{SDL_LoadBMP(file_name.c_str())};
-    // SDL_Surface* image{IMG_Load(file_name.c_str())};
-
-    if (not image)
-        return static_cast<SDL_Surface*>(utils::fail_null());
-
-    if (image->format != format) {
-        SDL_Surface* next{SDL_ConvertSurface(image, format)};
-        SDL_DestroySurface(image);
-        image = next;
-    }
-
-    return image;
-}
-
-auto Graphics_system::Matrix4x4_CreateOrthographicOffCenter(
-    float left, float right, float bottom, float top, float zNearPlane, float zFarPlane
-) -> Matrix4x4 {
-
-    return (Matrix4x4){2.0f / (right - left),
-                       0,
-                       0,
-                       0,
-                       0,
-                       2.0f / (top - bottom),
-                       0,
-                       0,
-                       0,
-                       0,
-                       1.0f / (zNearPlane - zFarPlane),
-                       0,
-                       (left + right) / (left - right),
-                       (top + bottom) / (bottom - top),
-                       zNearPlane / (zNearPlane - zFarPlane),
-                       1};
-}
+// auto Graphics_system::try_render_pass(SDL_Window* window) -> bool {
+//
+//     SDL_GPUCommandBuffer* command_buffer{};
+//     SDL_GPURenderPass* render_pass{};
+//
+//     if (not begin_render_pass(window, command_buffer, render_pass))
+//         return utils::fail();
+//
+//     draw_call(render_pass);
+//
+//     if (not end_render_pass(command_buffer, render_pass))
+//         return utils::fail();
+//
+//     return true;
+// }
+//
+// auto Graphics_system::begin_render_pass(
+//     SDL_Window* window, SDL_GPUCommandBuffer*& command_buffer, SDL_GPURenderPass*& render_pass
+// ) -> bool {
+//
+//     // acquire the command buffer
+//     command_buffer = SDL_AcquireGPUCommandBuffer(m_gpu_device.get());
+//     if (not command_buffer)
+//         return utils::fail();
+//
+//     // get the swapchain texture
+//     SDL_GPUTexture* swapchain_texture;
+//     Uint32 width;
+//     Uint32 height;
+//
+//     // end the frame early if swapchain texture is not available
+//     if (not SDL_WaitAndAcquireGPUSwapchainTexture(
+//             command_buffer, window, &swapchain_texture, &width, &height
+//         )) {
+//         // must always submit the command buffer
+//         SDL_SubmitGPUCommandBuffer(command_buffer);
+//         return false;
+//     }
+//
+//     // // create the color target
+//     // SDL_GPUColorTargetInfo color_target{};
+//     // color_target.clear_color = {0.15F, 0.17F, 0.20F, 1.00F};
+//     // color_target.load_op = SDL_GPU_LOADOP_CLEAR;
+//     // color_target.store_op = SDL_GPU_STOREOP_STORE;
+//     // color_target.texture = swapchain_texture;
+//     //
+//     // // begin a render pass
+//     // render_pass = SDL_BeginGPURenderPass(command_buffer, &color_target, 1, nullptr);
+//     // if (not render_pass)
+//     //     return utils::fail();
+//     //
+//     // // bind the graphics pipeline
+//     // SDL_BindGPUGraphicsPipeline(render_pass, m_gfx_pipeline.get());
+//     //
+//     // // bind the vertex buffer
+//     // SDL_GPUBufferBinding buffer_bindings[1];
+//     // buffer_bindings[0].buffer = m_vertex_buffer;                     // index 0 is slot 0 in
+//     // example buffer_bindings[0].offset = 0;                                   // start from
+//     first
+//     // byte SDL_BindGPUVertexBuffers(render_pass, 0, buffer_bindings, 1);    // bind 1 buffer
+//     from
+//     // slot 0
+//     //
+//     // // make sense here or in draw?
+//     // // update the time uniform
+//     // time_uniform.time = SDL_GetTicksNS() / 1e9f;
+//     // SDL_PushGPUFragmentUniformData(command_buffer, 0, &time_uniform, sizeof(Uniform_buffer));
+//
+//     Matrix4x4 camera_matrix{Matrix4x4_CreateOrthographicOffCenter(0, width, height, 0, 0, -1)};
+//
+//     // build sprite instance transfer
+//     Sprite_instance* data_ptr{static_cast<Sprite_instance*>(
+//         SDL_MapGPUTransferBuffer(m_gpu_device.get(), m_sprite_transfer_buffer, true)
+//     )};
+//     if (not data_ptr)
+//         return utils::fail();
+//
+//     for (Uint32 i = 0; i < sprite_count; ++i) {
+//         int face = SDL_rand(4);
+//         data_ptr[i].x = static_cast<float>(SDL_rand(width));
+//         data_ptr[i].y = static_cast<float>(SDL_rand(height));
+//         data_ptr[i].z = 0;
+//         data_ptr[i].rotation = SDL_randf() * SDL_PI_F * 2;
+//         data_ptr[i].w = 32;
+//         data_ptr[i].h = 32;
+//         data_ptr[i].tex_u = ucoords[face];
+//         data_ptr[i].tex_v = vcoords[face];
+//         data_ptr[i].tex_w = 0.5F;
+//         data_ptr[i].tex_h = 0.5F;
+//         data_ptr[i].r = 1.0F;
+//         data_ptr[i].g = 1.0F;
+//         data_ptr[i].b = 1.0F;
+//         data_ptr[i].a = 1.0F;
+//     }
+//
+//     SDL_UnmapGPUTransferBuffer(m_gpu_device.get(), m_sprite_transfer_buffer);
+//
+//     // upload instance data
+//     SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
+//     SDL_GPUTransferBufferLocation location{
+//         .transfer_buffer = m_sprite_transfer_buffer,
+//         .offset = 0,
+//     };
+//     SDL_GPUBufferRegion region{
+//         .buffer = m_sprite_data_buffer,
+//         .offset = 0,
+//         .size = sprite_count * sizeof(Sprite_instance),
+//     };
+//
+//     SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
+//     SDL_EndGPUCopyPass(copy_pass);
+//
+//     // Render sprites
+//     SDL_GPUColorTargetInfo color_target_info{
+//         .texture = swapchain_texture,
+//         .clear_color = {0, 0, 0, 1},
+//         .load_op = SDL_GPU_LOADOP_CLEAR,
+//         .store_op = SDL_GPU_STOREOP_STORE,
+//         .cycle = false,
+//     };
+//     render_pass = SDL_BeginGPURenderPass(command_buffer, &color_target_info, 1, nullptr);
+//
+//     SDL_BindGPUGraphicsPipeline(render_pass, m_gfx_pipeline.get());
+//     SDL_BindGPUVertexStorageBuffers(render_pass, 0, &m_sprite_data_buffer, 1);
+//
+//     SDL_GPUTextureSamplerBinding sampler_binding{
+//         .texture = m_texture,
+//         .sampler = m_sampler,
+//     };
+//     SDL_BindGPUFragmentSamplers(render_pass, 0, &sampler_binding, 1);
+//     SDL_PushGPUVertexUniformData(command_buffer, 0, &camera_matrix, sizeof(Matrix4x4));
+//
+//     return true;
+// }
+//
+// auto Graphics_system::draw_call(SDL_GPURenderPass*& render_pass) -> bool {
+//     // issue a draw call - ask GPU to render 3 vertices in one instance
+//     // starting from first vertex and first instance
+//     // SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
+//
+//     SDL_DrawGPUPrimitives(render_pass, sprite_count * 6, 1, 0, 0);
+//
+//     return true;
+// }
+//
+// auto Graphics_system::end_render_pass(
+//     SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass
+// ) -> bool {
+//     SDL_EndGPURenderPass(render_pass);
+//     return SDL_SubmitGPUCommandBuffer(command_buffer);
+// }
+//
+// auto Graphics_system::load_image(const std::string& file_name) -> SDL_Surface* {
+//
+//     SDL_PixelFormat format{SDL_PIXELFORMAT_ABGR8888};
+//     SDL_Surface* image{SDL_LoadBMP(file_name.c_str())};
+//     // SDL_Surface* image{IMG_Load(file_name.c_str())};
+//
+//     if (not image)
+//         return static_cast<SDL_Surface*>(utils::fail_null());
+//
+//     if (image->format != format) {
+//         SDL_Surface* next{SDL_ConvertSurface(image, format)};
+//         SDL_DestroySurface(image);
+//         image = next;
+//     }
+//
+//     return image;
+// }
+//
+// auto Graphics_system::Matrix4x4_CreateOrthographicOffCenter(
+//     float left, float right, float bottom, float top, float zNearPlane, float zFarPlane
+// ) -> Matrix4x4 {
+//
+//     return (Matrix4x4){2.0f / (right - left),
+//                        0,
+//                        0,
+//                        0,
+//                        0,
+//                        2.0f / (top - bottom),
+//                        0,
+//                        0,
+//                        0,
+//                        0,
+//                        1.0f / (zNearPlane - zFarPlane),
+//                        0,
+//                        (left + right) / (left - right),
+//                        (top + bottom) / (bottom - top),
+//                        zNearPlane / (zNearPlane - zFarPlane),
+//                        1};
+// }
 
 auto Lander_renderer::init(SDL_GPUDevice* device) -> bool {
     // create vertex buffer
@@ -673,11 +739,11 @@ auto Lander_renderer::destroy(SDL_GPUDevice* device) -> void {
 }
 
 auto Lander_renderer::draw(
-    SDL_GPUDevice* device, SDL_Window* window, SDL_GPUGraphicsPipeline* pipeline, SDL_FPoint pos,
-    float rot
+    SDL_GPUDevice* device, SDL_Window* window, SDL_GPUGraphicsPipeline* pipeline,
+    Render_instance lander
 ) -> bool {
 
-    Transform transform{pos.x, pos.y, rot};
+    Transform transform{lander.position.x, lander.position.y, lander.rotation};
     // acquire the command buffer
     SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(device)};
     if (not command_buffer)

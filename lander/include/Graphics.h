@@ -5,6 +5,7 @@
 
 #include <SDL3/SDL.h>
 // #include <SDL3_image/SDL_image.h>
+#include <Render_instance.h>
 #include <SDL3_shadercross/SDL_shadercross.h>
 #include <System.h>
 #include <Utils.h>
@@ -49,6 +50,25 @@ Step 5: Particle system (optional)
     Update positions each frame.
     Reupload and draw in batches.
 */
+
+struct Pipeline_deleter {
+    SDL_GPUDevice* device{nullptr};
+
+    void operator()(SDL_GPUGraphicsPipeline* pipeline) const {
+        if (device && pipeline)
+            SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
+    }
+};
+
+struct Device_deleter {
+    void operator()(SDL_GPUDevice* device) const {
+        if (device)
+            SDL_DestroyGPUDevice(device);
+    }
+};
+
+using Pipeline_ptr = std::unique_ptr<SDL_GPUGraphicsPipeline, Pipeline_deleter>;
+using Device_ptr = std::unique_ptr<SDL_GPUDevice, Device_deleter>;
 
 //
 // Triangle Demo
@@ -116,24 +136,39 @@ struct Transform {
     float padding;    // to align to 16 bytes (std140)
 };
 
-struct Pipeline_deleter {
-    SDL_GPUDevice* device{nullptr};
+// MVP = Projection * View * Model
+// Since it is simple 2D
+// Projection will convert from world units to normalized device coordinates (NDC)
+// View is optional (camera scrolling maybe)
+// Model is for translation and rotation of lander shape
+// dont forget to compile shaders
 
-    void operator()(SDL_GPUGraphicsPipeline* pipeline) const {
-        if (device && pipeline)
-            SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
-    }
+class Lander_renderer {
+public:
+    Lander_renderer() = default;
+    ~Lander_renderer() = default;
+
+    auto init(SDL_GPUDevice* device) -> bool;    // upload shape
+    auto destroy(SDL_GPUDevice* device) -> void;
+    auto draw(
+        SDL_GPUDevice* device, SDL_Window* window, SDL_GPUGraphicsPipeline* pipeline,
+        Render_instance lander
+    ) -> bool;
+    // could make a small struct that is a render payload, containing all this
+
+private:
+    SDL_GPUBuffer* m_vertex_buffer;
+    SDL_GPUTransferBuffer* m_transfer_buffer;
+    // SDL_GPUBuffer* m_uniform_buffer;
+    // SDL_GPUTransferBuffer* m_uniform_transfer_buffer;
+    // SDL_GPUGraphicsPipeline m_pipeline; // should be graphics systems... so not here
+    // You SDL_PushGPUFragmentUniformData() right before a draw call
+    // you do not need to create any more buffers or copy passes
+
+    Transform m_uniform_transform;
+    // next steps are...
+    // create shader files...
 };
-
-struct Device_deleter {
-    void operator()(SDL_GPUDevice* device) const {
-        if (device)
-            SDL_DestroyGPUDevice(device);
-    }
-};
-
-using Pipeline_ptr = std::unique_ptr<SDL_GPUGraphicsPipeline, Pipeline_deleter>;
-using Device_ptr = std::unique_ptr<SDL_GPUDevice, Device_deleter>;
 
 class Graphics_system : public System {
 public:
@@ -151,80 +186,60 @@ public:
     auto quit(SDL_Window* window) -> void;
 
     auto prepare_device(SDL_Window* window) -> bool;
-    auto copy_pass() -> bool;
-    // auto make_shader(const std::string& file_name, SDL_GPUShaderStage stage) -> SDL_GPUShader*;
+    // auto copy_pass() -> bool;
     auto make_shader(const std::string& file_name) -> SDL_GPUShader*;
     auto make_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
         -> SDL_GPUGraphicsPipeline*;
 
-    auto try_render_pass(SDL_Window* window) -> bool;
-    auto begin_render_pass(
-        SDL_Window* window, SDL_GPUCommandBuffer*& command_buffer, SDL_GPURenderPass*& render_pass
-    ) -> bool;
-    auto end_render_pass(SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass)
-        -> bool;
-    auto draw_call(SDL_GPURenderPass*& render_pass) -> bool;
+    // auto try_render_pass(SDL_Window* window) -> bool;
+    // auto begin_render_pass(
+    //     SDL_Window* window, SDL_GPUCommandBuffer*& command_buffer, SDL_GPURenderPass*&
+    //     render_pass
+    // ) -> bool;
+    // auto end_render_pass(SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass)
+    //     -> bool;
+    // auto draw_call(SDL_GPURenderPass*& render_pass) -> bool;
+    //
+    // //
+    // // Triangle Demo
+    // auto load_image(const std::string& file_name) -> SDL_Surface*;
+    // // Triangle Demo
+    // //
+    //
+    // //
+    // // Sprite Batch Demo
+    // auto Matrix4x4_CreateOrthographicOffCenter(
+    //     float left, float right, float bottom, float top, float zNearPlane, float zFarPlane
+    // ) -> Matrix4x4;
+    // // Sprite Batch Demo
+    // //
 
-    //
-    // Triangle Demo
-    auto load_image(const std::string& file_name) -> SDL_Surface*;
-    // Triangle Demo
-    //
-
-    //
-    // Sprite Batch Demo
-    auto Matrix4x4_CreateOrthographicOffCenter(
-        float left, float right, float bottom, float top, float zNearPlane, float zFarPlane
-    ) -> Matrix4x4;
-    // Sprite Batch Demo
-    //
+    // auto pipeline_for_landscape() -> SDL_GPUGraphicsPipeline*;
+    // auto pipeline_for_lander() -> SDL_GPUGraphicsPipeline*;
 
 private:
     Device_ptr m_gpu_device;
     Pipeline_ptr m_gfx_pipeline;
+    Lander_renderer m_lander;
 
+    // //
+    // // Triangle Demo
+    // SDL_GPUTransferBuffer* m_transfer_buffer;
+    // SDL_GPUBuffer* m_vertex_buffer;
+    // // Triangle Demo
+    // //
     //
-    // Triangle Demo
-    SDL_GPUTransferBuffer* m_transfer_buffer;
-    SDL_GPUBuffer* m_vertex_buffer;
-    // Triangle Demo
-    //
+    // //
+    // // Sprite Batch Demo
+    // std::filesystem::path m_image_path;
+    // SDL_GPUSampler* m_sampler;
+    // SDL_GPUTexture* m_texture;
+    // SDL_GPUTransferBuffer* m_sprite_transfer_buffer;
+    // SDL_GPUBuffer* m_sprite_data_buffer;
+    // // Sprite Batch Demo
+    // //
 
-    //
-    // Sprite Batch Demo
-    std::filesystem::path m_image_path;
-    SDL_GPUSampler* m_sampler;
-    SDL_GPUTexture* m_texture;
-    SDL_GPUTransferBuffer* m_sprite_transfer_buffer;
-    SDL_GPUBuffer* m_sprite_data_buffer;
-    // Sprite Batch Demo
-    //
+    // Pipeline_ptr m_lander_pipeline;
 };
-
-class Lander_renderer {
-public:
-    auto init(SDL_GPUDevice* device) -> bool;    // upload shape
-    auto destroy(SDL_GPUDevice* device) -> void;
-    auto draw(
-        SDL_GPUDevice* device, SDL_Window* window, SDL_GPUGraphicsPipeline* pipeline,
-        SDL_FPoint pos, float rot
-    ) -> bool;    // should just be pos, rotation, not lander
-
-private:
-    SDL_GPUBuffer* m_vertex_buffer;
-    SDL_GPUTransferBuffer* m_transfer_buffer;
-    // SDL_GPUBuffer* m_uniform_buffer;
-    // SDL_GPUTransferBuffer* m_uniform_transfer_buffer;
-    // SDL_GPUGraphicsPipeline m_pipeline; // should be graphics systems... so not here
-    // You SDL_PushGPUFragmentUniformData() right before a draw call
-    // you do not need to create any more buffers or copy passes
-
-    Transform m_uniform_transform;
-};
-
-// next steps are...
-// create shader files...
-// make/hook into already created pipeline
-// comment out all the unused stuffs
 
 #endif    // GRAPHICS_H

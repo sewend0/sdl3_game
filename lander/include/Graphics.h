@@ -19,6 +19,9 @@
 // Abstract GPU logic (shaders, pipelines, etc.)
 // Keep GPU code clean, portable
 
+// https://maraneshi.github.io/HLSL-ConstantBufferLayoutVisualizer/
+// https://wiki.libsdl.org/SDL3/SDL_CreateGPUShader
+
 /*
 🧠 Mental Models:
 CPU builds the logic, GPU does the rendering.
@@ -73,82 +76,28 @@ struct Device_deleter {
 using Pipeline_ptr = std::unique_ptr<SDL_GPUGraphicsPipeline, Pipeline_deleter>;
 using Device_ptr = std::unique_ptr<SDL_GPUDevice, Device_deleter>;
 
-//
-// Triangle Demo
-// universal properties to set before draw call
-struct Uniform_buffer {
-    float time;
-};
-
-static Uniform_buffer time_uniform{};
-
-// the vertex input layout
-struct Vertex {
-    float x, y, z;       // vec3 position
-    float r, g, b, a;    // vec4 color
-};
-
-// a list of vertices
-static Vertex vertices[]{
-    {0.0F, 0.5F, 0.0F, 1.0F, 0.0F, 0.0F, 1.0F},      // top vertex
-    {-0.5F, -0.5F, 0.0F, 1.0F, 1.0F, 0.0F, 1.0F},    // bottom left vertex
-    {0.5F, -0.5F, 0.0F, 1.0F, 0.0F, 1.0F, 1.0F}      // bottom right vertex
-};
-// Triangle Demo
-//
-
-//
-// Sprite Batch Demo
-struct Sprite_instance {
-    float x, y, z;
-    float rotation;
-    float w, h, padding_a, padding_b;
-    float tex_u, tex_v, tex_w, tex_h;
-    float r, g, b, a;
-};
-
-struct Matrix4x4 {
-    float m11, m12, m13, m14;
-    float m21, m22, m23, m24;
-    float m31, m32, m33, m34;
-    float m41, m42, m43, m44;
-};
-
-static constexpr Uint32 sprite_count{8192};
-
-static std::array<float, 4> ucoords{0.0F, 0.5F, 0.0F, 0.5F};
-static std::array<float, 4> vcoords{0.0F, 0.0F, 0.5F, 0.5F};
-
-// Sprite Batch Demo
-//
-
 struct Vertex_2d {
     SDL_FPoint pos;
     SDL_FColor color;
 };
 
-constexpr std::array<Vertex_2d, 3> lander_vertices{
-    Vertex_2d{.pos = {0.0F, 10.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-    Vertex_2d{.pos = {-5.0F, -5.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-    Vertex_2d{.pos = {5.0F, 5.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-};
-
-// struct Transform {
-//     float x, y;
-//     float r;
-//     float padding;    // to align to 16 bytes (std140)
+// constexpr std::array<Vertex_2d, 3> lander_vertices{
+//     Vertex_2d{.pos = {0.0F, 10.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+//     Vertex_2d{.pos = {-5.0F, -5.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+//     Vertex_2d{.pos = {5.0F, 5.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
 // };
+
+constexpr std::array<Vertex_2d, 3> lander_vertices{
+    Vertex_2d{.pos = {0.0F, 40.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+    Vertex_2d{.pos = {-25.0F, -25.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+    Vertex_2d{.pos = {25.0F, -25.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+};
 
 // MVP = Projection * View * Model
 // Since it is simple 2D
 // Projection will convert from world units to normalized device coordinates (NDC)
 // View is optional (camera scrolling maybe)
 // Model is for translation and rotation of lander shape
-// dont forget to compile shaders
-
-// auto radians(float degrees) -> float {
-//     return degrees * std::numbers::pi_v<float> / 180.0F;
-// }
 
 auto make_model_matrix(glm::vec2 position, float rotation_degrees) -> glm::mat4;
 auto make_ortho_projection(float width, float height) -> glm::mat4;
@@ -169,11 +118,6 @@ public:
 private:
     SDL_GPUBuffer* m_vertex_buffer;
     SDL_GPUTransferBuffer* m_transfer_buffer;
-    // SDL_GPUBuffer* m_uniform_buffer;
-    // SDL_GPUTransferBuffer* m_uniform_transfer_buffer;
-    // SDL_GPUGraphicsPipeline m_pipeline; // should be graphics systems... so not here
-    // You SDL_PushGPUFragmentUniformData() right before a draw call
-    // you do not need to create any more buffers or copy passes
 
     // Transform m_uniform_transform;
     glm::mat4 m_uniform_transform;    // do i need this? when update?
@@ -200,29 +144,6 @@ public:
     auto make_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
         -> SDL_GPUGraphicsPipeline*;
 
-    // auto try_render_pass(SDL_Window* window) -> bool;
-    // auto begin_render_pass(
-    //     SDL_Window* window, SDL_GPUCommandBuffer*& command_buffer, SDL_GPURenderPass*&
-    //     render_pass
-    // ) -> bool;
-    // auto end_render_pass(SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass)
-    //     -> bool;
-    // auto draw_call(SDL_GPURenderPass*& render_pass) -> bool;
-    //
-    // //
-    // // Triangle Demo
-    // auto load_image(const std::string& file_name) -> SDL_Surface*;
-    // // Triangle Demo
-    // //
-    //
-    // //
-    // // Sprite Batch Demo
-    // auto Matrix4x4_CreateOrthographicOffCenter(
-    //     float left, float right, float bottom, float top, float zNearPlane, float zFarPlane
-    // ) -> Matrix4x4;
-    // // Sprite Batch Demo
-    // //
-
     // auto pipeline_for_landscape() -> SDL_GPUGraphicsPipeline*;
     // auto pipeline_for_lander() -> SDL_GPUGraphicsPipeline*;
 
@@ -235,23 +156,6 @@ private:
     Device_ptr m_gpu_device;
     Pipeline_ptr m_gfx_pipeline;
     Lander_renderer m_lander;
-
-    // //
-    // // Triangle Demo
-    // SDL_GPUTransferBuffer* m_transfer_buffer;
-    // SDL_GPUBuffer* m_vertex_buffer;
-    // // Triangle Demo
-    // //
-    //
-    // //
-    // // Sprite Batch Demo
-    // std::filesystem::path m_image_path;
-    // SDL_GPUSampler* m_sampler;
-    // SDL_GPUTexture* m_texture;
-    // SDL_GPUTransferBuffer* m_sprite_transfer_buffer;
-    // SDL_GPUBuffer* m_sprite_data_buffer;
-    // // Sprite Batch Demo
-    // //
 
     // Pipeline_ptr m_lander_pipeline;
 };

@@ -1,5 +1,5 @@
 
-cbuffer transform_buffer : register(b0) {
+cbuffer transform_buffer : register(b0, space1) {
     float4x4 u_mvp;
 };
 

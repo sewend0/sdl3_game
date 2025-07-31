@@ -45,7 +45,6 @@ auto App::update() -> void {
     // process input
     // update
     // while timer should sim
-
     if (m_timer->should_render()) {
         double alpha{m_timer->interpolation_alpha()};
 
@@ -56,7 +55,16 @@ auto App::update() -> void {
         //     utils::log("Unable to complete render pass");
 
         // debug
-        Render_instance dbg_inst{{100.0F, 100.0F}, 90.0F, {1.0F, 1.0F, 1.0F, 1.0F}};
+        static int counter{0};
+        static float rotation{0.0F};
+
+        ++counter;
+        if (counter % 2 == 0) {
+            rotation += 1.0F;
+            counter = 0;
+        }
+
+        Render_instance dbg_inst{{300.0F, 300.0F}, rotation, {0.0F, 0.0F, 0.0F, 1.0F}};
         if (not m_graphics->draw(m_window.get(), &dbg_inst))
             utils::log("Unable to render lander");
 
@@ -109,7 +117,7 @@ auto App::init_graphics() -> bool {
     //         base_path / shader_path, base_path / image_path / atlas_file, shader2_files,
     //         m_window.get()
     //     ))
-    if (not m_graphics->init(base_path / shader_path, shader2_files, m_window.get()))
+    if (not m_graphics->init(base_path / shader_path, shader3_files, m_window.get()))
         return utils::log_fail("App failed to initialize graphics system");
     return true;
 }

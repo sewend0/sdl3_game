@@ -4,6 +4,7 @@
 # https://github.com/libsdl-org/SDL_mixer.git
 # https://github.com/libsdl-org/SDL_ttf.git
 # https://github.com/libsdl-org/SDL_shadercross.git
+# https://github.com/g-truc/glm.git
 # go to thirdparty/SDL_ttf/external and run powershell script
 # go to thirdparty/SDL_shadercross/external and run powershell script
 # force static linkage of these libraries, and switch to using llvm's lld linker vs mingw32's GNU linker ld. lld is orders of magnitude faster, and if you don't it will hang during build
@@ -36,9 +37,13 @@ add_subdirectory(thirdparty/SDL_image)
 add_subdirectory(thirdparty/SDL_mixer)
 add_subdirectory(thirdparty/SDL_ttf)
 add_subdirectory(thirdparty/SDL_shadercross)
+add_subdirectory(thirdparty/glm-docking)
 
 # Make executable and link files
 add_executable("${CMAKE_PROJECT_NAME}" main.cpp)
+
+# GLM
+# target_compile_definitions("${CMAKE_PROJECT_NAME}" PRIVATE GLM_FORCE_CXX17)
 
 # Add sources and headers
 target_sources("${CMAKE_PROJECT_NAME}"
@@ -79,6 +84,7 @@ target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE
         SDL3_mixer::SDL3_mixer
         SDL3_ttf::SDL3_ttf
         SDL3_shadercross::SDL3_shadercross
+        glm
 )
 
 # Path to assets directory in project source

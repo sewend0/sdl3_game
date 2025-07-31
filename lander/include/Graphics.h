@@ -11,6 +11,9 @@
 #include <Utils.h>
 
 #include <cassert>
+#include <glm/glm/mat4x4.hpp>
+#include <glm/glm/trigonometric.hpp>
+#include <glm/glm/vec2.hpp>
 #include <unordered_map>
 
 // Abstract GPU logic (shaders, pipelines, etc.)
@@ -130,11 +133,11 @@ constexpr std::array<Vertex_2d, 3> lander_vertices{
     Vertex_2d{.pos = {5.0F, 5.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
 };
 
-struct Transform {
-    float x, y;
-    float r;
-    float padding;    // to align to 16 bytes (std140)
-};
+// struct Transform {
+//     float x, y;
+//     float r;
+//     float padding;    // to align to 16 bytes (std140)
+// };
 
 // MVP = Projection * View * Model
 // Since it is simple 2D
@@ -142,6 +145,13 @@ struct Transform {
 // View is optional (camera scrolling maybe)
 // Model is for translation and rotation of lander shape
 // dont forget to compile shaders
+
+// auto radians(float degrees) -> float {
+//     return degrees * std::numbers::pi_v<float> / 180.0F;
+// }
+
+auto make_model_matrix(glm::vec2 position, float rotation_degrees) -> glm::mat4;
+auto make_ortho_projection(float width, float height) -> glm::mat4;
 
 class Lander_renderer {
 public:
@@ -165,7 +175,9 @@ private:
     // You SDL_PushGPUFragmentUniformData() right before a draw call
     // you do not need to create any more buffers or copy passes
 
-    Transform m_uniform_transform;
+    // Transform m_uniform_transform;
+    glm::mat4 m_uniform_transform;    // do i need this? when update?
+
     // next steps are...
     // create shader files...
 };
@@ -175,14 +187,11 @@ public:
     Graphics_system() = default;
     ~Graphics_system() override;
 
-    // auto init(
-    //     const std::filesystem::path& assets_path, const std::vector<std::string>& file_names,
-    //     SDL_Window* window
-    // ) -> bool;
     auto init(
-        const std::filesystem::path& assets_path, const std::filesystem::path& image_path,
-        const std::vector<std::string>& file_names, SDL_Window* window
+        const std::filesystem::path& assets_path, const std::vector<std::string>& file_names,
+        SDL_Window* window
     ) -> bool;
+
     auto quit(SDL_Window* window) -> void;
 
     auto prepare_device(SDL_Window* window) -> bool;
@@ -216,6 +225,11 @@ public:
 
     // auto pipeline_for_landscape() -> SDL_GPUGraphicsPipeline*;
     // auto pipeline_for_lander() -> SDL_GPUGraphicsPipeline*;
+
+    // debug lander drawing
+    auto draw(SDL_Window* window, Render_instance* instance) -> bool {
+        return m_lander.draw(m_gpu_device.get(), window, m_gfx_pipeline.get(), *instance);
+    }
 
 private:
     Device_ptr m_gpu_device;

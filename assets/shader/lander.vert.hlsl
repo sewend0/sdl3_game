@@ -20,7 +20,7 @@ struct vs_output {
     float4 color : COLOR0;
 };
 
-vs_output vs_main(vs_input input) {
+vs_output main(vs_input input) {
     vs_output output;
     float4 pos = float4(input.position, 0.0f, 1.0f);
     output.position = mul(u_mvp, pos);
@@ -34,3 +34,5 @@ vs_output vs_main(vs_input input) {
 // Transform from model space to screen space
 //     - Multiply by u_mvp matrix
 // Pass transformed position and color out to fragment shader
+
+// dxc.exe -spirv -T vs_6_0 -E main lander.vert.hlsl -Fo lander.vert.spv

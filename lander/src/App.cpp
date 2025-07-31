@@ -52,8 +52,13 @@ auto App::update() -> void {
         // State state = currentstate * alpha + prevstate * (1.0 - alpha);
         // render();
 
-        if (not m_graphics->try_render_pass(m_window.get()))
-            utils::log("Unable to complete render pass");
+        // if (not m_graphics->try_render_pass(m_window.get()))
+        //     utils::log("Unable to complete render pass");
+
+        // debug
+        Render_instance dbg_inst{{100.0F, 100.0F}, 90.0F, {1.0F, 1.0F, 1.0F, 1.0F}};
+        if (not m_graphics->draw(m_window.get(), &dbg_inst))
+            utils::log("Unable to render lander");
 
         m_timer->mark_render();
     }
@@ -100,10 +105,11 @@ auto App::init_timer() -> bool {
 
 auto App::init_graphics() -> bool {
     m_graphics = std::make_unique<Graphics_system>();
-    if (not m_graphics->init(
-            base_path / shader_path, base_path / image_path / atlas_file, shader2_files,
-            m_window.get()
-        ))
+    // if (not m_graphics->init(
+    //         base_path / shader_path, base_path / image_path / atlas_file, shader2_files,
+    //         m_window.get()
+    //     ))
+    if (not m_graphics->init(base_path / shader_path, shader2_files, m_window.get()))
         return utils::log_fail("App failed to initialize graphics system");
     return true;
 }

@@ -42,6 +42,7 @@ class App {
         "pull_sprite_batch.vert.spv", "textured_quad_color.frag.spv"
     };
     const std::string atlas_file{"face_atlas.bmp"};
+    const std::vector<std::string> shader3_files{"lander.vert.spv", "lander.frag.spv"};
 
 public:
     // App() = default;

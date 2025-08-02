@@ -56,6 +56,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         lander/src/Text.cpp
         lander/src/Timer.cpp
         lander/src/Utils.cpp
+        sandbox/Sandbox_app.cpp
 
         PUBLIC
         lander/include/App.h
@@ -69,12 +70,14 @@ target_sources("${CMAKE_PROJECT_NAME}"
         lander/include/Text.h
         lander/include/Timer.h
         lander/include/Utils.h
+        sandbox/Sandbox_app.h
 )
 
 # Set included directories for this project
 target_include_directories("${CMAKE_PROJECT_NAME}"
         PUBLIC
         lander/include
+        sandbox
 )
 
 # Link third party libs

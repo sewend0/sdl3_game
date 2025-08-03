@@ -9,18 +9,18 @@ struct vs_output {
 
 vs_output main(uint v_id : SV_VERTEXID) {
 
-    float2 pos_a;
+    float2 pos_in;
     switch (v_id) {
-        case 0: pos_a = float2(-0.5f, -0.5f); break;
-        case 1: pos_a = float2(0.5f, -0.5f); break;
-        case 2: pos_a = float2(0.0f, 0.5f); break;
+        case 0: pos_in = float2(-50.0F, -50.0F); break;
+        case 1: pos_in = float2(50.0F, -50.0F); break;
+        case 2: pos_in = float2(0.0F, 50.0F); break;
     }
 
-    float4 pos_b = float4(pos_a, 0.0f, 1.0f);
+    float4 pos_out = float4(pos_in, 0.0F, 1.0F);
 
     vs_output output;
-    output.position = mul(mvp, pos_b);
-    output.color = float4(1.0f, 0.0f, 0.0f, 1.0f);
+    output.position = mul(mvp, pos_out);
+    output.color = float4(1.0F, 0.0F, 0.0F, 1.0F);
 
     return output;
 }

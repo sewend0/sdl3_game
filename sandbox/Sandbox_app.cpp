@@ -75,20 +75,19 @@ auto Sandbox_app::update() -> void {
 
         // if (not m_graphics->try_render_pass(m_window.get()))
         //     utils::log("Unable to complete render pass");
+        static int counter{0};
+        static float rotation{0.0F};
 
-        // debug
-        // static int counter{0};
-        // static float rotation{0.0F};
-        //
-        // ++counter;
-        // if (counter % 2 == 0) {
-        //     rotation += 1.0F;
-        //     counter = 0;
-        // }
-        //
-        // Render_instance dbg_inst{{300.0F, 300.0F}, rotation, {0.0F, 0.0F, 0.0F, 1.0F}};
-        // if (not m_graphics->draw(m_window.get(), &dbg_inst))
-        //     utils::log("Unable to render lander");
+        ++counter;
+        if (counter % 2 == 0) {
+            rotation += 1.0F;
+            counter = 0;
+        }
+
+        if (rotation >= 360.F)
+            rotation -= 360.F;
+
+        m_demo_rot = rotation;
 
         draw();
 
@@ -245,30 +244,17 @@ auto Sandbox_app::draw() -> void {
     // vertex attributes - per vertex
 
     // update uniform data(this does not necessarily need to be done here)
-    // glm::mat4 mvp{
-    //     make_ortho_proj(static_cast<float>(width), static_cast<float>(height)) *
-    //     make_model_mat({m_demo_pos.x, m_demo_pos.y}, m_demo_rot)
-    // };
-
-    // glm::mat4 model{glm::mat4(1.0F)};
-    // model = glm::translate(model, glm::vec3(m_demo_pos, 0.0F));
-    // model = glm::rotate(model, glm::radians(m_demo_rot), glm::vec3(0.0F, 0.0F, 1.0F));
-    // glm::mat4 projection{
-    //     glm::ortho(0.0F, static_cast<float>(width), static_cast<float>(height), 0.0F)
-    // };
-    // glm::mat4 mvp{projection * model};
+    glm::mat4 model{glm::mat4(1.0F)};
+    model = glm::translate(model, glm::vec3(m_demo_pos, 0.0F));
+    model = glm::rotate(model, glm::radians(m_demo_rot), glm::vec3(0.0F, 0.0F, 1.0F));
+    model = glm::scale(model, glm::vec3(1.0F));
+    glm::mat4 projection{
+        glm::ortho(0.0F, static_cast<float>(width), 0.0F, static_cast<float>(height))
+    };
+    glm::mat4 mvp{projection * model};
 
     // bind uniform data (uniform data is same for whole call)
-    // SDL_PushGPUVertexUniformData(command_buffer, 0, &mvp, sizeof(glm::mat4));
-
-    // SDL_Log(
-    //     "%d", static_cast<int>(quick_test(static_cast<float>(width), static_cast<float>(height)))
-    // );
-
-    // glm::mat4 test = glm::mat4(1.0F); // this works
-    glm::mat4 test =
-        make_mvp(static_cast<float>(width), static_cast<float>(height), m_demo_pos, m_demo_rot);
-    SDL_PushGPUVertexUniformData(command_buffer, 0, &test, sizeof(glm::mat4));
+    SDL_PushGPUVertexUniformData(command_buffer, 0, &mvp, sizeof(glm::mat4));
 
     // issue draw call
     SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
@@ -296,6 +282,7 @@ auto quick_test(float width, float height) -> bool {
     return proj == projection;
 }
 
+// is tutorial doing any of this yet? or just identity matrix used?
 // https://www.youtube.com/watch?v=9zrHmy3b0x0&list=PLI3kBEQ3yd-CbQfRchF70BPLF9G1HEzhy&index=2
 // working on this...
 auto make_mvp(float width, float height, glm::vec2 pos, float rot_deg) -> glm::mat4 {

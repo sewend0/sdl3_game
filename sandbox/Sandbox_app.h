@@ -66,7 +66,7 @@ public:
 private:
     const std::string app_name{"lander"};
     const int window_start_width{800};
-    const int window_start_height{800};
+    const int window_start_height{800};    // remember size can get scaled up from highdpi
 
     const std::filesystem::path base_path{SDL_GetBasePath()};
     const std::filesystem::path shader_path{"assets\\shader"};
@@ -79,7 +79,7 @@ private:
     Device_ptr m_gpu_device;
     Pipeline_ptr m_pipeline;
 
-    glm::vec2 m_demo_pos{400.0F, 400.0F};
+    glm::vec2 m_demo_pos{600.0F, 600.0F};
     float m_demo_rot{0.0F};
 
     // // debug

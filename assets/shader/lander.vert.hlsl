@@ -1,6 +1,6 @@
 
-cbuffer transform_buffer : register(b0, space1) {
-    float4x4 u_mvp;
+cbuffer uniform_buffer : register(b0, space1) {
+    float4x4 mvp;
 };
 
 // Hold a model-view-projection matrix sent from cpu
@@ -21,10 +21,13 @@ struct vs_output {
 };
 
 vs_output main(vs_input input) {
+
+    float4 pos = float4(input.position, 0.0F, 1.0F);
+
     vs_output output;
-    float4 pos = float4(input.position, 0.0f, 1.0f);
-    output.position = mul(u_mvp, pos);
+    output.position = mul(mvp, pos);
     output.color = input.color;
+
     return output;
 };
 
@@ -32,7 +35,7 @@ vs_output main(vs_input input) {
 // Convert 2D position into 4D vector for matrix multiplication
 //     - Set Z = 0, and W = 1, standard for 2D rendering in 3D pipelines
 // Transform from model space to screen space
-//     - Multiply by u_mvp matrix
+//     - Multiply by mvp matrix
 // Pass transformed position and color out to fragment shader
 
 // dxc.exe -spirv -T vs_6_0 -E main lander.vert.hlsl -Fo lander.vert.spv

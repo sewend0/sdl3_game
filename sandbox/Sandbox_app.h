@@ -49,8 +49,13 @@ using Window_ptr = std::unique_ptr<SDL_Window, Window_deleter>;
 using Pipeline_ptr = std::unique_ptr<SDL_GPUGraphicsPipeline, Pipeline_deleter>;
 using Device_ptr = std::unique_ptr<SDL_GPUDevice, Device_deleter>;
 
-struct Uniform_buffer {
-    glm::mat4 matrix;
+// struct Uniform_buffer {
+//     glm::mat4 matrix;
+// };
+
+struct Vertex {
+    glm::vec2 position;
+    glm::vec4 color;
 };
 
 class Sandbox_app {
@@ -70,7 +75,7 @@ private:
 
     const std::filesystem::path base_path{SDL_GetBasePath()};
     const std::filesystem::path shader_path{"assets\\shader"};
-    const std::vector<std::string> shader_files{"odin.vert.spv", "odin.frag.spv"};
+    const std::vector<std::string> shader_files{"lander.vert.spv", "lander.frag.spv"};
 
     SDL_AppResult m_app_quit{SDL_APP_CONTINUE};
     Window_ptr m_window;
@@ -79,8 +84,20 @@ private:
     Device_ptr m_gpu_device;
     Pipeline_ptr m_pipeline;
 
+    SDL_GPUBuffer* m_vertex_buffer;
+
     glm::vec2 m_demo_pos{600.0F, 600.0F};
     float m_demo_rot{0.0F};
+
+    // https://www.youtube.com/watch?v=DkMT8QPqft0&list=PLI3kBEQ3yd-CbQfRchF70BPLF9G1HEzhy&index=3
+    // @ 11:17
+
+    // lander points defined in local space - (0,0) is center
+    std::array<Vertex, 3> m_vertices{
+        Vertex{.position = {0.0F, 50.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+        Vertex{.position = {-50.0F, -50.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+        Vertex{.position = {50.0F, -50.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+    };
 
     // // debug
     // static int counter{0};
@@ -107,18 +124,9 @@ private:
     auto prepare_graphics_device() -> SDL_GPUDevice*;
     auto make_shader(const std::string& file_name) -> SDL_GPUShader*;
     auto make_pipeline(SDL_GPUShader* vertex, SDL_GPUShader* fragment) -> SDL_GPUGraphicsPipeline*;
+    auto make_vertex_buffer() -> SDL_GPUBuffer*;
 
     auto draw() -> void;
 };
-
-// Build 2D model matrix with rotation + translation
-auto make_model_mat(glm::vec2 position, float rotation_degrees) -> glm::mat4;
-
-// Maps (0, 0) -> (-1, -1), (width, height) -> (1, 1)
-auto make_ortho_proj(float width, float height) -> glm::mat4;
-
-auto make_mvp(float width, float height, glm::vec2 pos, float rot_deg) -> glm::mat4;
-
-auto quick_test(float width, float height) -> bool;
 
 #endif    // SANDBOX_APP_H

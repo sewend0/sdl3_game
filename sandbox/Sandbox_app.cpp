@@ -5,7 +5,7 @@
 Sandbox_app::~Sandbox_app() {
     // release buffers
     // SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
-    // SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
+    SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
 
     // // release resources - sprite demo
     // SDL_ReleaseGPUSampler(m_gpu_device.get(), m_sampler);
@@ -60,6 +60,11 @@ auto Sandbox_app::init_graphics() -> void {
 
     SDL_ReleaseGPUShader(m_gpu_device.get(), vertex_shader);
     SDL_ReleaseGPUShader(m_gpu_device.get(), fragment_shader);
+
+    m_vertex_buffer = make_vertex_buffer();
+
+    // upload vertex data to the vertex buffer
+    // bind vertex buffer to the render pass
 }
 
 auto Sandbox_app::update() -> void {
@@ -180,6 +185,31 @@ auto Sandbox_app::make_shader(const std::string& file_name) -> SDL_GPUShader* {
 auto Sandbox_app::make_pipeline(SDL_GPUShader* vertex, SDL_GPUShader* fragment)
     -> SDL_GPUGraphicsPipeline* {
 
+    // describe vertex buffers
+    std::array<SDL_GPUVertexBufferDescription, 1> vertex_buffer_descriptions{
+        SDL_GPUVertexBufferDescription{
+            .slot = 0,
+            .pitch = sizeof(Vertex),
+            .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+            .instance_step_rate = 0,
+        }
+    };
+
+    // describe vertex attributes
+    SDL_GPUVertexAttribute a_position{
+        .location = 0,
+        .buffer_slot = 0,
+        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+        .offset = 0,
+    };
+    SDL_GPUVertexAttribute a_color{
+        .location = 1,
+        .buffer_slot = 0,
+        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
+        .offset = sizeof(float) * 2,
+    };
+    std::array<SDL_GPUVertexAttribute, 2> vertex_attributes{a_position, a_color};
+
     // describe color target
     std::array<SDL_GPUColorTargetDescription, 1> target_descriptions{
         SDL_GPUColorTargetDescription{
@@ -192,9 +222,16 @@ auto Sandbox_app::make_pipeline(SDL_GPUShader* vertex, SDL_GPUShader* fragment)
         .color_target_descriptions = target_descriptions.data(),
         .num_color_targets = 1,
     };
+    SDL_GPUVertexInputState vertex_input_state{
+        .vertex_buffer_descriptions = vertex_buffer_descriptions.data(),
+        .num_vertex_buffers = 1,
+        .vertex_attributes = vertex_attributes.data(),
+        .num_vertex_attributes = 2,
+    };
     SDL_GPUGraphicsPipelineCreateInfo create_info{
         .vertex_shader = vertex,
         .fragment_shader = fragment,
+        .vertex_input_state = vertex_input_state,
         .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
         .target_info = target_info,
     };
@@ -205,6 +242,19 @@ auto Sandbox_app::make_pipeline(SDL_GPUShader* vertex, SDL_GPUShader* fragment)
         throw App_exception("Failed to create graphics pipeline");
 
     return pipeline;
+}
+
+auto Sandbox_app::make_vertex_buffer() -> SDL_GPUBuffer* {
+    // create vertex buffer
+    SDL_GPUBufferCreateInfo buffer_create_info{
+        .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
+        .size = sizeof(m_vertices),
+    };
+    SDL_GPUBuffer* vertex_buffer = SDL_CreateGPUBuffer(m_gpu_device.get(), &buffer_create_info);
+    if (not vertex_buffer)
+        throw App_exception();
+
+    return vertex_buffer;
 }
 
 auto Sandbox_app::draw() -> void {
@@ -240,14 +290,23 @@ auto Sandbox_app::draw() -> void {
     // bind the graphics pipeline
     SDL_BindGPUGraphicsPipeline(render_pass, m_pipeline.get());
 
-    // - bind vertex data (dont have any right now)
-    // vertex attributes - per vertex
+    // bind the vertex buffer
+    SDL_GPUBufferBinding buffer_binding{
+        .buffer = m_vertex_buffer,
+        .offset = 0,
+    };
+    SDL_BindGPUVertexBuffers(render_pass, 0, &buffer_binding, 1);
 
     // update uniform data(this does not necessarily need to be done here)
+    // separate this out into function
+    // Build 2D model matrix with translation, rotation, and scale
     glm::mat4 model{glm::mat4(1.0F)};
     model = glm::translate(model, glm::vec3(m_demo_pos, 0.0F));
     model = glm::rotate(model, glm::radians(m_demo_rot), glm::vec3(0.0F, 0.0F, 1.0F));
     model = glm::scale(model, glm::vec3(1.0F));
+
+    // Maps (0, 0) -> (-1, -1), (width, height) -> (1, 1)
+    // recalc this only needs to be done when the screen size changes
     glm::mat4 projection{
         glm::ortho(0.0F, static_cast<float>(width), 0.0F, static_cast<float>(height))
     };
@@ -268,62 +327,3 @@ auto Sandbox_app::draw() -> void {
     if (not SDL_SubmitGPUCommandBuffer(command_buffer))
         throw App_exception("Failed to submit command buffer");
 }
-
-auto quick_test(float width, float height) -> bool {
-    glm::mat4 proj(1.0F);
-
-    proj[0][0] = 2.0F / width;
-    proj[1][1] = 2.0F / height;
-    proj[3][0] = -1.0F;
-    proj[3][1] = -1.0F;
-
-    glm::mat4 projection{glm::orthoLH_NO(0.0F, width, 0.0F, height, -1.0F, 1.0F)};
-
-    return proj == projection;
-}
-
-// is tutorial doing any of this yet? or just identity matrix used?
-// https://www.youtube.com/watch?v=9zrHmy3b0x0&list=PLI3kBEQ3yd-CbQfRchF70BPLF9G1HEzhy&index=2
-// working on this...
-auto make_mvp(float width, float height, glm::vec2 pos, float rot_deg) -> glm::mat4 {
-    // glm::mat4 projection{glm::orthoLH_NO(0.0F, width, 0.0F, height, -1.0F, 1.0F)};
-    glm::mat4 projection{glm::orthoLH_NO(0.0F, width, 0.0F, height, -1.0F, 1.0F)};
-    // no view - glm::mat4 view{...};
-
-    glm::mat4 model{glm::mat4(1.0F)};    // could do glm::scale here
-    model = glm::translate(model, glm::vec3(pos, 0.0F));
-    model = glm::rotate(model, glm::radians(rot_deg), glm::vec3(0.0F, 0.0F, 1.0F));
-
-    return projection * model;
-}
-
-// Build 2D model matrix with rotation + translation
-auto make_model_mat(glm::vec2 position, float rotation_degrees) -> glm::mat4 {
-    float r{glm::radians(rotation_degrees)};
-    float cos_r{std::cos(r)};
-    float sin_r{std::sin(r)};
-
-    glm::mat4 model(1.0F);    // identity
-
-    model[0][0] = cos_r;
-    model[0][1] = sin_r;
-    model[1][0] = -sin_r;
-    model[1][1] = cos_r;
-    model[3][0] = position.x;
-    model[3][1] = position.y;
-
-    return model;
-}
-
-// Maps (0, 0) -> (-1, -1), (width, height) -> (1, 1)
-auto make_ortho_proj(float width, float height) -> glm::mat4 {
-    glm::mat4 proj(1.0F);
-
-    proj[0][0] = 2.0F / width;
-    proj[1][1] = 2.0F / height;
-    proj[3][0] = -1.0F;
-    proj[3][1] = -1.0F;
-
-    return proj;
-}
-

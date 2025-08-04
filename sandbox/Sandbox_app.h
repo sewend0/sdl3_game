@@ -53,6 +53,7 @@ using Device_ptr = std::unique_ptr<SDL_GPUDevice, Device_deleter>;
 //     glm::mat4 matrix;
 // };
 
+// rename this to Vertex_data
 struct Vertex {
     glm::vec2 position;
     glm::vec4 color;
@@ -85,37 +86,17 @@ private:
     Pipeline_ptr m_pipeline;
 
     SDL_GPUBuffer* m_vertex_buffer;
+    SDL_GPUTransferBuffer* m_transfer_buffer;
 
-    glm::vec2 m_demo_pos{600.0F, 600.0F};
+    glm::vec2 m_demo_pos{400.0F, 400.0F};
     float m_demo_rot{0.0F};
-
-    // https://www.youtube.com/watch?v=DkMT8QPqft0&list=PLI3kBEQ3yd-CbQfRchF70BPLF9G1HEzhy&index=3
-    // @ 11:17
 
     // lander points defined in local space - (0,0) is center
     std::array<Vertex, 3> m_vertices{
-        Vertex{.position = {0.0F, 50.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-        Vertex{.position = {-50.0F, -50.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-        Vertex{.position = {50.0F, -50.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
+        Vertex{.position = {0.0F, 70.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
+        Vertex{.position = {-50.0F, -50.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
+        Vertex{.position = {50.0F, -50.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
     };
-
-    // // debug
-    // static int counter{0};
-    // static float rotation{0.0F};
-
-    // ++counter;
-    // if (counter % 2 == 0) {
-    //     rotation += 1.0F;
-    //     counter = 0;
-    // }
-    //
-    // Render_instance dbg_inst{{300.0F, 300.0F}, rotation, {0.0F, 0.0F, 0.0F, 1.0F}};
-    // if (not m_graphics->draw(m_window.get(), &dbg_inst))
-    //     utils::log("Unable to render lander");
-
-    // Vertex{.position = {0.0F, 40.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-    // Vertex{.position = {-25.0F, -25.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-    // Vertex{.position = {25.0F, -25.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
 
     auto init_window() -> void;
     auto init_timer() -> void;
@@ -125,6 +106,9 @@ private:
     auto make_shader(const std::string& file_name) -> SDL_GPUShader*;
     auto make_pipeline(SDL_GPUShader* vertex, SDL_GPUShader* fragment) -> SDL_GPUGraphicsPipeline*;
     auto make_vertex_buffer() -> SDL_GPUBuffer*;
+    auto make_transfer_buffer() -> SDL_GPUTransferBuffer*;
+    auto copy_pass() -> void;
+    auto make_mvp() -> glm::mat4;
 
     auto draw() -> void;
 };

@@ -4,7 +4,6 @@
 
 Sandbox_app::~Sandbox_app() {
     // release buffers
-    // SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
     SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
 
     // // release resources - sprite demo
@@ -61,10 +60,12 @@ auto Sandbox_app::init_graphics() -> void {
     SDL_ReleaseGPUShader(m_gpu_device.get(), vertex_shader);
     SDL_ReleaseGPUShader(m_gpu_device.get(), fragment_shader);
 
-    m_vertex_buffer = make_vertex_buffer();
-
     // upload vertex data to the vertex buffer
-    // bind vertex buffer to the render pass
+    m_vertex_buffer = make_vertex_buffer();
+    m_transfer_buffer = make_transfer_buffer();
+    copy_pass();
+
+    SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);    // if not using again
 }
 
 auto Sandbox_app::update() -> void {
@@ -257,6 +258,80 @@ auto Sandbox_app::make_vertex_buffer() -> SDL_GPUBuffer* {
     return vertex_buffer;
 }
 
+auto Sandbox_app::make_transfer_buffer() -> SDL_GPUTransferBuffer* {
+    // create transfer buffer to upload to vertex buffer
+    SDL_GPUTransferBufferCreateInfo transfer_create_info{
+        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+        .size = sizeof(m_vertices),
+    };
+    SDL_GPUTransferBuffer* transfer_buffer =
+        SDL_CreateGPUTransferBuffer(m_gpu_device.get(), &transfer_create_info);
+    if (not transfer_buffer)
+        throw App_exception();
+
+    return transfer_buffer;
+}
+
+auto Sandbox_app::copy_pass() -> void {
+    // map transfer buffer to a pointer
+    Vertex* transfer_ptr{
+        static_cast<Vertex*>(SDL_MapGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer, false))
+    };
+    if (not transfer_ptr)
+        throw App_exception();
+
+    // copy the data, and unmap when finished updating transfer buffer
+    SDL_memcpy(transfer_ptr, m_vertices.data(), sizeof(m_vertices));
+    SDL_UnmapGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
+
+    // start a copy pass
+    SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(m_gpu_device.get())};
+    if (not command_buffer)
+        throw App_exception();
+
+    SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
+    if (not copy_pass)
+        throw App_exception();
+
+    // locate the data
+    SDL_GPUTransferBufferLocation location{
+        .transfer_buffer = m_transfer_buffer,
+        .offset = 0,
+    };
+
+    // locate upload destination
+    SDL_GPUBufferRegion region{
+        .buffer = m_vertex_buffer,
+        .offset = 0,
+        .size = sizeof(m_vertices),
+    };
+
+    // upload the data, end the copy pass, and submit command buffer
+    SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
+    SDL_EndGPUCopyPass(copy_pass);
+    if (not SDL_SubmitGPUCommandBuffer(command_buffer))
+        throw App_exception();
+}
+
+auto Sandbox_app::make_mvp() -> glm::mat4 {
+    // Build 2D model matrix with translation, rotation, and scale
+    glm::mat4 model{glm::mat4(1.0F)};
+    model = glm::translate(model, glm::vec3(m_demo_pos, 0.0F));
+    model = glm::rotate(model, glm::radians(m_demo_rot), glm::vec3(0.0F, 0.0F, 1.0F));
+    model = glm::scale(model, glm::vec3(1.0F));
+
+    // Maps (0, 0) -> (-1, -1), (width, height) -> (1, 1)
+    // recalc this only needs to be done when the screen size changes
+    // glm::mat4 projection{
+    //     glm::ortho(0.0F, static_cast<float>(width), 0.0F, static_cast<float>(height))
+    // };
+    // by not using the swapchain texture width/height, you essentially have a logical resolution
+    glm::mat4 projection{glm::ortho(0.0F, 800.0F, 0.0F, 800.0F)};
+    glm::mat4 mvp{projection * model};
+
+    return mvp;
+}
+
 auto Sandbox_app::draw() -> void {
 
     // get the command buffer
@@ -297,20 +372,10 @@ auto Sandbox_app::draw() -> void {
     };
     SDL_BindGPUVertexBuffers(render_pass, 0, &buffer_binding, 1);
 
-    // update uniform data(this does not necessarily need to be done here)
+    // update uniform data (this does not necessarily need to be done here)
     // separate this out into function
     // Build 2D model matrix with translation, rotation, and scale
-    glm::mat4 model{glm::mat4(1.0F)};
-    model = glm::translate(model, glm::vec3(m_demo_pos, 0.0F));
-    model = glm::rotate(model, glm::radians(m_demo_rot), glm::vec3(0.0F, 0.0F, 1.0F));
-    model = glm::scale(model, glm::vec3(1.0F));
-
-    // Maps (0, 0) -> (-1, -1), (width, height) -> (1, 1)
-    // recalc this only needs to be done when the screen size changes
-    glm::mat4 projection{
-        glm::ortho(0.0F, static_cast<float>(width), 0.0F, static_cast<float>(height))
-    };
-    glm::mat4 mvp{projection * model};
+    glm::mat4 mvp{make_mvp()};
 
     // bind uniform data (uniform data is same for whole call)
     SDL_PushGPUVertexUniformData(command_buffer, 0, &mvp, sizeof(glm::mat4));

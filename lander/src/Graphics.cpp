@@ -2,36 +2,6 @@
 
 #include <Graphics.h>
 
-// Build 2D model matrix with rotation + translation
-auto make_model_matrix(glm::vec2 position, float rotation_degrees) -> glm::mat4 {
-    float r{glm::radians(rotation_degrees)};
-    float cos_r{std::cos(r)};
-    float sin_r{std::sin(r)};
-
-    glm::mat4 model(1.0F);    // identity
-
-    model[0][0] = cos_r;
-    model[0][1] = sin_r;
-    model[1][0] = -sin_r;
-    model[1][1] = cos_r;
-    model[3][0] = position.x;
-    model[3][1] = position.y;
-
-    return model;
-}
-
-// Maps (0, 0) -> (-1, -1), (width, height) -> (1, 1)
-auto make_ortho_projection(float width, float height) -> glm::mat4 {
-    glm::mat4 proj(1.0F);
-
-    proj[0][0] = 2.0F / width;
-    proj[1][1] = 2.0F / height;
-    proj[3][0] = -1.0F;
-    proj[3][1] = -1.0F;
-
-    return proj;
-}
-
 Graphics_system::~Graphics_system() {
     // calls destructors - order is important here
     // should automatically go in reverse order of declaration
@@ -42,46 +12,26 @@ Graphics_system::~Graphics_system() {
 auto Graphics_system::init(
     const std::filesystem::path& assets_path, const std::vector<std::string>& file_names,
     SDL_Window* window
-) -> bool {
+) -> void {
 
+    // set up the graphics device
+    m_device = Device_ptr{prepare_device(window), Device_deleter{}};
+
+    // set up and load files
     m_assets_path = assets_path;
-
-    // like CommonInit in SDL_gpu examples
-    if (not prepare_device(window))
-        return utils::log_fail("Unable to get a prepare GPU device");
-
-    // triangle demo
-    // if (not copy_pass())
-    //     return utils::log_fail("Failed to perform copy pass");
-
-    // create shaders
     SDL_GPUShader* vertex_shader{make_shader(file_names[0])};
-    if (not vertex_shader)
-        return utils::log_fail("Failed to create vertex shader");
-
     SDL_GPUShader* fragment_shader{make_shader(file_names[1])};
-    if (not fragment_shader)
-        return utils::log_fail("Failed to create fragment shader");
 
-    SDL_GPUGraphicsPipeline* pipeline{make_pipeline(window, vertex_shader, fragment_shader)};
-    if (not pipeline)
-        return utils::log_fail("Failed to create graphics pipeline");
+    // set up a pipeline
+    m_pipeline = Pipeline_ptr{
+        make_pipeline(window, vertex_shader, fragment_shader), Pipeline_deleter{m_device.get()}
+    };
 
-    // don't need to store the shaders after the pipeline is created
-    SDL_ReleaseGPUShader(m_gpu_device.get(), vertex_shader);
-    SDL_ReleaseGPUShader(m_gpu_device.get(), fragment_shader);
-
-    m_gfx_pipeline = Pipeline_ptr{pipeline, Pipeline_deleter{m_gpu_device.get()}};
-
-    // sprite demo
-    // if (not copy_pass())
-    //     return utils::log_fail("Failed to perform copy pass");
+    SDL_ReleaseGPUShader(m_device.get(), vertex_shader);
+    SDL_ReleaseGPUShader(m_device.get(), fragment_shader);
 
     m_lander = Lander_renderer{};
-    if (not m_lander.init(m_gpu_device.get()))
-        return utils::log_fail("Failed to create lander renderer");
-
-    return true;
+    m_lander.init(m_device.get());
 }
 
 auto Graphics_system::quit(SDL_Window* window) -> void {
@@ -89,32 +39,28 @@ auto Graphics_system::quit(SDL_Window* window) -> void {
     // SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_transfer_buffer);
     // SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_vertex_buffer);
 
-    // // release resources - sprite demo
-    // SDL_ReleaseGPUSampler(m_gpu_device.get(), m_sampler);
-    // SDL_ReleaseGPUTexture(m_gpu_device.get(), m_texture);
-    // SDL_ReleaseGPUTransferBuffer(m_gpu_device.get(), m_sprite_transfer_buffer);
-    // SDL_ReleaseGPUBuffer(m_gpu_device.get(), m_sprite_data_buffer);
-
     // release renderers
-    m_lander.destroy(m_gpu_device.get());
+    m_lander.destroy(m_device.get());
 
     // release swapchain
-    SDL_ReleaseWindowFromGPUDevice(m_gpu_device.get(), window);
+    SDL_ReleaseWindowFromGPUDevice(m_device.get(), window);
 }
 
-auto Graphics_system::prepare_device(SDL_Window* window) -> bool {
+auto Graphics_system::prepare_device(SDL_Window* window) -> SDL_GPUDevice* {
     // get gpu device meeting specifications
     SDL_GPUDevice* gpu_device{
         SDL_CreateGPUDevice(SDL_ShaderCross_GetSPIRVShaderFormats(), true, nullptr)
     };
     if (not gpu_device)
-        return utils::fail();
+        throw error("Failed to create GPU device");
 
-    m_gpu_device = Device_ptr{gpu_device, Device_deleter{}};
+    // m_gpu_device = Device_ptr{gpu_device, Device_deleter{}};
 
     // attach device for use with window
-    if (not SDL_ClaimWindowForGPUDevice(m_gpu_device.get(), window))
-        return utils::fail();
+    if (not SDL_ClaimWindowForGPUDevice(gpu_device, window))
+        throw error("Failed to claim window for device");
+
+    return gpu_device;
 
     // debug
     // utils::log(SDL_GetGPUDeviceDriver(m_gpu_device.get()));
@@ -132,8 +78,6 @@ auto Graphics_system::prepare_device(SDL_Window* window) -> bool {
     // SDL_SetGPUSwapchainParameters(
     //     m_gpu_device.get(), window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, present_mode
     // );
-
-    return true;
 }
 
 auto Graphics_system::make_shader(const std::string& file_name) -> SDL_GPUShader* {
@@ -147,13 +91,13 @@ auto Graphics_system::make_shader(const std::string& file_name) -> SDL_GPUShader
     else if (file_name.contains(".comp"))
         stage = SDL_SHADERCROSS_SHADERSTAGE_COMPUTE;
     else
-        return static_cast<SDL_GPUShader*>(utils::log_null("Invalid shader stage"));
+        throw error("Invalid shader stage");
 
     // load the shader code
     size_t code_size;
     void* code{SDL_LoadFile((m_assets_path / file_name).string().c_str(), &code_size)};
     if (not code)
-        return static_cast<SDL_GPUShader*>(utils::log_null("Failed to load shader file's code"));
+        throw error("Failed to load shader file code");
 
     // create the vertex/fragment shader
     SDL_ShaderCross_SPIRV_Info shader_info{
@@ -170,10 +114,10 @@ auto Graphics_system::make_shader(const std::string& file_name) -> SDL_GPUShader
 
     // cross compile to appropriate format and create object
     SDL_GPUShader* shader{SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(
-        m_gpu_device.get(), &shader_info, shader_metadata, 0
+        m_device.get(), &shader_info, shader_metadata, 0
     )};
     if (not shader)
-        return static_cast<SDL_GPUShader*>(utils::fail_null("Failed to create shader"));
+        throw error("Failed to create shader");
 
     // free resources no longer needed
     SDL_free(shader_metadata);
@@ -190,13 +134,13 @@ auto Graphics_system::make_pipeline(
     std::array<SDL_GPUVertexBufferDescription, 1> vertex_buffer_descriptions{
         SDL_GPUVertexBufferDescription{
             .slot = 0,
-            .pitch = sizeof(Vertex_2d),
+            .pitch = sizeof(Vertex_data),
             .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
             .instance_step_rate = 0,
         }
     };
 
-    // describe vertex attributes - LOCATIONS, FORMAT? CORRECT?
+    // describe vertex attributes
     SDL_GPUVertexAttribute a_position{
         .location = 0,
         .buffer_slot = 0,
@@ -206,23 +150,16 @@ auto Graphics_system::make_pipeline(
     SDL_GPUVertexAttribute a_color{
         .location = 1,
         .buffer_slot = 0,
-        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT,
+        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
         .offset = sizeof(float) * 2,
     };
     std::array<SDL_GPUVertexAttribute, 2> vertex_attributes{a_position, a_color};
 
     // describe color target
-    SDL_GPUColorTargetBlendState blend_state{
-        .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
-        .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-        .color_blend_op = SDL_GPU_BLENDOP_ADD,
-        .src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
-        .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-        .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
-        .enable_blend = true,
-    };
     std::array<SDL_GPUColorTargetDescription, 1> target_descriptions{
-        SDL_GetGPUSwapchainTextureFormat(m_gpu_device.get(), window), blend_state
+        SDL_GPUColorTargetDescription{
+            .format = SDL_GetGPUSwapchainTextureFormat(m_device.get(), window),
+        },
     };
 
     // create pipeline - bind shaders
@@ -243,54 +180,181 @@ auto Graphics_system::make_pipeline(
         .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
         .target_info = target_info,
     };
-    SDL_GPUGraphicsPipeline* pipeline{
-        SDL_CreateGPUGraphicsPipeline(m_gpu_device.get(), &create_info)
-    };
+    SDL_GPUGraphicsPipeline* pipeline{SDL_CreateGPUGraphicsPipeline(m_device.get(), &create_info)};
     if (not pipeline)
-        return static_cast<SDL_GPUGraphicsPipeline*>(utils::fail_null());
+        throw error("Failed to create graphics pipeline");
 
     return pipeline;
 }
 
-auto Lander_renderer::init(SDL_GPUDevice* device) -> bool {
+auto Graphics_system::load_assets() -> void {
+    m_render_component_cache["Lander"] = create_render_component(
+        m_pipeline.get(), asset_definitions::LANDER_VERTICES.data(),
+        sizeof(asset_definitions::LANDER_VERTICES)
+    );
+}
+
+auto Graphics_system::create_render_component(
+    SDL_GPUGraphicsPipeline* pipeline, const Vertex* vertices, Uint32 buffer_size
+) {
+    // calculate total size of vertex data in bytes
+    // Uint32 buffer_size{static_cast<Uint32>(vertex_count * sizeof(Vertex))};
+
+    // create buffers
+    SDL_GPUBuffer* vertex_buffer{make_vertex_buffer(buffer_size)};
+    SDL_GPUTransferBuffer* transfer_buffer{make_transfer_buffer(buffer_size)};
+
+    // upload data and release buffers (if not using again)
+    copy_pass(vertices, buffer_size, vertex_buffer, transfer_buffer);
+    SDL_ReleaseGPUTransferBuffer(m_device.get(), transfer_buffer);
+
+    // return component
+    Render_component render_component{
+        .pipeline = pipeline,
+        .vertex_buffer = vertex_buffer,
+        .buffer_size = buffer_size,
+    };
+
+    return render_component;
+}
+
+auto Graphics_system::make_vertex_buffer(Uint32 buffer_size) -> SDL_GPUBuffer* {
     // create vertex buffer
     SDL_GPUBufferCreateInfo buffer_create_info{
         .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
-        .size = sizeof(lander_vertices),
+        .size = buffer_size,
     };
-    m_vertex_buffer = SDL_CreateGPUBuffer(device, &buffer_create_info);
-    if (not m_vertex_buffer)
-        return utils::fail();
+    SDL_GPUBuffer* vertex_buffer = SDL_CreateGPUBuffer(m_device.get(), &buffer_create_info);
+    if (not vertex_buffer)
+        throw error();
 
+    return vertex_buffer;
+}
+
+auto Graphics_system::make_transfer_buffer(Uint32 buffer_size) -> SDL_GPUTransferBuffer* {
     // create transfer buffer to upload to vertex buffer
     SDL_GPUTransferBufferCreateInfo transfer_create_info{
         .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-        .size = sizeof(lander_vertices),
+        .size = buffer_size,
     };
-    m_transfer_buffer = SDL_CreateGPUTransferBuffer(device, &transfer_create_info);
-    if (not m_transfer_buffer)
-        return utils::fail();
+    SDL_GPUTransferBuffer* transfer_buffer =
+        SDL_CreateGPUTransferBuffer(m_device.get(), &transfer_create_info);
+    if (not transfer_buffer)
+        throw error();
 
+    return transfer_buffer;
+}
+
+auto Graphics_system::copy_pass(
+    const Vertex* vertices, Uint32 buffer_size, SDL_GPUBuffer* vertex_buffer,
+    SDL_GPUTransferBuffer* transfer_buffer
+) -> void {
     // map transfer buffer to a pointer
-    Vertex_2d* transfer_ptr{
-        static_cast<Vertex_2d*>(SDL_MapGPUTransferBuffer(device, m_transfer_buffer, false))
+    Vertex_data* transfer_ptr{
+        static_cast<Vertex_data*>(SDL_MapGPUTransferBuffer(m_device.get(), transfer_buffer, false))
     };
     if (not transfer_ptr)
-        return utils::fail();
+        throw error();
 
     // copy the data, and unmap when finished updating transfer buffer
-    // is this right? .data()?
-    SDL_memcpy(transfer_ptr, lander_vertices.data(), sizeof(lander_vertices));
+    SDL_memcpy(transfer_ptr, vertices, buffer_size);
+    SDL_UnmapGPUTransferBuffer(m_device.get(), transfer_buffer);
+
+    // start a copy pass
+    SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(m_device.get())};
+    if (not command_buffer)
+        throw error();
+
+    SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
+    if (not copy_pass)
+        throw error();
+
+    // locate the data
+    SDL_GPUTransferBufferLocation location{
+        .transfer_buffer = transfer_buffer,
+        .offset = 0,
+    };
+
+    // locate upload destination
+    SDL_GPUBufferRegion region{
+        .buffer = vertex_buffer,
+        .offset = 0,
+        .size = buffer_size,
+    };
+
+    // upload the data, end the copy pass, and submit command buffer
+    SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
+    SDL_EndGPUCopyPass(copy_pass);
+    if (not SDL_SubmitGPUCommandBuffer(command_buffer))
+        throw error();
+}
+
+auto Graphics_system::draw(SDL_Window* window) -> void {
+    m_lander.draw(m_device.get(), window, m_pipeline.get());
+}
+
+auto Lander_renderer::init(SDL_GPUDevice* device) -> void {
+    // upload vertex data to the vertex buffer
+    m_vertex_buffer = make_vertex_buffer(device);
+    m_transfer_buffer = make_transfer_buffer(device);
+
+    copy_pass(device);
+
+    SDL_ReleaseGPUTransferBuffer(device, m_transfer_buffer);    // if not using again
+}
+
+auto Lander_renderer::destroy(SDL_GPUDevice* device) -> void {
+    // SDL_ReleaseGPUTransferBuffer(device, m_transfer_buffer);
+    SDL_ReleaseGPUBuffer(device, m_vertex_buffer);
+}
+
+auto Lander_renderer::make_vertex_buffer(SDL_GPUDevice* device) -> SDL_GPUBuffer* {
+    // create vertex buffer
+    SDL_GPUBufferCreateInfo buffer_create_info{
+        .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
+        .size = sizeof(m_vertices),
+    };
+    SDL_GPUBuffer* vertex_buffer = SDL_CreateGPUBuffer(device, &buffer_create_info);
+    if (not vertex_buffer)
+        throw error();
+
+    return vertex_buffer;
+}
+
+auto Lander_renderer::make_transfer_buffer(SDL_GPUDevice* device) -> SDL_GPUTransferBuffer* {
+    // create transfer buffer to upload to vertex buffer
+    SDL_GPUTransferBufferCreateInfo transfer_create_info{
+        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+        .size = sizeof(m_vertices),
+    };
+    SDL_GPUTransferBuffer* transfer_buffer =
+        SDL_CreateGPUTransferBuffer(device, &transfer_create_info);
+    if (not transfer_buffer)
+        throw error();
+
+    return transfer_buffer;
+}
+
+auto Lander_renderer::copy_pass(SDL_GPUDevice* device) -> void {
+    // map transfer buffer to a pointer
+    Vertex_data* transfer_ptr{
+        static_cast<Vertex_data*>(SDL_MapGPUTransferBuffer(device, m_transfer_buffer, false))
+    };
+    if (not transfer_ptr)
+        throw error();
+
+    // copy the data, and unmap when finished updating transfer buffer
+    SDL_memcpy(transfer_ptr, m_vertices.data(), sizeof(m_vertices));
     SDL_UnmapGPUTransferBuffer(device, m_transfer_buffer);
 
     // start a copy pass
     SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(device)};
     if (not command_buffer)
-        return utils::fail();
+        throw error();
 
     SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
     if (not copy_pass)
-        return utils::fail();
+        throw error();
 
     // locate the data
     SDL_GPUTransferBufferLocation location{
@@ -302,60 +366,66 @@ auto Lander_renderer::init(SDL_GPUDevice* device) -> bool {
     SDL_GPUBufferRegion region{
         .buffer = m_vertex_buffer,
         .offset = 0,
-        .size = sizeof(lander_vertices),
+        .size = sizeof(m_vertices),
     };
 
     // upload the data, end the copy pass, and submit command buffer
     SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
     SDL_EndGPUCopyPass(copy_pass);
     if (not SDL_SubmitGPUCommandBuffer(command_buffer))
-        return utils::fail();
-
-    return true;
+        throw error();
 }
 
-auto Lander_renderer::destroy(SDL_GPUDevice* device) -> void {
-    SDL_ReleaseGPUBuffer(device, m_vertex_buffer);
-    SDL_ReleaseGPUTransferBuffer(device, m_transfer_buffer);
+auto Lander_renderer::make_mvp() -> glm::mat4 {
+    // Build 2D model matrix with translation, rotation, and scale
+    glm::mat4 model{glm::mat4(1.0F)};
+    model = glm::translate(model, glm::vec3(m_pos, 0.0F));
+    model = glm::rotate(model, glm::radians(m_rot), glm::vec3(0.0F, 0.0F, 1.0F));
+    model = glm::scale(model, glm::vec3(1.0F));
+
+    // Maps (0, 0) -> (-1, -1), (width, height) -> (1, 1)
+    // recalc this only needs to be done when the screen size changes
+    // glm::mat4 projection{
+    //     glm::ortho(0.0F, static_cast<float>(width), 0.0F, static_cast<float>(height))
+    // };
+    // by not using the swapchain texture width/height, you essentially have a logical resolution
+    glm::mat4 projection{glm::ortho(0.0F, 800.0F, 0.0F, 800.0F)};
+    glm::mat4 mvp{projection * model};
+
+    return mvp;
 }
 
 auto Lander_renderer::draw(
-    SDL_GPUDevice* device, SDL_Window* window, SDL_GPUGraphicsPipeline* pipeline,
-    Render_instance lander
-) -> bool {
+    SDL_GPUDevice* device, SDL_Window* window, SDL_GPUGraphicsPipeline* pipeline
+) -> void {
 
-    // Transform transform{lander.position.x, lander.position.y, lander.rotation};
-
-    // acquire the command buffer
+    // get the command buffer
     SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(device)};
     if (not command_buffer)
-        return utils::fail();
+        throw error("Failed to acquire command buffer");
 
-    // get the swapchain texture
+    // get the swapchain texture - end frame early if not available
     SDL_GPUTexture* swapchain_texture;
     Uint32 width;
     Uint32 height;
-
-    // end the frame early if swapchain is not available
     if (not SDL_WaitAndAcquireGPUSwapchainTexture(
             command_buffer, window, &swapchain_texture, &width, &height
         )) {
         SDL_SubmitGPUCommandBuffer(command_buffer);
-        return utils::fail();
+        return;
     }
 
-    // DEBUG - MAKE BACKGROUND / create the color target
-    SDL_GPUColorTargetInfo color_target{};
-    color_target.clear_color = {0.15F, 0.17F, 0.20F, 1.00F};
-    color_target.load_op = SDL_GPU_LOADOP_CLEAR;
-    color_target.store_op = SDL_GPU_STOREOP_STORE;
-    color_target.texture = swapchain_texture;
-
     // begin a render pass
+    SDL_GPUColorTargetInfo color_target{
+        .texture = swapchain_texture,
+        .clear_color = {0.15F, 0.17F, 0.20F, 1.00F},
+        .load_op = SDL_GPU_LOADOP_CLEAR,
+        .store_op = SDL_GPU_STOREOP_STORE,
+    };
     SDL_GPURenderPass* render_pass{SDL_BeginGPURenderPass(command_buffer, &color_target, 1, nullptr)
     };
     if (not render_pass)
-        return utils::fail();
+        throw error("Failed to being render pass");
 
     // bind the graphics pipeline
     SDL_BindGPUGraphicsPipeline(render_pass, pipeline);
@@ -367,22 +437,24 @@ auto Lander_renderer::draw(
     };
     SDL_BindGPUVertexBuffers(render_pass, 0, &buffer_binding, 1);
 
-    // update the uniform data - should calc the mpv be in here? m_uniform_transform now?
-    // matrix multiplication order matters (also no view, so skipping it is fine)
-    glm::mat4 mvp{
-        make_ortho_projection(static_cast<float>(width), static_cast<float>(height)) *
-        make_model_matrix({lander.position.x, lander.position.y}, lander.rotation)
-    };
+    // update uniform data (this does not necessarily need to be done here)
+    // separate this out into function
+    // Build 2D model matrix with translation, rotation, and scale
+    glm::mat4 mvp{make_mvp()};
+
+    // bind uniform data (uniform data is same for whole call)
     SDL_PushGPUVertexUniformData(command_buffer, 0, &mvp, sizeof(glm::mat4));
 
-    // update the uniform data
-    // SDL_PushGPUVertexUniformData(command_buffer, 0, &m_uniform_transform, sizeof(Transform));
+    // issue draw call
+    SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
 
-    // issue draw call for vertices
-    SDL_DrawGPUPrimitives(render_pass, lander_vertices.size(), 1, 0, 0);
-
-    // end render pass and submit command buffer
+    // end render pass
     SDL_EndGPURenderPass(render_pass);
-    return SDL_SubmitGPUCommandBuffer(command_buffer);
+
+    // more render passes
+
+    // submit the command buffer
+    if (not SDL_SubmitGPUCommandBuffer(command_buffer))
+        throw error("Failed to submit command buffer");
 }
 

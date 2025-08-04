@@ -2,10 +2,10 @@
 
 #define SDL_MAIN_USE_CALLBACKS
 // #include <App.h>
+#include <App.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
-#include <Sandbox_app.h>
 #include <Timer.h>
 
 #include <filesystem>
@@ -26,7 +26,7 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
     // extra debugging
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
 
-    auto app{std::make_unique<Sandbox_app>()};
+    auto app{std::make_unique<App>()};
     app->init();
 
     // give ownership to SDL
@@ -38,7 +38,7 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
 
 // Runs when a new event occurs
 auto SDL_AppEvent(void* appstate, SDL_Event* event) -> SDL_AppResult {
-    auto* app{static_cast<Sandbox_app*>(appstate)};
+    auto* app{static_cast<App*>(appstate)};
 
     // if (event->type == SDL_EVENT_QUIT)
     //     return SDL_APP_SUCCESS;
@@ -52,7 +52,7 @@ auto SDL_AppEvent(void* appstate, SDL_Event* event) -> SDL_AppResult {
 
 // Runs once per frame
 auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
-    auto* app{static_cast<Sandbox_app*>(appstate)};
+    auto* app{static_cast<App*>(appstate)};
 
     // app->timer()->tick();
     // // process input
@@ -77,10 +77,10 @@ auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
 
 // Runs once at shutdown
 auto SDL_AppQuit(void* appstate, SDL_AppResult result) -> void {
-    auto* app{static_cast<Sandbox_app*>(appstate)};
+    auto* app{static_cast<App*>(appstate)};
 
     // app->shutdown();
-    delete static_cast<Sandbox_app*>(appstate);
+    delete static_cast<App*>(appstate);
 
     result == SDL_APP_SUCCESS ? SDL_Log("App quit successfully!") : SDL_Log("App failure.");
     // SDL_Log("App quit successfully!");

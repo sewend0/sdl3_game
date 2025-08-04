@@ -5,7 +5,7 @@
 
 #include <SDL3_ttf/SDL_ttf.h>
 #include <System.h>
-#include <Utils.h>
+#include <Utility.h>
 
 #include <filesystem>
 #include <memory>

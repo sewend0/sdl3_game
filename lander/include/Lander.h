@@ -38,7 +38,7 @@ private:
     glm::vec2 pos;
     glm::vec2 vel;
     float ang_rad;
-    float ang_deg;
+    float ang_deg;    // which?
     // double ang_rad;    // facing direction?
     // double ang_vel;
     // double fuel; // 100.0

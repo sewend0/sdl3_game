@@ -55,22 +55,23 @@ target_sources("${CMAKE_PROJECT_NAME}"
         lander/src/Lander.cpp
         lander/src/Text.cpp
         lander/src/Timer.cpp
-        lander/src/Utils.cpp
-        sandbox/Sandbox_app.cpp
+        lander/src/Utility.cpp
+        # sandbox/Sandbox_app.cpp
 
         PUBLIC
         lander/include/App.h
+        lander/include/Assets.h
         lander/include/Audio.h
         lander/include/Game.h
         lander/include/Graphics.h
         lander/include/Lander.h
-        lander/include/Render_instance.h
-        lander/include/Render_instance_builder.h
+        lander/include/Render_component.h
+        lander/include/Render_packet.h
         lander/include/System.h
         lander/include/Text.h
         lander/include/Timer.h
-        lander/include/Utils.h
-        sandbox/Sandbox_app.h
+        lander/include/Utility.h
+        # sandbox/Sandbox_app.h
 )
 
 # Set included directories for this project

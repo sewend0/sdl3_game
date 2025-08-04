@@ -5,15 +5,23 @@
 
 #include <SDL3/SDL.h>
 // #include <SDL3_image/SDL_image.h>
-#include <Render_instance.h>
+#include <Assets.h>
+#include <Render_component.h>
+#include <Render_packet.h>
 #include <SDL3_shadercross/SDL_shadercross.h>
 #include <System.h>
-#include <Utils.h>
+#include <Utility.h>
 
+#include <array>
 #include <cassert>
+#include <glm/glm/ext/matrix_clip_space.hpp>
+#include <glm/glm/ext/matrix_transform.hpp>
+#include <glm/glm/glm.hpp>
 #include <glm/glm/mat4x4.hpp>
+#include <glm/glm/matrix.hpp>
 #include <glm/glm/trigonometric.hpp>
 #include <glm/glm/vec2.hpp>
+#include <map>
 #include <unordered_map>
 
 // Abstract GPU logic (shaders, pipelines, etc.)
@@ -163,7 +171,43 @@ Step 5: Particle system (optional)
  *      right before the draw call
  *      only place that will have both the model and projection matrices
  *
+ *
+ *
+ * Game class does its game logic
+ * Then, loop through all game objects (lander, ground, etc)
+ * For each one create a Render_packet
+ * Fill it with current model matrix, and gpu asset handles
+ * Add all these packets to a vector
+ * App class will get this from Game
+ * Then, passes it onto the Graphics_system
+ * Graphics_system iterates through each packet
+ *  - bind the vertex buffer
+ *  - bind the pipeline
+ *  - push to the shader uniform
+ *  - issue draw call
+ *
+ * To get the asset handles into the packets, game objects can store them
+ * To do this, use a Render_component
+ * Game object class will own the component as member
+ * When you create a object, Game should ask Graphics_system
+ *  - for correct mesh
+ *  - for correct pipeline
+ * Then Graphics_system returns a filled in component
+ * This gets stored in the game object instance
+ *
+ * Render_packet is per frame
+ *  - part of public interface of rendering system
+ *  - it is a message sent to renderer
+ *  - defines how other systems communicate with graphics engine
+ *
+ * Render_component is long term
+ *  - component are building blocks of objects
+ *  - should be grouped with other components
+ *
  */
+
+using error = errors::App_exception;
+using Vertex = asset_definitions::Vertex;
 
 struct Pipeline_deleter {
     SDL_GPUDevice* device{nullptr};
@@ -184,62 +228,48 @@ struct Device_deleter {
 using Pipeline_ptr = std::unique_ptr<SDL_GPUGraphicsPipeline, Pipeline_deleter>;
 using Device_ptr = std::unique_ptr<SDL_GPUDevice, Device_deleter>;
 
-struct Vertex_2d {
-    SDL_FPoint pos;
-    SDL_FColor color;
+struct Vertex_data {
+    glm::vec2 position;
+    glm::vec4 color;
 };
-
-// constexpr std::array<Vertex_2d, 3> lander_vertices{
-//     Vertex_2d{.pos = {0.0F, 10.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-//     Vertex_2d{.pos = {-5.0F, -5.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-//     Vertex_2d{.pos = {5.0F, 5.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-// };
-
-constexpr std::array<Vertex_2d, 3> lander_vertices{
-    Vertex_2d{.pos = {0.0F, 40.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-    Vertex_2d{.pos = {-25.0F, -25.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-    Vertex_2d{.pos = {25.0F, -25.0F}, .color = {1.0F, 1.0F, 1.0F, 1.0F}},
-};
-
-// MVP = Projection * View * Model
-// Since it is simple 2D
-// Projection will convert from world units to normalized device coordinates (NDC)
-// View is optional (camera scrolling maybe)
-// Model is for translation and rotation of lander shape
-
-struct Render_object {
-    SDL_GPUBuffer* vertex_buffer;
-};
-
-struct Mesh_component {
-    SDL_GPUBuffer* vertex_buffer;
-};
-
-auto make_model_matrix(glm::vec2 position, float rotation_degrees) -> glm::mat4;
-auto make_ortho_projection(float width, float height) -> glm::mat4;
 
 class Lander_renderer {
 public:
     Lander_renderer() = default;
     ~Lander_renderer() = default;
 
-    auto init(SDL_GPUDevice* device) -> bool;    // upload shape
+    auto init(SDL_GPUDevice* device) -> void;    // upload shape
     auto destroy(SDL_GPUDevice* device) -> void;
-    auto draw(
-        SDL_GPUDevice* device, SDL_Window* window, SDL_GPUGraphicsPipeline* pipeline,
-        Render_instance lander
-    ) -> bool;
+    auto draw(SDL_GPUDevice* device, SDL_Window* window, SDL_GPUGraphicsPipeline* pipeline) -> void;
+    // render_instance
     // could make a small struct that is a render payload, containing all this
 
 private:
     SDL_GPUBuffer* m_vertex_buffer;
     SDL_GPUTransferBuffer* m_transfer_buffer;
 
-    // Transform m_uniform_transform;
-    glm::mat4 m_uniform_transform;    // do i need this? when update?
+    // these should be in the lander class
+    glm::vec2 m_pos{400.0F, 400.0F};
+    float m_rot{0.0F};
 
-    // next steps are...
-    // create shader files...
+    // lander points defined in local space - (0,0) is center
+    std::array<Vertex_data, 3> m_vertices{
+        Vertex_data{.position = {0.0F, 70.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
+        Vertex_data{.position = {-50.0F, -50.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
+        Vertex_data{.position = {50.0F, -50.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
+    };
+    // lander class
+
+    auto make_vertex_buffer(SDL_GPUDevice* device) -> SDL_GPUBuffer*;
+    auto make_transfer_buffer(SDL_GPUDevice* device) -> SDL_GPUTransferBuffer*;
+    auto copy_pass(SDL_GPUDevice* device) -> void;
+
+    // MVP = Projection * View * Model
+    // Since it is simple 2D
+    // Projection will convert from world units to normalized device coordinates (NDC)
+    // View is optional (camera scrolling maybe)
+    // Model is for translation and rotation of lander shape
+    auto make_mvp() -> glm::mat4;
 };
 
 class Graphics_system : public System {
@@ -250,30 +280,49 @@ public:
     auto init(
         const std::filesystem::path& assets_path, const std::vector<std::string>& file_names,
         SDL_Window* window
-    ) -> bool;
+    ) -> void;
 
     auto quit(SDL_Window* window) -> void;
-
-    auto prepare_device(SDL_Window* window) -> bool;
-    // auto copy_pass() -> bool;
-    auto make_shader(const std::string& file_name) -> SDL_GPUShader*;
-    auto make_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
-        -> SDL_GPUGraphicsPipeline*;
 
     // auto pipeline_for_landscape() -> SDL_GPUGraphicsPipeline*;
     // auto pipeline_for_lander() -> SDL_GPUGraphicsPipeline*;
 
-    // debug lander drawing
-    auto draw(SDL_Window* window, Render_instance* instance) -> bool {
-        return m_lander.draw(m_gpu_device.get(), window, m_gfx_pipeline.get(), *instance);
+    auto prepare_device(SDL_Window* window) -> SDL_GPUDevice*;
+    auto make_shader(const std::string& file_name) -> SDL_GPUShader*;
+    auto make_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
+        -> SDL_GPUGraphicsPipeline*;
+
+    auto make_vertex_buffer(Uint32 buffer_size) -> SDL_GPUBuffer*;
+    auto make_transfer_buffer(Uint32 buffer_size) -> SDL_GPUTransferBuffer*;
+    // when cleanup?
+    auto Graphics_system::copy_pass(
+        const Vertex* vertices, Uint32 buffer_size, SDL_GPUBuffer* vertex_buffer,
+        SDL_GPUTransferBuffer* transfer_buffer
+    ) -> void;
+
+    auto load_assets() -> void;
+    auto create_render_component(
+        SDL_GPUGraphicsPipeline* pipeline, const Vertex* vertices, Uint32 vertex_count
+    );
+    auto get_render_component(const std::string& name) -> Render_component {
+        return m_render_component_cache.at(name);
     }
 
+    // next step
+    // When creating a new lander
+    // Lander myNewLander;
+    // myNewLander.SetRenderComponent(graphicsSystem.GetRenderComponent("Lander"));
+
+    auto draw(SDL_Window* window) -> void;    // call draw from its child renderers
+
 private:
-    Device_ptr m_gpu_device;
-    Pipeline_ptr m_gfx_pipeline;
+    Device_ptr m_device;
+    Pipeline_ptr m_pipeline;
     Lander_renderer m_lander;
 
     // Pipeline_ptr m_lander_pipeline;
+
+    std::map<std::string, Render_component> m_render_component_cache;
 };
 
 #endif    // GRAPHICS_H

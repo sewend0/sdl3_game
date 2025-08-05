@@ -2,22 +2,15 @@
 
 #include <Lander.h>
 
-#include <glm/glm/detail/func_trigonometric.inl>
+Lander::Lander(const Render_component& render_component) : m_render_component{render_component} {
+    //
+}
 
-// Build 2D model matrix with rotation + translation
-auto Lander::model_matrix() const -> glm::mat4 {
-    float r{glm::radians(ang_deg)};
-    float cos_r{std::cos(r)};
-    float sin_r{std::sin(r)};
-
-    glm::mat4 model(1.0F);    // identity
-
-    model[0][0] = cos_r;
-    model[0][1] = sin_r;
-    model[1][0] = -sin_r;
-    model[1][1] = cos_r;
-    model[3][0] = pos.x;
-    model[3][1] = pos.y;
-
+// Build 2D model matrix with translation, rotation, and scale
+auto Lander::get_model_matrix() const -> glm::mat4 {
+    glm::mat4 model{glm::mat4(1.0F)};
+    model = glm::translate(model, glm::vec3(m_pos, 0.0F));
+    model = glm::rotate(model, glm::radians(m_ang_deg), glm::vec3(0.0F, 0.0F, 1.0F));
+    model = glm::scale(model, glm::vec3(1.0F));
     return model;
 }

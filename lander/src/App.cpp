@@ -12,6 +12,10 @@ auto App::init() -> void {
     init_text();
     init_graphics();
     init_timer();
+
+    m_lander = std::make_unique<Lander>(
+        Lander{m_graphics->get_render_component(asset_definitions::LANDER_NAME)}
+    );
 }
 
 // app->timer()->tick();
@@ -56,6 +60,7 @@ auto App::update() -> void {
         // if (not m_graphics->draw(m_window.get(), &dbg_inst))
         //     utils::log("Unable to render lander");
 
+        // debug
         static int counter{0};
         static float rotation{0.0F};
 
@@ -70,8 +75,18 @@ auto App::update() -> void {
 
         // need a way to get/set lander_renderer rotation
         // m_demo_rot = rotation;
+        m_lander->set_rotation(rotation);
 
-        m_graphics->draw(m_window.get());
+        Render_packet packet{
+            .pipeline = m_lander->get_render_component().pipeline,
+            .vertex_buffer = m_lander->get_render_component().vertex_buffer,
+            .buffer_size = m_lander->get_render_component().buffer_size,
+            .model_matrix = m_lander->get_model_matrix(),
+        };
+
+        std::vector<Render_packet> packets{packet};
+
+        m_graphics->draw(m_window.get(), packets);
 
         m_timer->mark_render();
     }

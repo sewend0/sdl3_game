@@ -6,6 +6,7 @@
 #include <Audio.h>
 #include <Game.h>
 #include <Graphics.h>
+#include <Lander.h>
 #include <SDL3/SDL.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -27,8 +28,8 @@ struct Window_deleter {
 
 class App {
     const std::string app_name{"lander"};
-    const int window_start_width{400};
-    const int window_start_height{400};    // remember size can get scaled up from highdpi
+    const int window_start_width{800};
+    const int window_start_height{800};    // remember size can get scaled up from highdpi
 
     // constexpr?
     const std::filesystem::path base_path{SDL_GetBasePath()};
@@ -72,6 +73,9 @@ private:
     // std::unique_ptr<Game> m_game;
     std::unique_ptr<Text_system> m_text;
     std::unique_ptr<Timer> m_timer;
+
+    // debug
+    std::unique_ptr<Lander> m_lander;
 
     SDL_AppResult m_app_quit{SDL_APP_CONTINUE};
 

@@ -15,7 +15,6 @@
 
 // Representation of player controlled object
 // Game logic and simulation only
-
 class Lander {
 public:
     Lander(const Render_component& render_component);
@@ -33,6 +32,7 @@ public:
     // auto angle() const -> double;
     // auto fuel() const -> double;
 
+    // Build 2D model matrix with translation, rotation, and scale
     auto get_model_matrix() const -> glm::mat4;
 
     // debug

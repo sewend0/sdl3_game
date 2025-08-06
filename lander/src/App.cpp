@@ -8,14 +8,14 @@ App::~App() {
 
 auto App::init() -> void {
     init_window();
-    init_audio();
-    init_text();
     init_graphics();
+    init_text();
+    init_audio();
     init_timer();
 
-    m_lander = std::make_unique<Lander>(
-        Lander{m_graphics->get_render_component(asset_definitions::LANDER_NAME)}
-    );
+    m_lander =
+        std::make_unique<Lander>(Lander{m_graphics->get_render_component(asset_def::g_lander_name)}
+        );
 }
 
 // app->timer()->tick();
@@ -113,14 +113,15 @@ auto App::init_window() -> void {
 // update these systems to use App_exception as well
 auto App::init_text() -> void {
     m_text = std::make_unique<Text_system>();
-    if (not m_text->init(base_path / font_path, font_files))
-        throw error("App failed to initialize text system");
+    m_text->init(
+        asset_def::g_base_path / asset_def::g_font_path, asset_def::g_font_files,
+        m_graphics->get_device()
+    );
 }
 
 auto App::init_audio() -> void {
     m_audio = std::make_unique<Audio_system>();
-    if (not m_audio->init(base_path / audio_path, audio_files))
-        throw error("App failed to initialize audio system");
+    m_audio->init(asset_def::g_base_path / asset_def::g_audio_path, asset_def::g_audio_files);
 }
 
 auto App::init_timer() -> void {
@@ -129,5 +130,7 @@ auto App::init_timer() -> void {
 
 auto App::init_graphics() -> void {
     m_graphics = std::make_unique<Graphics_system>();
-    m_graphics->init(base_path / shader_path, shader_files, m_window.get());
+    m_graphics->init(
+        asset_def::g_base_path / asset_def::g_shader_path, asset_def::g_shader_files, m_window.get()
+    );
 }

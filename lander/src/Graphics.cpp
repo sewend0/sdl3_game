@@ -2,12 +2,12 @@
 
 #include <Graphics.h>
 
-Graphics_system::~Graphics_system() {
-    // calls destructors - order is important here
-    // should automatically go in reverse order of declaration
-    // m_gfx_pipeline.reset();
-    // m_gpu_device.reset();
-}
+// Graphics_system::~Graphics_system() {
+//     // calls destructors - order is important here
+//     // should automatically go in reverse order of declaration
+//     // m_gfx_pipeline.reset();
+//     // m_gpu_device.reset();
+// }
 
 auto Graphics_system::init(
     const std::filesystem::path& assets_path, const std::vector<std::string>& file_names,
@@ -191,9 +191,8 @@ auto Graphics_system::make_pipeline(
 }
 
 auto Graphics_system::load_assets() -> void {
-    m_render_component_cache[asset_definitions::LANDER_NAME] = create_render_component(
-        m_pipeline.get(), asset_definitions::LANDER_VERTICES.data(),
-        sizeof(asset_definitions::LANDER_VERTICES)
+    m_render_component_cache[asset_def::g_lander_name] = create_render_component(
+        m_pipeline.get(), asset_def::g_lander_vertices.data(), sizeof(asset_def::g_lander_vertices)
     );
 }
 

@@ -6,7 +6,6 @@ Lander::Lander(const Render_component& render_component) : m_render_component{re
     //
 }
 
-// Build 2D model matrix with translation, rotation, and scale
 auto Lander::get_model_matrix() const -> glm::mat4 {
     glm::mat4 model{glm::mat4(1.0F)};
     model = glm::translate(model, glm::vec3(m_pos, 0.0F));

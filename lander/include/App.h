@@ -3,6 +3,7 @@
 #ifndef APP_H
 #define APP_H
 
+#include <Assets.h>
 #include <Audio.h>
 #include <Game.h>
 #include <Graphics.h>
@@ -17,40 +18,34 @@
 #include <filesystem>
 #include <memory>
 
-// Owns and connects all subsystems
-// Keeps SDL objects and global state centralized
-
 using error = errors::App_exception;
 
+// Cleanup process for a Window_ptr
 struct Window_deleter {
     auto operator()(SDL_Window* ptr) const -> void { SDL_DestroyWindow(ptr); }
 };
 
+// Owns and connects all subsystems
+// Keeps SDL objects and global state centralized
 class App {
     const std::string app_name{"lander"};
     const int window_start_width{800};
     const int window_start_height{800};    // remember size can get scaled up from highdpi
 
-    // constexpr?
-    const std::filesystem::path base_path{SDL_GetBasePath()};
-    const std::filesystem::path font_path{"assets\\font"};
-    const std::filesystem::path audio_path{"assets\\audio"};
-    const std::filesystem::path image_path{"assets\\image"};
-    const std::filesystem::path shader_path{"assets\\shader"};
-
-    const std::vector<std::string> font_files{"pong_font.ttf"};
-    const std::vector<std::string> audio_files{"fall.wav", "move.wav"};
-    const std::vector<std::string> shader_files{"lander.vert.spv", "lander.frag.spv"};
-    // const std::string atlas_file{"face_atlas.bmp"};
-
 public:
     // App() = default;
     ~App();
 
-    // placeholders
+    // Initialize all systems and required data to run
+    // Called once at start of runtime by SDL_AppInit
     auto init() -> void;
+
     // auto handle_event(const SDL_Event& e) -> void;
+
+    // Handles updating app state per frame
+    // Called every frame by SDL_AppIterate
     auto update() -> void;
+
     // auto render() -> void;
     // auto shutdown() -> void;
 
@@ -63,8 +58,11 @@ public:
     // [[nodiscard]] auto timer() const -> Timer* { return m_timer.get(); }
     // text engine...
 
-    auto app_status() -> SDL_AppResult { return m_app_quit; }
-    auto set_status(SDL_AppResult status) -> void { m_app_quit = status; }
+    // Return the status of the app (continue, quit, fail)
+    auto app_status() -> SDL_AppResult { return m_app_status; }
+
+    // Set the status of the app (continue, quit, fail)
+    auto set_status(SDL_AppResult status) -> void { m_app_status = status; }
 
 private:
     std::unique_ptr<SDL_Window, Window_deleter> m_window;
@@ -77,12 +75,21 @@ private:
     // debug
     std::unique_ptr<Lander> m_lander;
 
-    SDL_AppResult m_app_quit{SDL_APP_CONTINUE};
+    SDL_AppResult m_app_status{SDL_APP_CONTINUE};
 
+    // Set up the window to be used by the app as member
     auto init_window() -> void;
+
+    // Set up the graphics system as member
     auto init_graphics() -> void;
+
+    // Set up the text system as member
     auto init_text() -> void;
+
+    // Set up the audio system as member
     auto init_audio() -> void;
+
+    // Set up a timer as member
     auto init_timer() -> void;
 };
 

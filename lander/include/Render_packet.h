@@ -7,16 +7,18 @@
 
 #include <glm/glm/glm.hpp>
 
+// Packaged handles/data needed to render object
+// Gathered and passed to the graphics engine each frame
 struct Render_packet {
-    // gpu asset handles
+    // asset handles
     SDL_GPUGraphicsPipeline* pipeline;
     SDL_GPUBuffer* vertex_buffer;
-    Uint32 buffer_size;    // or vertex count?
+    Uint32 buffer_size;
 
     // unique object state
     glm::mat4 model_matrix;
 
-    // anything else needed
+    // anything else required...
 };
 
 #endif    // RENDER_PACKET_H

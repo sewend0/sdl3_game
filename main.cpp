@@ -105,6 +105,49 @@ auto SDL_AppQuit(void* appstate, SDL_AppResult result) -> void {
 
 // https://moonside.games/posts/sdl-gpu-sprite-batcher/
 
+// Abstract GPU logic (shaders, pipelines, etc.)
+// Keep GPU code clean, portable
+
+// https://maraneshi.github.io/HLSL-ConstantBufferLayoutVisualizer/
+// https://wiki.libsdl.org/SDL3/SDL_CreateGPUShader
+
+/*
+🧠 Mental Models:
+CPU builds the logic, GPU does the rendering.
+All visuals must be turned into vertex data.
+Shaders control how data is drawn (e.g., color, shape deformation).
+Uniforms = constant per-frame values (e.g., transform matrix).
+Buffers = long-term memory for vertex data.
+
+Make the CPU prepare and send a list of instructions to the GPU each frame
+
+🚀 Step-by-Step Roadmap:
+Step 1: Draw the lander statically
+    Make a vertex array (CPU-side) for the lander’s shape.
+    Upload once to a GPU buffer.
+    Draw it every frame at a fixed screen position.
+
+Step 2: Move the lander
+    Add a uniform for position and rotation.
+    Update those per frame based on game state.
+    Apply the transform in the vertex shader.
+
+Step 3: Draw terrain
+    Create a series of connected lines or triangles.
+    Upload to a GPU buffer.
+    If static, do this once; otherwise, update as needed.
+
+Step 4: Add explosion effect
+    Break lander shape into independent parts.
+    On explosion, push each part outward in CPU logic.
+    Store the parts as vertex groups with separate velocities.
+
+Step 5: Particle system (optional)
+    Keep a buffer of quads or points.
+    Update positions each frame.
+    Reupload and draw in batches.
+*/
+
 /*
 1. 🧱 **Core system breakdown**
 2. 📦 **Suggested class layout**

@@ -21,4 +21,9 @@ struct Render_packet {
     // anything else required...
 };
 
+// struct Text_render_packet {
+//     SDL_GPUGraphicsPipeline* pipeline;
+//     TTF_GPUAtlasDrawSequence* sequence;
+// };
+
 #endif    // RENDER_PACKET_H

@@ -26,6 +26,7 @@
 
 using error = errors::App_exception;
 using Vertex_data = asset_def::Vertex_data;
+// using Vertex_data_exp = asset_def::Vertex_data_exp;
 
 // Cleanup process for a Pipeline_ptr
 struct Pipeline_deleter {
@@ -37,6 +38,16 @@ struct Pipeline_deleter {
     }
 };
 
+// // Cleanup process for a Sampler_ptr
+// struct Sampler_deleter {
+//     SDL_GPUDevice* device{nullptr};
+//
+//     auto operator()(SDL_GPUSampler* sampler) const -> void {
+//         if (device && sampler)
+//             SDL_ReleaseGPUSampler(device, sampler);
+//     }
+// };
+
 // Cleanup process for a Device_ptr
 struct Device_deleter {
     auto operator()(SDL_GPUDevice* device) const -> void {
@@ -46,6 +57,7 @@ struct Device_deleter {
 };
 
 using Pipeline_ptr = std::unique_ptr<SDL_GPUGraphicsPipeline, Pipeline_deleter>;
+// using Sampler_ptr = std::unique_ptr<SDL_GPUSampler, Sampler_deleter>;
 using Device_ptr = std::unique_ptr<SDL_GPUDevice, Device_deleter>;
 
 // Graphics engine
@@ -55,10 +67,7 @@ public:
     ~Graphics_system() = default;
 
     // Set up the system, must be called before doing anything else
-    auto init(
-        const std::filesystem::path& assets_path, const std::vector<std::string>& file_names,
-        SDL_Window* window
-    ) -> void;
+    auto init(SDL_Window* window) -> void;
 
     // Cleanup the system, must be called
     auto quit(SDL_Window* window) -> void;
@@ -70,15 +79,24 @@ public:
     // Combines a file name with the asset path provided during init to access file on system
     auto make_shader(const std::string& file_name) -> SDL_GPUShader*;
 
-    // Returns a created graphics pipeline using the provided shaders
-    auto make_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
+    // Returns a created graphics pipeline using the provided shaders (lander)
+    auto make_lander_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
         -> SDL_GPUGraphicsPipeline*;
+
+    // // Returns a created graphics pipeline using the provided shaders (text)
+    // auto make_text_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
+    //     -> SDL_GPUGraphicsPipeline*;
 
     // Returns a created vertex buffer pointer for a given byte size
     auto make_vertex_buffer(Uint32 buffer_size) -> SDL_GPUBuffer*;
 
     // Returns a created transfer buffer pointer for a given byte size
     auto make_transfer_buffer(Uint32 buffer_size) -> SDL_GPUTransferBuffer*;
+
+    // // Returns a created vertex buffer pointer for a given byte size
+    // auto make_index_buffer(Uint32 buffer_size) -> SDL_GPUBuffer*;
+    //
+    // auto make_sampler() -> SDL_GPUSampler*;
 
     // Copies provided vertex data into a vertex buffer using a transfer buffer
     auto copy_pass(
@@ -106,15 +124,23 @@ public:
     // Processes and renders the supplied render packets
     auto draw(SDL_Window* window, const std::vector<Render_packet>& packets) -> void;
 
+    // debug
+    // auto Graphics_system::draw_text(
+    //     SDL_Window* window, const std::vector<Text_render_packet>& packets
+    // ) -> void;
+
     // Returns pointer to the systems graphics device
     [[nodiscard]] auto get_device() const -> SDL_GPUDevice* { return m_device.get(); }
 
     // auto pipeline_for_landscape() -> SDL_GPUGraphicsPipeline*;
     // auto pipeline_for_lander() -> SDL_GPUGraphicsPipeline*;
+    // auto pipeline_for_text() -> SDL_GPUGraphicsPipeline*;
 private:
     std::filesystem::path m_assets_path;
     Device_ptr m_device;
-    Pipeline_ptr m_pipeline;
+    Pipeline_ptr m_lander_pipeline;
+    // Pipeline_ptr m_text_pipeline;
+    // Sampler_ptr m_text_sampler;
 
     // Pipeline_ptr m_lander_pipeline;
     // possibly a container for pipelines
@@ -123,3 +149,4 @@ private:
 };
 
 #endif    // GRAPHICS_H
+

@@ -37,7 +37,9 @@ public:
     auto load_file(const std::string& file_name) -> void;
 
     // debug
-    auto draw_msg(const std::string& msg) -> void;
+    // auto draw_msg(const std::string& msg) -> void;
+    // auto queue_text() -> void;
+    // auto queue_text_sequence() -> void;
 
 private:
     std::filesystem::path m_assets_path;

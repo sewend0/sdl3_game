@@ -40,22 +40,42 @@ auto Text_system::load_file(const std::string& file_name) -> void {
     m_fonts.emplace(file_name, std::move(font));
 }
 
-auto Text_system::draw_msg(const std::string& msg) -> void {
-    TTF_Text* text{
-        TTF_CreateText(m_engine.get(), m_fonts.at(asset_def::g_font_files[0]).get(), msg.c_str(), 0)
-    };
-    if (not text)
-        throw error();
+// auto Text_system::draw_msg(const std::string& msg) -> void {
+//     TTF_Text* text{
+//         TTF_CreateText(m_engine.get(), m_fonts.at(asset_def::g_font_files[0]).get(), msg.c_str(),
+//         0)
+//     };
+//     if (not text)
+//         throw error();
+//
+//     // separate creation of text (once) from drawing (every frame)
+//
+//     TTF_SetTextPosition(text, 200, 200);
+//     TTF_SetTextColorFloat(text, 1.0F, 0.0F, 0.0F, 1.0F);
+//     TTF_SetTextString(text, msg.c_str(), 0);
+//
+//     TTF_GPUAtlasDrawSequence* draw_data{TTF_GetGPUTextDrawData(text)};
+//
+//     // acquire cmd buffer
+//     // begin render pass
+//     // upload atlas texture and vertex data
+//     // issue draw commands
+//     // end render pass
+//     // submit command buffer
+//
+//     // TTF_SetFontSDF, TTF_SetFontWrapAlignment
+// }
 
-    TTF_SetTextPosition(text, 200, 200);
-    TTF_SetTextColorFloat(text, 1.0F, 0.0F, 0.0F, 1.0F);
-
-    TTF_GPUAtlasDrawSequence* draw_data{TTF_GetGPUTextDrawData(text)};
-
-    // acquire cmd buffer
-    // begin render pass
-    // upload atlas texture and vertex data
-    // issue draw commands
-    // end render pass
-    // submit command buffer
-}
+// typedef struct TTF_GPUAtlasDrawSequence
+// {
+//     SDL_GPUTexture *atlas_texture;          /**< Texture atlas that stores the glyphs */
+//     SDL_FPoint *xy;                         /**< An array of vertex positions */
+//     SDL_FPoint *uv;                         /**< An array of normalized texture coordinates for
+//     each vertex */ int num_vertices;                       /**< Number of vertices */ int
+//     *indices;                           /**< An array of indices into the 'vertices' arrays */
+//     int num_indices;                        /**< Number of indices */
+//     TTF_ImageType image_type;               /**< The image type of this draw sequence */
+//
+//     struct TTF_GPUAtlasDrawSequence *next;  /**< The next sequence (will be NULL in case of the
+//     last sequence) */
+// } TTF_GPUAtlasDrawSequence;

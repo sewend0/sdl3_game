@@ -9,26 +9,35 @@
 //     // m_gpu_device.reset();
 // }
 
-auto Graphics_system::init(
-    const std::filesystem::path& assets_path, const std::vector<std::string>& file_names,
-    SDL_Window* window
-) -> void {
+auto Graphics_system::init(SDL_Window* window) -> void {
 
     // set up the graphics device
     m_device = Device_ptr{prepare_device(window), Device_deleter{}};
 
     // set up and load files
-    m_assets_path = assets_path;
-    SDL_GPUShader* vertex_shader{make_shader(file_names[0])};
-    SDL_GPUShader* fragment_shader{make_shader(file_names[1])};
+    m_assets_path = asset_def::g_base_path / asset_def::g_shader_path;
+    SDL_GPUShader* lander_vertex_shader{make_shader(asset_def::g_shader_lander_files[0])};
+    SDL_GPUShader* lander_fragment_shader{make_shader(asset_def::g_shader_lander_files[1])};
+    // SDL_GPUShader* text_vertex_shader{make_shader(asset_def::g_shader_text_files[0])};
+    // SDL_GPUShader* text_fragment_shader{make_shader(asset_def::g_shader_text_files[1])};
 
-    // set up a pipeline
-    m_pipeline = Pipeline_ptr{
-        make_pipeline(window, vertex_shader, fragment_shader), Pipeline_deleter{m_device.get()}
+    // set up pipelines
+    m_lander_pipeline = Pipeline_ptr{
+        make_lander_pipeline(window, lander_vertex_shader, lander_fragment_shader),
+        Pipeline_deleter{m_device.get()}
     };
+    // m_text_pipeline = Pipeline_ptr{
+    //     make_lander_pipeline(window, text_vertex_shader, text_fragment_shader),
+    //     Pipeline_deleter{m_device.get()}
+    // };
 
-    SDL_ReleaseGPUShader(m_device.get(), vertex_shader);
-    SDL_ReleaseGPUShader(m_device.get(), fragment_shader);
+    SDL_ReleaseGPUShader(m_device.get(), lander_vertex_shader);
+    SDL_ReleaseGPUShader(m_device.get(), lander_fragment_shader);
+    // SDL_ReleaseGPUShader(m_device.get(), text_vertex_shader);
+    // SDL_ReleaseGPUShader(m_device.get(), text_fragment_shader);
+
+    // // set up samplers
+    // make_sampler();
 
     // m_lander = Lander_renderer{};
     // m_lander.init(m_device.get());
@@ -129,7 +138,7 @@ auto Graphics_system::make_shader(const std::string& file_name) -> SDL_GPUShader
     return shader;
 }
 
-auto Graphics_system::make_pipeline(
+auto Graphics_system::make_lander_pipeline(
     SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment
 ) -> SDL_GPUGraphicsPipeline* {
 
@@ -185,15 +194,102 @@ auto Graphics_system::make_pipeline(
     };
     SDL_GPUGraphicsPipeline* pipeline{SDL_CreateGPUGraphicsPipeline(m_device.get(), &create_info)};
     if (not pipeline)
-        throw error("Failed to create graphics pipeline");
+        throw error("Failed to create lander graphics pipeline");
 
     return pipeline;
 }
 
+// auto Graphics_system::make_text_pipeline(
+//     SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment
+// ) -> SDL_GPUGraphicsPipeline* {
+//     // describe vertex buffers
+//     std::array<SDL_GPUVertexBufferDescription, 1> vertex_buffer_descriptions{
+//         SDL_GPUVertexBufferDescription{
+//             .slot = 0,
+//             .pitch = sizeof(Vertex_data_exp),
+//             .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+//             .instance_step_rate = 0,
+//         }
+//     };
+//
+//     // describe vertex attributes
+//     SDL_GPUVertexAttribute a_position{
+//         .location = 0,
+//         .buffer_slot = 0,
+//         .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+//         .offset = 0,
+//     };
+//     SDL_GPUVertexAttribute a_color{
+//         .location = 1,
+//         .buffer_slot = 0,
+//         .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
+//         .offset = sizeof(float) * 2,
+//     };
+//     SDL_GPUVertexAttribute a_uv{
+//         .location = 2,
+//         .buffer_slot = 0,
+//         .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+//         .offset = sizeof(float) * 6,
+//     };
+//     std::array<SDL_GPUVertexAttribute, 3> vertex_attributes{a_position, a_color, a_uv};
+//
+//     // describe blend state
+//     SDL_GPUColorTargetBlendState target_blend_state{
+//         .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+//         .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+//         .color_blend_op = SDL_GPU_BLENDOP_ADD,
+//         .src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+//         .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_DST_ALPHA,
+//         .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+//         .color_write_mask = 0xF,
+//         .enable_blend = true,
+//     };
+//
+//     // describe color target
+//     std::array<SDL_GPUColorTargetDescription, 1> target_descriptions{
+//         SDL_GPUColorTargetDescription{
+//             .format = SDL_GetGPUSwapchainTextureFormat(m_device.get(), window),
+//             .blend_state = target_blend_state,
+//         },
+//     };
+//
+//     // create pipeline - bind shaders
+//     SDL_GPUGraphicsPipelineTargetInfo target_info{
+//         .color_target_descriptions = target_descriptions.data(),
+//         .num_color_targets = 1,
+//         .depth_stencil_format = SDL_GPU_TEXTUREFORMAT_INVALID,
+//         .has_depth_stencil_target = false,
+//     };
+//     SDL_GPUVertexInputState vertex_input_state{
+//         .vertex_buffer_descriptions = vertex_buffer_descriptions.data(),
+//         .num_vertex_buffers = 1,
+//         .vertex_attributes = vertex_attributes.data(),
+//         .num_vertex_attributes = 3,
+//     };
+//     SDL_GPUGraphicsPipelineCreateInfo create_info{
+//         .vertex_shader = vertex,
+//         .fragment_shader = fragment,
+//         .vertex_input_state = vertex_input_state,
+//         .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+//         .target_info = target_info,
+//     };
+//     SDL_GPUGraphicsPipeline* pipeline{SDL_CreateGPUGraphicsPipeline(m_device.get(),
+//     &create_info)}; if (not pipeline)
+//         throw error("Failed to create text graphics pipeline");
+//
+//     return pipeline;
+// }
+
 auto Graphics_system::load_assets() -> void {
     m_render_component_cache[asset_def::g_lander_name] = create_render_component(
-        m_pipeline.get(), asset_def::g_lander_vertices.data(), sizeof(asset_def::g_lander_vertices)
+        m_lander_pipeline.get(), asset_def::g_lander_vertices.data(),
+        sizeof(asset_def::g_lander_vertices)
     );
+
+    // text - for vertex and index
+    // sizeof(Vertex_data_exp) * MAX_VERTEX_COUNT
+    // for transfer
+    // (sizeof(Vertex_data_exp) * MAX_VERTEX_COUNT) + (sizeof(int) * MAX_INDEX_COUNT)
 }
 
 auto Graphics_system::create_render_component(
@@ -239,13 +335,44 @@ auto Graphics_system::make_transfer_buffer(Uint32 buffer_size) -> SDL_GPUTransfe
         .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
         .size = buffer_size,
     };
-    SDL_GPUTransferBuffer* transfer_buffer =
-        SDL_CreateGPUTransferBuffer(m_device.get(), &transfer_create_info);
+    SDL_GPUTransferBuffer* transfer_buffer{
+        SDL_CreateGPUTransferBuffer(m_device.get(), &transfer_create_info)
+    };
     if (not transfer_buffer)
         throw error();
 
     return transfer_buffer;
 }
+
+// auto Graphics_system::make_index_buffer(Uint32 buffer_size) -> SDL_GPUBuffer* {
+//     // create index buffer
+//     SDL_GPUBufferCreateInfo buffer_create_info{
+//         .usage = SDL_GPU_BUFFERUSAGE_INDEX,
+//         .size = buffer_size,
+//     };
+//     SDL_GPUBuffer* index_buffer{SDL_CreateGPUBuffer(m_device.get(), &buffer_create_info)};
+//     if (not index_buffer)
+//         throw error();
+//
+//     return index_buffer;
+// }
+
+// auto Graphics_system::make_sampler() -> SDL_GPUSampler* {
+//     SDL_GPUSamplerCreateInfo info{
+//         .min_filter = SDL_GPU_FILTER_LINEAR,
+//         .mag_filter = SDL_GPU_FILTER_LINEAR,
+//         .mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_LINEAR,
+//         .address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+//         .address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+//         .address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+//     };
+//
+//     SDL_GPUSampler* sampler{SDL_CreateGPUSampler(m_device.get(), &info)};
+//     if (not sampler)
+//         throw error();
+//
+//     return sampler;
+// }
 
 auto Graphics_system::copy_pass(
     const Vertex_data* vertices, Uint32 buffer_size, SDL_GPUBuffer* vertex_buffer,

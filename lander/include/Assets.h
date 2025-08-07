@@ -18,6 +18,12 @@ namespace asset_def {
         glm::vec4 color;
     };
 
+    // struct Vertex_data_exp {
+    //     glm::vec2 position;
+    //     glm::vec4 color;
+    //     glm::vec2 uv;
+    // };
+
     const std::filesystem::path g_base_path{SDL_GetBasePath()};
     const std::filesystem::path g_font_path{"assets\\font"};
     const std::filesystem::path g_audio_path{"assets\\audio"};
@@ -26,7 +32,8 @@ namespace asset_def {
 
     const std::vector<std::string> g_font_files{"pong_font.ttf"};
     const std::vector<std::string> g_audio_files{"fall.wav", "move.wav"};
-    const std::vector<std::string> g_shader_files{"lander.vert.spv", "lander.frag.spv"};
+    const std::vector<std::string> g_shader_lander_files{"lander.vert.spv", "lander.frag.spv"};
+    // const std::vector<std::string> g_shader_text_files{"text.vert.spv", "text.frag.spv"};
 
     const std::string g_lander_name{"Lander"};
     constexpr std::array<Vertex_data, 3> g_lander_vertices{

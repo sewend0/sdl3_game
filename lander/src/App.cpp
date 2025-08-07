@@ -130,7 +130,5 @@ auto App::init_timer() -> void {
 
 auto App::init_graphics() -> void {
     m_graphics = std::make_unique<Graphics_system>();
-    m_graphics->init(
-        asset_def::g_base_path / asset_def::g_shader_path, asset_def::g_shader_files, m_window.get()
-    );
+    m_graphics->init(m_window.get());
 }

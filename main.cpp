@@ -87,6 +87,11 @@ auto SDL_AppQuit(void* appstate, SDL_AppResult result) -> void {
     SDL_Quit();
 }
 
+// ******************************************
+// The c example in the programming/cpp_projects/sandbox is working
+// next step should be to take that apart step by step converting it to c++
+// and adding it into my graphics system...
+
 // using callbacks:
 // https://wiki.libsdl.org/SDL3/README-main-functions
 

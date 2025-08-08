@@ -18,11 +18,16 @@ namespace asset_def {
         glm::vec4 color;
     };
 
-    // struct Vertex_data_exp {
-    //     glm::vec2 position;
-    //     glm::vec4 color;
-    //     glm::vec2 uv;
-    // };
+    struct Textured_vertex_data {
+        glm::vec2 position;
+        glm::vec4 color;
+        glm::vec2 uv;
+    };
+
+    struct Text_geo_data {
+        std::vector<Textured_vertex_data> vertices;
+        std::vector<Uint32> indices;
+    };
 
     const std::filesystem::path g_base_path{SDL_GetBasePath()};
     const std::filesystem::path g_font_path{"assets\\font"};
@@ -43,6 +48,9 @@ namespace asset_def {
     };
     // constexpr Uint32 LANDER_VERTEX_COUNT{sizeof(LANDER_VERTICES) / sizeof(Vertex)};
     // constexpr Uint32 LANDER_SIZE{sizeof(LANDER_VERTICES)};
+
+    constexpr size_t g_max_vertex_count{4000};
+    constexpr size_t g_max_index_count{6000};
 
 }    // namespace asset_def
 

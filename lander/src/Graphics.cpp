@@ -344,18 +344,18 @@ auto Graphics_system::make_transfer_buffer(Uint32 buffer_size) -> SDL_GPUTransfe
     return transfer_buffer;
 }
 
-// auto Graphics_system::make_index_buffer(Uint32 buffer_size) -> SDL_GPUBuffer* {
-//     // create index buffer
-//     SDL_GPUBufferCreateInfo buffer_create_info{
-//         .usage = SDL_GPU_BUFFERUSAGE_INDEX,
-//         .size = buffer_size,
-//     };
-//     SDL_GPUBuffer* index_buffer{SDL_CreateGPUBuffer(m_device.get(), &buffer_create_info)};
-//     if (not index_buffer)
-//         throw error();
-//
-//     return index_buffer;
-// }
+auto Graphics_system::make_index_buffer(Uint32 buffer_size) -> SDL_GPUBuffer* {
+    // create index buffer
+    SDL_GPUBufferCreateInfo buffer_create_info{
+        .usage = SDL_GPU_BUFFERUSAGE_INDEX,
+        .size = buffer_size,
+    };
+    SDL_GPUBuffer* index_buffer{SDL_CreateGPUBuffer(m_device.get(), &buffer_create_info)};
+    if (not index_buffer)
+        throw error();
+
+    return index_buffer;
+}
 
 // auto Graphics_system::make_sampler() -> SDL_GPUSampler* {
 //     SDL_GPUSamplerCreateInfo info{
@@ -413,6 +413,69 @@ auto Graphics_system::copy_pass(
 
     // upload the data, end the copy pass, and submit command buffer
     SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
+    SDL_EndGPUCopyPass(copy_pass);
+    if (not SDL_SubmitGPUCommandBuffer(command_buffer))
+        throw error();
+}
+
+auto Graphics_system::copy_pass_with_index(
+    const Text_geo_data geo_data, SDL_GPUBuffer* vertex_buffer, SDL_GPUBuffer* index_buffer,
+    SDL_GPUTransferBuffer* transfer_buffer
+) -> void {
+
+    void* mapped{SDL_MapGPUTransferBuffer(m_device.get(), transfer_buffer, false)};
+    if (not mapped)
+        throw error();
+
+    Textured_vertex_data* vertex_region{reinterpret_cast<Textured_vertex_data*>(mapped)};
+    Uint32* index_region{
+        reinterpret_cast<Uint32*>(mapped) +
+        sizeof(Textured_vertex_data) * asset_def::g_max_vertex_count
+    };
+
+    // copy the data, and unmap when finished updating transfer buffer
+    SDL_memcpy(
+        vertex_region, geo_data.vertices.data(),
+        sizeof(Textured_vertex_data) * geo_data.vertices.size()
+    );
+    SDL_memcpy(index_region, geo_data.indices.data(), sizeof(Uint32) * geo_data.indices.size());
+    SDL_UnmapGPUTransferBuffer(m_device.get(), transfer_buffer);
+
+    // start a copy pass
+    SDL_GPUCommandBuffer* command_buffer{SDL_AcquireGPUCommandBuffer(m_device.get())};
+    if (not command_buffer)
+        throw error();
+
+    SDL_GPUCopyPass* copy_pass{SDL_BeginGPUCopyPass(command_buffer)};
+    if (not copy_pass)
+        throw error();
+
+    // locate the data
+    SDL_GPUTransferBufferLocation v_location{
+        .transfer_buffer = transfer_buffer,
+        .offset = 0,
+    };
+    SDL_GPUTransferBufferLocation i_location{
+        .transfer_buffer = transfer_buffer,
+        .offset = static_cast<Uint32>(sizeof(Textured_vertex_data) * asset_def::g_max_vertex_count),
+    };
+
+    // locate upload destination
+    SDL_GPUBufferRegion v_region{
+        .buffer = vertex_buffer,
+        .offset = 0,
+        .size = static_cast<Uint32>(sizeof(Textured_vertex_data) * geo_data.vertices.size()),
+    };
+    SDL_GPUBufferRegion i_region{
+        .buffer = index_buffer,
+        .offset = 0,
+        .size = static_cast<Uint32>(sizeof(Uint32) * geo_data.indices.size()),
+    };
+
+    // upload the data, end the copy pass, and submit command buffer
+    SDL_UploadToGPUBuffer(copy_pass, &v_location, &v_region, false);    // true?
+    SDL_UploadToGPUBuffer(copy_pass, &i_location, &i_region, false);
+
     SDL_EndGPUCopyPass(copy_pass);
     if (not SDL_SubmitGPUCommandBuffer(command_buffer))
         throw error();
@@ -488,6 +551,48 @@ auto Graphics_system::draw(SDL_Window* window, const std::vector<Render_packet>&
         // issue draw call
         SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
     }
+
+    // debug text
+    SDL_BindGPUGraphicsPipeline(render_pass, text_pipeline);
+
+    SDL_GPUBufferBinding v_buffer_binding{
+        .buffer = text_vertex_buffer,
+        .offset = 0,
+    };
+    SDL_GPUBufferBinding i_buffer_binding{
+        .buffer = text_index_buffer,
+        .offset = 0,
+    };
+
+    SDL_BindGPUVertexBuffers(render_pass, 0, v_buffer_binding, 1);
+    SDL_BindGPUVertexBuffers(render_pass, 0, v_index_binding, 1);
+
+    SDL_PushGPUVertexUniformData(
+        command_buffer, 0, matrices.data(), sizeof(glm::mat4) * matrices.size()
+    );
+
+    int index_offset{0};
+    int vertex_offset{0};
+
+    // input params to func
+    // const std::vector<SDL_Mat4X4>& matrices, const TTF_GPUAtlasDrawSequence* draw_sequence
+    for (const TTF_GPUAtlasDrawSequence* seq = draw_sequence; seq != nullptr; seq = seq->next) {
+        SDL_GPUTextureSamplerBinding sampler_binding{
+            .texture = seq->atlas_texture,
+            .sampler = sampler    // need to make a sampler earlier
+        };
+        SDL_BindGPUFragmentSamplers(render_pass, 0, sampler_binding, 1);
+        SDL_DrawGPUIndexedPrimitives(
+            render_pass, seq->num_indices, 1, index_offset, vertex_offset, 0
+        );
+        index_offset += seq->num_indices;
+        vertex_offset += seq->num_vertices;
+    }
+    // debug text
+
+    //
+    // step 9 next
+    //
 
     // per frame cleanup
     // end render pass

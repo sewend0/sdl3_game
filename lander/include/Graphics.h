@@ -27,6 +27,8 @@
 using error = errors::App_exception;
 using Vertex_data = asset_def::Vertex_data;
 // using Vertex_data_exp = asset_def::Vertex_data_exp;
+using Textured_vertex_data = asset_def::Textured_vertex_data;
+using Text_geo_data = asset_def::Text_geo_data;
 
 // Cleanup process for a Pipeline_ptr
 struct Pipeline_deleter {
@@ -93,8 +95,8 @@ public:
     // Returns a created transfer buffer pointer for a given byte size
     auto make_transfer_buffer(Uint32 buffer_size) -> SDL_GPUTransferBuffer*;
 
-    // // Returns a created vertex buffer pointer for a given byte size
-    // auto make_index_buffer(Uint32 buffer_size) -> SDL_GPUBuffer*;
+    // Returns a created vertex buffer pointer for a given byte size
+    auto make_index_buffer(Uint32 buffer_size) -> SDL_GPUBuffer*;
     //
     // auto make_sampler() -> SDL_GPUSampler*;
 
@@ -128,6 +130,10 @@ public:
     // auto Graphics_system::draw_text(
     //     SDL_Window* window, const std::vector<Text_render_packet>& packets
     // ) -> void;
+    auto copy_pass_with_index(
+        const Text_geo_data geo_data, SDL_GPUBuffer* vertex_buffer, SDL_GPUBuffer* index_buffer,
+        SDL_GPUTransferBuffer* transfer_buffer
+    ) -> void;
 
     // Returns pointer to the systems graphics device
     [[nodiscard]] auto get_device() const -> SDL_GPUDevice* { return m_device.get(); }

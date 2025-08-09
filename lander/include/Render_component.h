@@ -11,8 +11,14 @@
 // Holds handles/data required to link to rendering process
 struct Render_component {
     SDL_GPUGraphicsPipeline* pipeline;
+
     SDL_GPUBuffer* vertex_buffer;
-    Uint32 buffer_size;
+    Uint32 vertex_buffer_size;
+
+    SDL_GPUBuffer* index_buffer;
+    Uint32 index_buffer_size;
+
+    SDL_GPUSampler* sampler;
 };
 
 #endif    // RENDER_COMPONENT_H

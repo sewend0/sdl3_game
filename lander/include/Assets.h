@@ -38,7 +38,7 @@ namespace asset_def {
     const std::vector<std::string> g_font_files{"pong_font.ttf"};
     const std::vector<std::string> g_audio_files{"fall.wav", "move.wav"};
     const std::vector<std::string> g_shader_lander_files{"lander.vert.spv", "lander.frag.spv"};
-    // const std::vector<std::string> g_shader_text_files{"text.vert.spv", "text.frag.spv"};
+    const std::vector<std::string> g_shader_text_files{"text.vert.spv", "text.frag.spv"};
 
     const std::string g_lander_name{"Lander"};
     constexpr std::array<Vertex_data, 3> g_lander_vertices{

@@ -40,15 +40,15 @@ struct Pipeline_deleter {
     }
 };
 
-// // Cleanup process for a Sampler_ptr
-// struct Sampler_deleter {
-//     SDL_GPUDevice* device{nullptr};
-//
-//     auto operator()(SDL_GPUSampler* sampler) const -> void {
-//         if (device && sampler)
-//             SDL_ReleaseGPUSampler(device, sampler);
-//     }
-// };
+// Cleanup process for a Sampler_ptr
+struct Sampler_deleter {
+    SDL_GPUDevice* device{nullptr};
+
+    auto operator()(SDL_GPUSampler* sampler) const -> void {
+        if (device && sampler)
+            SDL_ReleaseGPUSampler(device, sampler);
+    }
+};
 
 // Cleanup process for a Device_ptr
 struct Device_deleter {
@@ -59,7 +59,7 @@ struct Device_deleter {
 };
 
 using Pipeline_ptr = std::unique_ptr<SDL_GPUGraphicsPipeline, Pipeline_deleter>;
-// using Sampler_ptr = std::unique_ptr<SDL_GPUSampler, Sampler_deleter>;
+using Sampler_ptr = std::unique_ptr<SDL_GPUSampler, Sampler_deleter>;
 using Device_ptr = std::unique_ptr<SDL_GPUDevice, Device_deleter>;
 
 // Graphics engine
@@ -85,9 +85,9 @@ public:
     auto make_lander_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
         -> SDL_GPUGraphicsPipeline*;
 
-    // // Returns a created graphics pipeline using the provided shaders (text)
-    // auto make_text_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
-    //     -> SDL_GPUGraphicsPipeline*;
+    // Returns a created graphics pipeline using the provided shaders (text)
+    auto make_text_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
+        -> SDL_GPUGraphicsPipeline*;
 
     // Returns a created vertex buffer pointer for a given byte size
     auto make_vertex_buffer(Uint32 buffer_size) -> SDL_GPUBuffer*;
@@ -97,8 +97,8 @@ public:
 
     // Returns a created vertex buffer pointer for a given byte size
     auto make_index_buffer(Uint32 buffer_size) -> SDL_GPUBuffer*;
-    //
-    // auto make_sampler() -> SDL_GPUSampler*;
+
+    auto make_sampler() -> SDL_GPUSampler*;
 
     // Copies provided vertex data into a vertex buffer using a transfer buffer
     auto copy_pass(
@@ -109,9 +109,15 @@ public:
     // Loads into member component cache game objects vertex data defined in asset_def
     auto load_assets() -> void;
 
+    auto make_text_asset(const std::string& asset_name, const Text_geo_data& geo_data) -> void;
+
     // Returns a rendering component for game object to persistently hold as a member component
     auto create_render_component(
-        SDL_GPUGraphicsPipeline* pipeline, const Vertex_data* vertices, Uint32 vertex_count
+        SDL_GPUGraphicsPipeline* pipeline, const Vertex_data* vertices, Uint32 vertex_buffer_size
+    ) -> Render_component;
+
+    auto create_text_render_component(
+        SDL_GPUGraphicsPipeline* pipeline, const Text_geo_data& geo_data
     ) -> Render_component;
 
     // Returns rendering component of a given name, from within the member component cache
@@ -145,8 +151,7 @@ private:
     std::filesystem::path m_assets_path;
     Device_ptr m_device;
     Pipeline_ptr m_lander_pipeline;
-    // Pipeline_ptr m_text_pipeline;
-    // Sampler_ptr m_text_sampler;
+    Pipeline_ptr m_text_pipeline;
 
     // Pipeline_ptr m_lander_pipeline;
     // possibly a container for pipelines

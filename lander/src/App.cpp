@@ -65,7 +65,7 @@ auto App::update() -> void {
         static float rotation{0.0F};
 
         ++counter;
-        if (counter % 2 == 0) {
+        if (counter % 8 == 0) {
             rotation += 1.0F;
             counter = 0;
         }
@@ -78,13 +78,29 @@ auto App::update() -> void {
         m_lander->set_rotation(rotation);
 
         Render_packet packet{
+            .type = Packet_type::General,
             .pipeline = m_lander->get_render_component().pipeline,
             .vertex_buffer = m_lander->get_render_component().vertex_buffer,
-            .buffer_size = m_lander->get_render_component().buffer_size,
+            .vertex_buffer_size = m_lander->get_render_component().vertex_buffer_size,
             .model_matrix = m_lander->get_model_matrix(),
         };
 
-        std::vector<Render_packet> packets{packet};
+        if (counter < 4)
+            m_text->update("Goodbye");
+        else
+            m_text->update("Hello");
+
+        Render_packet t_packet{
+            .type = Packet_type::Text,
+            .pipeline = m_text->get_render_component().pipeline,
+            .vertex_buffer = m_text->get_render_component().vertex_buffer,
+            .vertex_buffer_size = m_text->get_render_component().vertex_buffer_size,
+            .index_buffer = m_text->get_render_component().index_buffer,
+            .index_buffer_size = m_text->get_render_component().index_buffer_size,
+            .sampler = m_text->get_render_component().sampler,
+        };
+
+        std::vector<Render_packet> packets{packet, t_packet};
 
         m_graphics->draw(m_window.get(), packets);
 

@@ -6,7 +6,7 @@ cbuffer uniforms : register(b0, space1)
 
 struct vs_input
 {
-    float3 position : TEXCOORD0;
+    float2 position : TEXCOORD0;
     float4 color : TEXCOORD1;
     float2 tex_coord : TEXCOORD2;
 };
@@ -23,7 +23,7 @@ vs_output main(vs_input input)
     vs_output output;
     output.color = input.color;
     output.tex_coord = input.tex_coord;
-    output.position = mul(float4(input.position, 1.0f), mul(model, proj_view));
+    output.position = mul(float4(input.position, 0.0F, 1.0F), mul(model, proj_view));
     return output;
 }
 

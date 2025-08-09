@@ -3,6 +3,7 @@
 #ifndef TEXT_H
 #define TEXT_H
 
+#include <Render_component.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <Utility.h>
 
@@ -61,6 +62,10 @@ public:
 
     auto append_text_sequence(const TTF_GPUAtlasDrawSequence* seq, const glm::vec4 color) -> void;
 
+    auto get_render_component() const -> Render_component { return m_render_component; }
+
+    auto update(const std::string& msg) -> void;
+
 private:
     std::filesystem::path m_assets_path;
     Text_engine_ptr m_engine;
@@ -68,6 +73,7 @@ private:
     float m_font_size{32.0F};
 
     Text_geo_data m_text_geo_data;
+    Render_component m_render_component;
 };
 
 #endif    // TEXT_H

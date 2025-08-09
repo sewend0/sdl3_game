@@ -29,6 +29,9 @@ auto Text_system::init(
     if (not engine)
         throw error();
     m_engine = Text_engine_ptr{engine, Text_engine_deleter{}};
+
+    make_geo_data();
+    update("Hello");
 }
 
 auto Text_system::load_file(const std::string& file_name) -> void {
@@ -86,6 +89,21 @@ auto Text_system::append_text_sequence(const TTF_GPUAtlasDrawSequence* seq, cons
     -> void {
     for (; seq; seq = seq->next)
         append_sequence_to_geo(seq, color);
+}
+
+auto Text_system::update(const std::string& msg) -> void {
+    TTF_Text* text{
+        TTF_CreateText(m_engine.get(), m_fonts.at(asset_def::g_font_files[0]).get(), msg.c_str(), 0)
+    };
+    if (not text)
+        throw error();
+
+    TTF_SetTextPosition(text, 200, 200);
+    // TTF_SetTextColorFloat(text, 1.0F, 0.0F, 0.0F, 1.0F);
+
+    TTF_GPUAtlasDrawSequence* draw_data{TTF_GetGPUTextDrawData(text)};
+    clear_geo_data();
+    append_text_sequence(draw_data, {1.0F, 1.0F, 1.0F, 1.0F});
 }
 
 // auto Text_system::draw_msg(const std::string& msg) -> void {

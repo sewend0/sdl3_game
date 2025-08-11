@@ -137,8 +137,10 @@ public:
     // auto pipeline_for_text() -> SDL_GPUGraphicsPipeline*;
 
     // TEXT RENDER DEBUG //
-    auto text_transfer_data(SDL_GPUCommandBuffer* command_buffer, const Text_render_packet& packet)
-        -> void;
+    auto text_transfer_data(
+        SDL_GPUCommandBuffer* command_buffer, const Text_render_packet& packet, size_t vertex_base,
+        size_t index_base
+    ) -> void;
 
     auto create_text_render_component(SDL_GPUGraphicsPipeline* pipeline) -> Text_render_component;
 

@@ -34,6 +34,7 @@ struct Text_info {
     TTF_Font* font;
     TTF_Text* text;
     glm::vec4 color;
+    glm::vec2 position;
 };
 
 // struct Text_packet {
@@ -60,6 +61,8 @@ public:
     // destroy_text()
 
     auto get_packets() -> std::vector<Text_render_packet>;
+
+    auto get_model_matrix(glm::vec2 position) const -> glm::mat4;
 
 private:
     std::filesystem::path m_assets_path;

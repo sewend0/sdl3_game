@@ -81,8 +81,8 @@ auto App::update() -> void {
         // };
 
         std::vector<Mesh_render_packet> mesh_packets{packet};
-        m_text->make_text("dbg", "hello world", {0, 0});
-        m_text->make_text("dbg2", "goodbye", {100, 100});
+        m_text->make_text("dbg0", "hello world", {400, 100});
+        m_text->make_text("dbg2", "goodbye", {100, 700});
         m_graphics->draw(m_window.get(), mesh_packets, m_text->get_packets());
 
         m_timer->mark_render();

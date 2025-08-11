@@ -299,6 +299,9 @@ auto Graphics_system::load_assets() -> void {
     m_text_render_component_cache[asset_def::g_ui_txt_sys_1] =
         create_text_render_component(m_text_pipeline.get());
     // TEXT RENDER DEBUG //
+    // right now i can only render one 'string' but multiple instances...
+    // because this component all points to the same buffers
+    // so they just got overwritten by the next text
 }
 
 auto Graphics_system::create_mesh_render_component(
@@ -449,9 +452,9 @@ auto Graphics_system::mesh_copy_pass(
 // these steps are done every loop and command buffer is already
 // acquired and held on to until after the draw() step
 auto Graphics_system::text_transfer_data(
-    SDL_GPUCommandBuffer* command_buffer, const Text_render_packet& packet
+    SDL_GPUCommandBuffer* command_buffer, const Text_render_packet& packet, size_t vertex_base,
+    size_t index_base
 ) -> void {
-
     // Map the transfer buffer into CPU-visible memory
     void* mapped =
         check_ptr(SDL_MapGPUTransferBuffer(m_device.get(), packet.transfer_buffer, false));
@@ -461,8 +464,8 @@ auto Graphics_system::text_transfer_data(
     auto* index_area = reinterpret_cast<Uint32*>(vertex_area + asset_def::g_max_vertex_count);
 
     // copy data then unmap
-    size_t v_offset{0};
-    size_t i_offset{0};
+    size_t v_offset{vertex_base};
+    size_t i_offset{index_base};
     for (const auto* seq = packet.sequence; seq; seq = seq->next) {
         for (int i = 0; i < seq->num_vertices; ++i) {
             vertex_area[v_offset++] = Textured_vertex{
@@ -474,45 +477,96 @@ auto Graphics_system::text_transfer_data(
         for (int i = 0; i < seq->num_indices; ++i)
             index_area[i_offset++] = static_cast<Uint32>(seq->indices[i]);
     }
-    // SDL_memcpy(vertex_area, g.vertices.data(), sizeof(Textured_vertex) * g.vertex_count);
-    // SDL_memcpy(index_area, g.indices.data(), sizeof(int) * g.index_count);
-
-    // DEBUG
-    SDL_Log(
-        std::format(
-            "text_transfer_data(): Writing verts at vert_offset={}, indices at index_offset={}",
-            v_offset, i_offset
-        )
-            .c_str()
-    );
-
     SDL_UnmapGPUTransferBuffer(m_device.get(), packet.transfer_buffer);
 
-    // transfer_data()
-    SDL_GPUCopyPass* copy_pass{check_ptr(SDL_BeginGPUCopyPass(command_buffer))};
+    //    // compute byte offsets/sizes
+    //    size_t vertex_offset_bytes{vertex_base * sizeof(Textured_vertex)};
+    //    size_t vertex_size_bytes{(v_offset - vertex_base) * sizeof(Textured_vertex)};
+    //    size_t index_offset_bytes{index_base * sizeof(Uint32)};
+    //    size_t index_size_bytes{(i_offset - index_base) * sizeof(Uint32)};
+    // // start copy pass
+    //    SDL_GPUCopyPass* copy_pass{check_ptr(SDL_BeginGPUCopyPass(command_buffer))};
+    //
+    //    // locate the data and upload regions
+    //    if (vertex_size_bytes > 0) {
+    //        SDL_GPUTransferBufferLocation v_location{
+    //            .transfer_buffer = packet.transfer_buffer,
+    //            .offset = static_cast<Uint32>(vertex_offset_bytes),
+    //        };
+    //        SDL_GPUBufferRegion v_region{
+    //            .buffer = packet.vertex_buffer,
+    //            .offset = static_cast<Uint32>(vertex_offset_bytes),
+    //            .size = static_cast<Uint32>(vertex_size_bytes),
+    //        };
+    //        SDL_UploadToGPUBuffer(copy_pass, &v_location, &v_region, false);
+    //    }
+    //    if (index_size_bytes > 0) {
+    //        SDL_GPUTransferBufferLocation i_location{
+    //            .transfer_buffer = packet.transfer_buffer,
+    //            .offset = packet.vertex_buffer_size + static_cast<Uint32>(index_offset_bytes),
+    //        };
+    //        SDL_GPUBufferRegion i_region{
+    //            .buffer = packet.index_buffer,
+    //            .offset = static_cast<Uint32>(index_offset_bytes),
+    //            .size = static_cast<Uint32>(index_offset_bytes),
+    //        };
+    //        SDL_UploadToGPUBuffer(copy_pass, &i_location, &i_region, false);
+    //    }
+    //
+    //    SDL_EndGPUCopyPass(copy_pass);
 
-    // locate the data and upload regions
-    SDL_GPUTransferBufferLocation v_location{
-        .transfer_buffer = packet.transfer_buffer,
-        .offset = 0,
-    };
-    SDL_GPUBufferRegion v_region{
-        .buffer = packet.vertex_buffer,
-        .offset = 0,
-        .size = packet.vertex_buffer_size,
-    };
-    SDL_GPUTransferBufferLocation i_location{
-        .transfer_buffer = packet.transfer_buffer,
-        .offset = packet.vertex_buffer_size,
-    };
-    SDL_GPUBufferRegion i_region{
-        .buffer = packet.index_buffer,
-        .offset = 0,
-        .size = packet.index_buffer_size,
-    };
+    // constants you already have:
+    const size_t transfer_vertex_area_bytes =
+        sizeof(Textured_vertex) * asset_def::g_max_vertex_count;
 
-    SDL_UploadToGPUBuffer(copy_pass, &v_location, &v_region, false);
-    SDL_UploadToGPUBuffer(copy_pass, &i_location, &i_region, false);
+    // After writing into mapped buffer and computing v_offset and i_offset (element counts)
+    size_t vertex_base_elems = vertex_base;    // elements (Textured_vertex)
+    size_t vertex_count_elems = v_offset - vertex_base;
+    size_t index_base_elems = index_base;      // elements (Uint32)
+    size_t index_count_elems = i_offset - index_base;
+
+    // convert to bytes
+    size_t vertex_offset_bytes = vertex_base_elems * sizeof(Textured_vertex);
+    size_t vertex_size_bytes = vertex_count_elems * sizeof(Textured_vertex);
+
+    size_t index_offset_bytes = index_base_elems * sizeof(Uint32);
+    size_t index_size_bytes = index_count_elems * sizeof(Uint32);
+
+    // Debug — print these values (temporarily)
+    // SDL_Log(
+    //     "Upload: v_base=%zu v_count=%zu v_bytes=%zu ; i_base=%zu i_count=%zu i_bytes=%zu",
+    //     vertex_base_elems, vertex_count_elems, vertex_size_bytes, index_base_elems,
+    //     index_count_elems, index_size_bytes
+    // );
+
+    SDL_GPUCopyPass* copy_pass = check_ptr(SDL_BeginGPUCopyPass(command_buffer));
+
+    // Upload vertices if any
+    if (vertex_size_bytes > 0) {
+        SDL_GPUTransferBufferLocation v_location{
+            packet.transfer_buffer, static_cast<Uint32>(vertex_offset_bytes)
+        };
+        SDL_GPUBufferRegion v_region{
+            packet.vertex_buffer, static_cast<Uint32>(vertex_offset_bytes),
+            static_cast<Uint32>(vertex_size_bytes)
+        };
+        SDL_UploadToGPUBuffer(copy_pass, &v_location, &v_region, false);
+    }
+
+    // Upload indices if any
+    if (index_size_bytes > 0) {
+        // IMPORTANT: index bytes live in transfer buffer *after* the vertex area
+        SDL_GPUTransferBufferLocation i_location{
+            packet.transfer_buffer,
+            static_cast<Uint32>(transfer_vertex_area_bytes + index_offset_bytes)
+        };
+        SDL_GPUBufferRegion i_region{
+            packet.index_buffer, static_cast<Uint32>(index_offset_bytes),
+            static_cast<Uint32>(index_size_bytes)
+        };
+        SDL_UploadToGPUBuffer(copy_pass, &i_location, &i_region, false);
+    }
+
     SDL_EndGPUCopyPass(copy_pass);
 }
 
@@ -551,9 +605,27 @@ auto Graphics_system::draw(
         return;
     }
 
-    // update data
-    for (auto p : text_packets)
-        text_transfer_data(command_buffer, p);
+    // update data - store bases into packets for use by draw_text
+    size_t v_base{0};
+    size_t i_base{0};
+    for (auto p : text_packets) {
+        p.vertex_base = v_base;
+        p.index_base = i_base;
+
+        text_transfer_data(command_buffer, p, v_base, i_base);
+
+        // compute totals
+        int total_vertices{0};
+        int total_indices{0};
+        for (auto* seq = p.sequence; seq; seq = seq->next) {
+            total_vertices += seq->num_vertices;
+            total_indices += seq->num_indices;
+        }
+
+        // advance bases by packet totals
+        v_base += static_cast<size_t>(total_vertices);
+        i_base += static_cast<size_t>(total_indices);
+    }
 
     // begin a render pass
     SDL_GPUColorTargetInfo color_target_info{
@@ -644,9 +716,9 @@ auto Graphics_system::draw_text(
 
         // debug purposes
         std::array<glm::mat4, 2> matrices;
-
-        glm::mat4 model = glm::identity<glm::mat4>();
-        model = glm::translate(model, {0.0F, 800.0F, 0.0F});
+        // glm::mat4 model = glm::identity<glm::mat4>();
+        glm::mat4 model = p.model_matrix;
+        // model = glm::translate(model, {0.0F, 800.0F, 0.0F});
         // model = glm::scale(model, {2.0F, 2.0F, 2.0F});
 
         matrices[0] = glm::ortho(0.0F, 800.0F, 0.0F, 800.0F);
@@ -660,8 +732,8 @@ auto Graphics_system::draw_text(
         );
 
         // draw sequences incrementally
-        int v_offset{0};
-        int i_offset{0};
+        int current_vertex_offset{static_cast<int>(p.vertex_base)};
+        int current_index_offset{static_cast<int>(p.index_base)};
         for (TTF_GPUAtlasDrawSequence* seq = p.sequence; seq; seq = seq->next) {
             SDL_GPUTextureSamplerBinding sampler_binding{
                 .texture = seq->atlas_texture,
@@ -669,10 +741,12 @@ auto Graphics_system::draw_text(
             };
             SDL_BindGPUFragmentSamplers(render_pass, 0, &sampler_binding, 1);
 
-            SDL_DrawGPUIndexedPrimitives(render_pass, seq->num_indices, 1, i_offset, v_offset, 0);
+            SDL_DrawGPUIndexedPrimitives(
+                render_pass, seq->num_indices, 1, current_index_offset, current_vertex_offset, 0
+            );
 
-            i_offset += seq->num_indices;
-            v_offset += seq->num_vertices;
+            current_index_offset += seq->num_indices;
+            current_vertex_offset += seq->num_vertices;
         }
     }
 }

@@ -42,7 +42,7 @@ auto Text_system::make_text(
     glm::vec4 color{1.0F, 1.0F, 1.0F, 1.0F};
     TTF_Text* text{TTF_CreateText(m_engine.get(), font, message.c_str(), 0)};
 
-    TTF_SetTextPosition(text, position.x, position.y);
+    // TTF_SetTextPosition(text, position.x, position.y);
     // TTF_SetTextString(text, message.c_str(), 0);
     // TTF_SetFontSDF, TTF_SetFontWrapAlignment
     // TTF_SetTextString, TTF_GetTextSize
@@ -51,6 +51,7 @@ auto Text_system::make_text(
         .font = font,
         .text = text,
         .color = color,
+        .position = position,
     };
 
     m_text_cache[title] = info;
@@ -71,19 +72,28 @@ auto Text_system::get_packets() -> std::vector<Text_render_packet> {
                 .sampler = m_render_component.sampler,
                 .sequence = TTF_GetGPUTextDrawData(i.text),
                 .color = i.color,
+                .model_matrix = get_model_matrix(i.position)
             }
         );
     }
 
     // DEBUG
-    for (const auto& i : m_text_cache)
-        SDL_Log("get_packets(): name=%s", i.first.c_str());
-
-    for (auto p : packets)
-        SDL_Log(
-            "get_packets(): verts=%i, idx=%i", p.sequence->num_vertices, p.sequence->num_indices
-        );
+    // for (const auto& i : m_text_cache)
+    //     SDL_Log("get_packets(): name=%s", i.first.c_str());
+    //
+    // for (auto p : packets)
+    //     SDL_Log(
+    //         "get_packets(): verts=%i, idx=%i", p.sequence->num_vertices, p.sequence->num_indices
+    //     );
 
     return packets;
+}
+
+auto Text_system::get_model_matrix(glm::vec2 position) const -> glm::mat4 {
+    glm::mat4 model{glm::mat4(1.0F)};
+    model = glm::translate(model, glm::vec3(position, 0.0F));
+    // model = glm::rotate(model, glm::radians(m_ang_deg), glm::vec3(0.0F, 0.0F, 1.0F));
+    // model = glm::scale(model, glm::vec3(1.0F));
+    return model;
 }
 

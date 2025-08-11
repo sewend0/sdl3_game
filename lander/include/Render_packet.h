@@ -21,14 +21,16 @@ struct Text_render_packet {
     SDL_GPUGraphicsPipeline* pipeline;
     SDL_GPUBuffer* vertex_buffer;
     Uint32 vertex_buffer_size;
+    size_t vertex_base{0};
     SDL_GPUBuffer* index_buffer;
     Uint32 index_buffer_size;
+    size_t index_base{0};
     SDL_GPUTransferBuffer* transfer_buffer;
     Uint32 transfer_buffer_size;
     SDL_GPUSampler* sampler;
     TTF_GPUAtlasDrawSequence* sequence;
     glm::vec4 color;
-    // glm::mat4 model_matrix;
+    glm::mat4 model_matrix;
     // ...
 };
 

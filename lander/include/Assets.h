@@ -45,8 +45,8 @@ namespace asset_def {
     // constexpr Uint32 LANDER_VERTEX_COUNT{sizeof(LANDER_VERTICES) / sizeof(Vertex)};
     // constexpr Uint32 LANDER_SIZE{sizeof(LANDER_VERTICES)};
 
-    constexpr size_t g_max_vertex_count{4000};
-    constexpr size_t g_max_index_count{6000};
+    constexpr size_t g_max_vertex_count{8000};
+    constexpr size_t g_max_index_count{12000};
 
     const std::string g_ui_txt_sys_1{"sys_1"};
 

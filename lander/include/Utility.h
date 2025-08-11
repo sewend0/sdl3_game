@@ -6,18 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include <format>
-#include <glm/glm/glm.hpp>
 #include <string>
-
-namespace utils {
-
-    auto fail(const std::string& msg = "") -> bool;
-    auto fail_null(const std::string& msg = "") -> void*;
-    auto log(const std::string& msg) -> void;
-    auto log_fail(const std::string& msg) -> bool;
-    auto log_null(const std::string& msg) -> void*;
-
-}    // namespace utils
 
 namespace errors {
 
@@ -30,5 +19,33 @@ namespace errors {
     };
 
 }    // namespace errors
+
+namespace checks {
+
+    inline auto check_bool(const bool okay) -> void {
+        if (not okay)
+            throw errors::App_exception();
+    }
+
+    inline auto check_bool(const bool okay, const std::string& msg) -> void {
+        if (not okay)
+            throw errors::App_exception(msg);
+    }
+
+    template <typename T>
+    inline auto check_ptr(T* ptr) -> T* {
+        if (!ptr)
+            throw errors::App_exception();
+        return ptr;
+    }
+
+    template <typename T>
+    inline auto check_ptr(T* ptr, const ::std::string& msg) -> T* {
+        if (!ptr)
+            throw errors::App_exception(msg);
+        return ptr;
+    }
+
+}    // namespace checks
 
 #endif    // UTILITY_H

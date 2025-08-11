@@ -24,11 +24,10 @@
 #include <map>
 #include <unordered_map>
 
+using namespace checks;
 using error = errors::App_exception;
-using Vertex_data = asset_def::Vertex_data;
-// using Vertex_data_exp = asset_def::Vertex_data_exp;
-using Textured_vertex_data = asset_def::Textured_vertex_data;
-using Text_geo_data = asset_def::Text_geo_data;
+using Mesh_vertex = asset_def::Mesh_vertex;
+using Textured_vertex = asset_def::Textured_vertex;
 
 // Cleanup process for a Pipeline_ptr
 struct Pipeline_deleter {
@@ -40,15 +39,15 @@ struct Pipeline_deleter {
     }
 };
 
-// Cleanup process for a Sampler_ptr
-struct Sampler_deleter {
-    SDL_GPUDevice* device{nullptr};
-
-    auto operator()(SDL_GPUSampler* sampler) const -> void {
-        if (device && sampler)
-            SDL_ReleaseGPUSampler(device, sampler);
-    }
-};
+// // Cleanup process for a Sampler_ptr
+// struct Sampler_deleter {
+//     SDL_GPUDevice* device{nullptr};
+//
+//     auto operator()(SDL_GPUSampler* sampler) const -> void {
+//         if (device && sampler)
+//             SDL_ReleaseGPUSampler(device, sampler);
+//     }
+// };
 
 // Cleanup process for a Device_ptr
 struct Device_deleter {
@@ -59,7 +58,7 @@ struct Device_deleter {
 };
 
 using Pipeline_ptr = std::unique_ptr<SDL_GPUGraphicsPipeline, Pipeline_deleter>;
-using Sampler_ptr = std::unique_ptr<SDL_GPUSampler, Sampler_deleter>;
+// using Sampler_ptr = std::unique_ptr<SDL_GPUSampler, Sampler_deleter>;
 using Device_ptr = std::unique_ptr<SDL_GPUDevice, Device_deleter>;
 
 // Graphics engine
@@ -82,7 +81,7 @@ public:
     auto make_shader(const std::string& file_name) -> SDL_GPUShader*;
 
     // Returns a created graphics pipeline using the provided shaders (lander)
-    auto make_lander_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
+    auto make_mesh_pipeline(SDL_Window* window, SDL_GPUShader* vertex, SDL_GPUShader* fragment)
         -> SDL_GPUGraphicsPipeline*;
 
     // Returns a created graphics pipeline using the provided shaders (text)
@@ -101,28 +100,23 @@ public:
     auto make_sampler() -> SDL_GPUSampler*;
 
     // Copies provided vertex data into a vertex buffer using a transfer buffer
-    auto copy_pass(
-        const Vertex_data* vertices, Uint32 buffer_size, SDL_GPUBuffer* vertex_buffer,
+    auto mesh_copy_pass(
+        const Mesh_vertex* vertices, Uint32 buffer_size, SDL_GPUBuffer* vertex_buffer,
         SDL_GPUTransferBuffer* transfer_buffer
     ) -> void;
 
     // Loads into member component cache game objects vertex data defined in asset_def
     auto load_assets() -> void;
 
-    auto make_text_asset(const std::string& asset_name, const Text_geo_data& geo_data) -> void;
-
     // Returns a rendering component for game object to persistently hold as a member component
-    auto create_render_component(
-        SDL_GPUGraphicsPipeline* pipeline, const Vertex_data* vertices, Uint32 vertex_buffer_size
-    ) -> Render_component;
-
-    auto create_text_render_component(
-        SDL_GPUGraphicsPipeline* pipeline, const Text_geo_data& geo_data
-    ) -> Render_component;
+    auto create_mesh_render_component(
+        SDL_GPUGraphicsPipeline* pipeline, const Mesh_vertex* vertices, Uint32 vertex_buffer_size
+    ) -> Mesh_render_component;
 
     // Returns rendering component of a given name, from within the member component cache
     // TODO: what happens if not found?
-    [[nodiscard]] auto get_render_component(const std::string& name) const -> Render_component {
+    [[nodiscard]] auto get_mesh_render_component(const std::string& name) const
+        -> Mesh_render_component {
         return m_render_component_cache.at(name);
     }
 
@@ -130,15 +124,9 @@ public:
     auto make_mvp(const glm::mat4& model_matrix) -> glm::mat4;
 
     // Processes and renders the supplied render packets
-    auto draw(SDL_Window* window, const std::vector<Render_packet>& packets) -> void;
-
-    // debug
-    // auto Graphics_system::draw_text(
-    //     SDL_Window* window, const std::vector<Text_render_packet>& packets
-    // ) -> void;
-    auto copy_pass_with_index(
-        const Text_geo_data geo_data, SDL_GPUBuffer* vertex_buffer, SDL_GPUBuffer* index_buffer,
-        SDL_GPUTransferBuffer* transfer_buffer
+    auto draw(
+        SDL_Window* window, const std::vector<Mesh_render_packet>& mesh_packets,
+        const std::vector<Text_render_packet>& text_packets
     ) -> void;
 
     // Returns pointer to the systems graphics device
@@ -147,16 +135,42 @@ public:
     // auto pipeline_for_landscape() -> SDL_GPUGraphicsPipeline*;
     // auto pipeline_for_lander() -> SDL_GPUGraphicsPipeline*;
     // auto pipeline_for_text() -> SDL_GPUGraphicsPipeline*;
+
+    // TEXT RENDER DEBUG //
+    auto text_transfer_data(SDL_GPUCommandBuffer* command_buffer, const Text_render_packet& packet)
+        -> void;
+
+    auto create_text_render_component(SDL_GPUGraphicsPipeline* pipeline) -> Text_render_component;
+
+    [[nodiscard]] auto get_text_render_component(const std::string& name) const
+        -> Text_render_component {
+        return m_text_render_component_cache.at(name);
+    }
+    // TEXT RENDER DEBUG //
+
 private:
     std::filesystem::path m_assets_path;
     Device_ptr m_device;
-    Pipeline_ptr m_lander_pipeline;
-    Pipeline_ptr m_text_pipeline;
+    Pipeline_ptr m_mesh_pipeline;
 
     // Pipeline_ptr m_lander_pipeline;
     // possibly a container for pipelines
 
-    std::map<std::string, Render_component> m_render_component_cache;
+    // cache is used to know where buffers are so they can be released at end
+    std::map<std::string, Mesh_render_component> m_render_component_cache;
+    std::map<std::string, Text_render_component> m_text_render_component_cache;
+
+    // TEXT RENDER DEBUG //
+    Pipeline_ptr m_text_pipeline;
+    auto draw_meshes(
+        SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass,
+        const std::vector<Mesh_render_packet>& packets
+    ) -> void;
+    auto draw_text(
+        SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass,
+        const std::vector<Text_render_packet>& packets
+    ) -> void;
+    // TEXT RENDER DEBUG //
 };
 
 #endif    // GRAPHICS_H

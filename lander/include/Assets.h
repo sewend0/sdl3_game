@@ -12,21 +12,17 @@
 
 namespace asset_def {
 
-    // Color and positional data of a vertex
-    struct Vertex_data {
+    // For mesh geometry (Lander, environment, etc.)
+    struct Mesh_vertex {
         glm::vec2 position;
         glm::vec4 color;
     };
 
-    struct Textured_vertex_data {
+    // For textured geometry (text glyphs, sprites, etc.)
+    struct Textured_vertex {
         glm::vec2 position;
         glm::vec4 color;
         glm::vec2 uv;
-    };
-
-    struct Text_geo_data {
-        std::vector<Textured_vertex_data> vertices;
-        std::vector<Uint32> indices;
     };
 
     const std::filesystem::path g_base_path{SDL_GetBasePath()};
@@ -41,16 +37,18 @@ namespace asset_def {
     const std::vector<std::string> g_shader_text_files{"text.vert.spv", "text.frag.spv"};
 
     const std::string g_lander_name{"Lander"};
-    constexpr std::array<Vertex_data, 3> g_lander_vertices{
-        Vertex_data{.position = {0.0F, 70.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
-        Vertex_data{.position = {-50.0F, -50.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
-        Vertex_data{.position = {50.0F, -50.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
+    constexpr std::array<Mesh_vertex, 3> g_lander_vertices{
+        Mesh_vertex{.position = {0.0F, 70.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
+        Mesh_vertex{.position = {-50.0F, -50.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
+        Mesh_vertex{.position = {50.0F, -50.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
     };
     // constexpr Uint32 LANDER_VERTEX_COUNT{sizeof(LANDER_VERTICES) / sizeof(Vertex)};
     // constexpr Uint32 LANDER_SIZE{sizeof(LANDER_VERTICES)};
 
     constexpr size_t g_max_vertex_count{4000};
     constexpr size_t g_max_index_count{6000};
+
+    const std::string g_ui_txt_sys_1{"sys_1"};
 
 }    // namespace asset_def
 

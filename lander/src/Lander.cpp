@@ -2,7 +2,8 @@
 
 #include <Lander.h>
 
-Lander::Lander(const Render_component& render_component) : m_render_component{render_component} {
+Lander::Lander(const Mesh_render_component& render_component) :
+    m_render_component{render_component} {
     //
 }
 

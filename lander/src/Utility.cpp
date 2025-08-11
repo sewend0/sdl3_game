@@ -2,7 +2,7 @@
 
 #include <Utility.h>
 
-namespace utils {
+namespace checks {
     auto fail(const std::string& msg) -> bool {
         // std::string output{};
         // if (msg.empty())

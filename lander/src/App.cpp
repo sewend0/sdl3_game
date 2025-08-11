@@ -13,9 +13,9 @@ auto App::init() -> void {
     init_audio();
     init_timer();
 
-    m_lander =
-        std::make_unique<Lander>(Lander{m_graphics->get_render_component(asset_def::g_lander_name)}
-        );
+    m_lander = std::make_unique<Lander>(
+        Lander{m_graphics->get_mesh_render_component(asset_def::g_lander_name)}
+    );
 }
 
 // app->timer()->tick();
@@ -43,66 +43,47 @@ auto App::update() -> void {
         // State state = currentstate * alpha + prevstate * (1.0 - alpha);
         // render();
 
-        // if (not m_graphics->try_render_pass(m_window.get()))
-        //     utils::log("Unable to complete render pass");
-
-        // debug
-        // static int counter{0};
-        // static float rotation{0.0F};
-        //
-        // ++counter;
-        // if (counter % 2 == 0) {
-        //     rotation += 1.0F;
-        //     counter = 0;
-        // }
-        //
-        // Render_instance dbg_inst{{300.0F, 300.0F}, rotation, {0.0F, 0.0F, 0.0F, 1.0F}};
-        // if (not m_graphics->draw(m_window.get(), &dbg_inst))
-        //     utils::log("Unable to render lander");
-
         // debug
         static int counter{0};
         static float rotation{0.0F};
 
         ++counter;
-        if (counter % 8 == 0) {
-            rotation += 1.0F;
+        if (counter % 2 == 0) {
+            rotation += 2.0F;
             counter = 0;
         }
 
         if (rotation >= 360.F)
             rotation -= 360.F;
 
-        // need a way to get/set lander_renderer rotation
-        // m_demo_rot = rotation;
         m_lander->set_rotation(rotation);
 
-        Render_packet packet{
-            .type = Packet_type::General,
+        Mesh_render_packet packet{
             .pipeline = m_lander->get_render_component().pipeline,
             .vertex_buffer = m_lander->get_render_component().vertex_buffer,
             .vertex_buffer_size = m_lander->get_render_component().vertex_buffer_size,
             .model_matrix = m_lander->get_model_matrix(),
         };
 
-        if (counter < 4)
-            m_text->update("Goodbye");
-        else
-            m_text->update("Hello");
+        // if (counter < 4)
+        //     m_text->update("Goodbye");
+        // else
+        //     m_text->update("Hello");
+        //
+        // Render_packet t_packet{
+        //     .type = Packet_type::Text,
+        //     .pipeline = m_text->get_render_component().pipeline,
+        //     .vertex_buffer = m_text->get_render_component().vertex_buffer,
+        //     .vertex_buffer_size = m_text->get_render_component().vertex_buffer_size,
+        //     .index_buffer = m_text->get_render_component().index_buffer,
+        //     .index_buffer_size = m_text->get_render_component().index_buffer_size,
+        //     .sampler = m_text->get_render_component().sampler,
+        // };
 
-        Render_packet t_packet{
-            .type = Packet_type::Text,
-            .pipeline = m_text->get_render_component().pipeline,
-            .vertex_buffer = m_text->get_render_component().vertex_buffer,
-            .vertex_buffer_size = m_text->get_render_component().vertex_buffer_size,
-            .index_buffer = m_text->get_render_component().index_buffer,
-            .index_buffer_size = m_text->get_render_component().index_buffer_size,
-            .sampler = m_text->get_render_component().sampler,
-        };
-
-        std::vector<Render_packet> packets{packet, t_packet};
-
-        m_graphics->draw(m_window.get(), packets);
+        std::vector<Mesh_render_packet> mesh_packets{packet};
+        m_text->make_text("dbg", "hello world", {0, 0});
+        m_text->make_text("dbg2", "goodbye", {100, 100});
+        m_graphics->draw(m_window.get(), mesh_packets, m_text->get_packets());
 
         m_timer->mark_render();
     }
@@ -131,7 +112,7 @@ auto App::init_text() -> void {
     m_text = std::make_unique<Text_system>();
     m_text->init(
         asset_def::g_base_path / asset_def::g_font_path, asset_def::g_font_files,
-        m_graphics->get_device()
+        m_graphics->get_device(), m_graphics->get_text_render_component(asset_def::g_ui_txt_sys_1)
     );
 }
 

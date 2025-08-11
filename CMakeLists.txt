@@ -57,6 +57,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         lander/src/Timer.cpp
         lander/src/Utility.cpp
         # sandbox/Sandbox_app.cpp
+        sandbox/sandy.cpp
 
         PUBLIC
         lander/include/App.h

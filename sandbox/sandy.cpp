@@ -361,7 +361,7 @@ void draw(
 }
 
 // -------- Main: mirrors the original example flow but modern C++ --------
-int main(int argc, char** argv) {
+int main_demo(int argc, char** argv) {
     try {
         // Argument parsing (same as original)
         const char* font_filename = "C:/Windows/Fonts/arial.ttf";

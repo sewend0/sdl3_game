@@ -17,7 +17,7 @@
 // Game logic and simulation only
 class Lander {
 public:
-    Lander(const Render_component& render_component);
+    Lander(const Mesh_render_component& render_component);
 
     auto update() -> void;
     auto apply_thrust() -> void;
@@ -38,7 +38,7 @@ public:
     // debug
     auto get_rotation() const -> float { return m_ang_deg; }
     auto set_rotation(const float deg) -> void { m_ang_deg = deg; }
-    auto get_render_component() const -> Render_component { return m_render_component; }
+    auto get_render_component() const -> Mesh_render_component { return m_render_component; }
 
 private:
     glm::vec2 m_pos{400, 400};
@@ -51,7 +51,7 @@ private:
     // bool is_thrusting;
     // any other inputs or state
 
-    Render_component m_render_component;
+    Mesh_render_component m_render_component;
 };
 
 #endif    // LANDER_H

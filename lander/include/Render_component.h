@@ -9,15 +9,20 @@
 
 // Persistent component of a game object
 // Holds handles/data required to link to rendering process
-struct Render_component {
+struct Mesh_render_component {
     SDL_GPUGraphicsPipeline* pipeline;
-
     SDL_GPUBuffer* vertex_buffer;
     Uint32 vertex_buffer_size;
+};
 
+struct Text_render_component {
+    SDL_GPUGraphicsPipeline* pipeline;
+    SDL_GPUBuffer* vertex_buffer;
+    Uint32 vertex_buffer_size;
     SDL_GPUBuffer* index_buffer;
     Uint32 index_buffer_size;
-
+    SDL_GPUTransferBuffer* transfer_buffer;
+    Uint32 transfer_buffer_size;
     SDL_GPUSampler* sampler;
 };
 

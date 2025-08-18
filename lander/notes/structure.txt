@@ -1,0 +1,107 @@
+LunarLander/
+├── CMakeLists.txt
+├── assets/
+│   ├── fonts/
+│   │   ├── main.ttf
+│   │   └── ui.ttf
+│   ├── shaders/
+│   │   ├── vertex_2d.hlsl
+│   │   ├── fragment_2d.hlsl
+│   │   └── text.hlsl
+│   └── audio/
+│       ├── thrust.wav
+│       ├── crash.wav
+│       └── landing.wav
+├── src/
+│   ├── main.cpp                    # SDL callback implementations
+│   ├── utils.h                     # Generic helper functions
+│   ├── asset_paths.h               # Centralized asset path definitions
+│   │
+│   ├── core/                       # Engine-level systems
+│   │   ├── graphics_context.h
+│   │   ├── graphics_context.cpp
+│   │   ├── renderer_2d.h
+│   │   ├── renderer_2d.cpp
+│   │   ├── resource_manager.h
+│   │   ├── resource_manager.cpp
+│   │   ├── text_manager.h
+│   │   └── text_manager.cpp
+│   │
+│   ├── components/                 # ECS Components
+│   │   ├── component.h             # Base component interface
+│   │   ├── transform.h
+│   │   ├── transform.cpp
+│   │   ├── renderable_component.h
+│   │   ├── physics_component.h
+│   │   └── player_controller.h
+│   │
+│   ├── systems/                    # ECS Systems
+│   │   ├── render_system.h
+│   │   ├── render_system.cpp
+│   │   ├── physics_system.h
+│   │   ├── physics_system.cpp
+│   │   └── input_system.h
+│   │
+│   ├── game/                       # Game-specific code
+│   │   ├── game_object.h
+│   │   ├── game_object.cpp
+│   │   ├── game_state.h
+│   │   ├── mesh_library.h          # Hardcoded mesh definitions
+│   │   ├── mesh_library.cpp
+│   │   ├── camera_2d.h
+│   │   ├── camera_2d.cpp
+│   │   └── lander_game.h           # Game-specific logic
+│   │
+│   └── rendering/                  # Rendering data structures
+│       ├── render_command.h        # RenderCommand2D, UITextCommand, etc.
+│       ├── render_queue.h
+│       ├── vertex_types.h          # Vertex2D definition
+│       └── shader_types.h          # Uniform buffer structures
+│
+├── include/                        # Third-party headers (if needed)
+└── build/                         # CMake build output (gitignored)
+
+
+
+main.cpp - SDL callback implementations and game loop coordination
+
+core/ - Engine-level systems that could be reused in other projects
+
+graphics_context - Owns SDL_Window, SDL_GPUDevice
+renderer_2d - Consumes render commands, talks to GPU
+resource_manager - Manages meshes, coordinates other managers
+text_manager - SDL_ttf integration
+
+components/ - Data-only components for ECS
+
+transform - Position, rotation, scale for 2D
+renderable_component - Mesh ID, color, depth, visibility
+physics_component - Velocity, acceleration, mass
+player_controller - Input state, thrust power, etc.
+
+systems/ - Logic that operates on components
+
+render_system - Collects renderable data into render queue
+physics_system - Updates physics components
+input_system - Processes SDL events into game input
+
+game/ - Game-specific implementations
+
+game_object - Component container
+game_state - Main game state struct
+mesh_library - Hardcoded vertex data for lander, etc.
+lander_game - Specific game rules, win/lose conditions
+
+rendering/ - Render data structures and types
+
+render_command - RenderCommand2D, UITextCommand structs
+render_queue - Collections of render commands
+vertex_types - Vertex2D struct definition
+
+This structure separates:
+
+Platform layer (SDL integration) from engine layer (core systems)
+Engine layer from game layer (game-specific code)
+Data (components, render commands) from logic (systems, managers)
+
+The dependencies flow in one direction: game → core → platform, making it easier to maintain and potentially reuse the core systems in other projects.

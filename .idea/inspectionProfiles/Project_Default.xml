@@ -6,7 +6,7 @@
         <list>
           <ClangTidyCheckOption>
             <option name="optionName" value="readability-braces-around-statements.ShortStatementLines" />
-            <option name="optionValue" value="2" />
+            <option name="optionValue" value="1" />
           </ClangTidyCheckOption>
           <ClangTidyCheckOption>
             <option name="optionName" value="readability-identifier-naming.ClassCase" />
@@ -15,6 +15,10 @@
           <ClangTidyCheckOption>
             <option name="optionName" value="readability-identifier-naming.ClassMemberCase" />
             <option name="optionValue" value="lower_case" />
+          </ClangTidyCheckOption>
+          <ClangTidyCheckOption>
+            <option name="optionName" value="readability-identifier-naming.ClassMemberPrefix" />
+            <option name="optionValue" value="m_" />
           </ClangTidyCheckOption>
           <ClangTidyCheckOption>
             <option name="optionName" value="readability-identifier-naming.ConstexprVariableCase" />
@@ -53,10 +57,6 @@
             <option name="optionValue" value="lower_case" />
           </ClangTidyCheckOption>
           <ClangTidyCheckOption>
-            <option name="optionName" value="readability-identifier-naming.ClassMemberPrefix" />
-            <option name="optionValue" value="m_" />
-          </ClangTidyCheckOption>
-          <ClangTidyCheckOption>
             <option name="optionName" value="readability-identifier-naming.NamespaceCase" />
             <option name="optionValue" value="lower_case" />
           </ClangTidyCheckOption>
@@ -86,7 +86,7 @@
           </ClangTidyCheckOption>
         </list>
       </option>
-      <option name="clangTidyChecks" value="-*,modernize-*,mpi-*,performance-*,cert-err52-cpp,cert-err60-cpp,cert-err34-c,cert-str34-c,cert-msc50-cpp,cert-msc51-cpp,cert-dcl58-cpp,cert-flp30-c,cppcoreguidelines-pro-type-member-init,cppcoreguidelines-slicing,cppcoreguidelines-interfaces-global-init,cppcoreguidelines-pro-type-static-cast-downcast,hicpp-multiway-paths-covered,hicpp-exception-baseclass,misc-*,-misc-include-cleaner,openmp-use-default-none,bugprone-*,portability-*,readability-*" />
+      <option name="clangTidyChecks" value="-*,bugprone-*,modernize-*,mpi-*,performance-*,portability-*,cert-err52-cpp,cert-err60-cpp,cert-err34-c,cert-str34-c,cert-msc50-cpp,cert-msc51-cpp,cert-dcl58-cpp,cert-flp30-c,cppcoreguidelines-pro-type-member-init,cppcoreguidelines-slicing,cppcoreguidelines-interfaces-global-init,cppcoreguidelines-pro-type-static-cast-downcast,hicpp-multiway-paths-covered,hicpp-exception-baseclass,misc-*,-misc-include-cleaner,openmp-use-default-none,readability-*,-readability-braces-around-statements" />
     </inspection_tool>
     <inspection_tool class="CppEnforceCVQualifiersOrder" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="CppEnforceFunctionDeclarationStyle" enabled="true" level="WARNING" enabled_by_default="true" />

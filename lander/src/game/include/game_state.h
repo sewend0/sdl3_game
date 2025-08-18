@@ -1,0 +1,6 @@
+
+
+#ifndef SDL3_GAME_GAME_STATE_H
+#define SDL3_GAME_GAME_STATE_H
+
+#endif    // SDL3_GAME_GAME_STATE_H

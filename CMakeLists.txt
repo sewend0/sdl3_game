@@ -39,8 +39,11 @@ add_subdirectory(thirdparty/SDL_ttf)
 add_subdirectory(thirdparty/SDL_shadercross)
 add_subdirectory(thirdparty/glm-docking)
 
+# Define common source path
+set(LANDER_SRC_DIR "${CMAKE_SOURCE_DIR}/lander/src")
+
 # Make executable and link files
-add_executable("${CMAKE_PROJECT_NAME}" main.cpp)
+add_executable("${CMAKE_PROJECT_NAME}" ${LANDER_SRC_DIR}/main.cpp)
 
 # GLM
 # target_compile_definitions("${CMAKE_PROJECT_NAME}" PRIVATE GLM_FORCE_CXX17)
@@ -48,38 +51,66 @@ add_executable("${CMAKE_PROJECT_NAME}" main.cpp)
 # Add sources and headers
 target_sources("${CMAKE_PROJECT_NAME}"
         PRIVATE
-        lander/src/App.cpp
-        lander/src/Audio.cpp
-        lander/src/Game.cpp
-        lander/src/Graphics.cpp
-        lander/src/Lander.cpp
-        lander/src/Text.cpp
-        lander/src/Timer.cpp
-        lander/src/Utility.cpp
-        # sandbox/Sandbox_app.cpp
-        sandbox/sandy.cpp
-
+        # Main
+        ${LANDER_SRC_DIR}/assets.h
+        ${LANDER_SRC_DIR}/utils.h
+        # Components
+        ${LANDER_SRC_DIR}/components/include/components.h
+        # Core
+        ${LANDER_SRC_DIR}/core/include/app.h
+        ${LANDER_SRC_DIR}/core/include/audio_manager.h
+        ${LANDER_SRC_DIR}/core/include/graphics_context.h
+        ${LANDER_SRC_DIR}/core/include/input_manager.h
+        ${LANDER_SRC_DIR}/core/include/renderer.h
+        ${LANDER_SRC_DIR}/core/include/resource_manager.h
+        ${LANDER_SRC_DIR}/core/include/text_manager.h
+        # Game
+        ${LANDER_SRC_DIR}/game/include/camera.h
+        ${LANDER_SRC_DIR}/game/include/game_object.h
+        ${LANDER_SRC_DIR}/game/include/game_state.h
+        ${LANDER_SRC_DIR}/game/include/lander_game.h
+        ${LANDER_SRC_DIR}/game/include/mesh_library.h
+        # Rendering
+        ${LANDER_SRC_DIR}/rendering/render_command.h
+        ${LANDER_SRC_DIR}/rendering/render_queue.h
+        ${LANDER_SRC_DIR}/rendering/shader_types.h
+        ${LANDER_SRC_DIR}/rendering/vertex_types.h
+        # Systems
+        ${LANDER_SRC_DIR}/systems/include/input_system.h
+        ${LANDER_SRC_DIR}/systems/include/physics_system.h
+        ${LANDER_SRC_DIR}/systems/include/render_system.h
+        ${LANDER_SRC_DIR}/systems/include/ui_system.h
         PUBLIC
-        lander/include/App.h
-        lander/include/Assets.h
-        lander/include/Audio.h
-        lander/include/Game.h
-        lander/include/Graphics.h
-        lander/include/Lander.h
-        lander/include/Render_component.h
-        lander/include/Render_packet.h
-        lander/include/System.h
-        lander/include/Text.h
-        lander/include/Timer.h
-        lander/include/Utility.h
-        # sandbox/Sandbox_app.h
+        # Components
+        ${LANDER_SRC_DIR}/components/components.cpp
+        # Core
+        ${LANDER_SRC_DIR}/core/app.cpp
+        ${LANDER_SRC_DIR}/core/audio_manager.cpp
+        ${LANDER_SRC_DIR}/core/graphics_context.cpp
+        ${LANDER_SRC_DIR}/core/input_manager.cpp
+        ${LANDER_SRC_DIR}/core/renderer.cpp
+        ${LANDER_SRC_DIR}/core/resource_manager.cpp
+        ${LANDER_SRC_DIR}/core/text_manager.cpp
+        # Game
+        ${LANDER_SRC_DIR}/game/camera.cpp
+        ${LANDER_SRC_DIR}/game/game_object.cpp
+        ${LANDER_SRC_DIR}/game/mesh_library.cpp
+        # Systems
+        ${LANDER_SRC_DIR}/systems/input_system.cpp
+        ${LANDER_SRC_DIR}/systems/physics_system.cpp
+        ${LANDER_SRC_DIR}/systems/render_system.cpp
+        ${LANDER_SRC_DIR}/systems/ui_system.cpp
 )
 
 # Set included directories for this project
 target_include_directories("${CMAKE_PROJECT_NAME}"
         PUBLIC
-        lander/include
-        sandbox
+        ${LANDER_SRC_DIR}
+        ${LANDER_SRC_DIR}/components/include
+        ${LANDER_SRC_DIR}/core/include
+        ${LANDER_SRC_DIR}/game/include
+        ${LANDER_SRC_DIR}/rendering
+        ${LANDER_SRC_DIR}/systems/include
 )
 
 # Link third party libs

@@ -1,22 +1,16 @@
 
+
 #include <SDL3/SDL.h>
 
 #define SDL_MAIN_USE_CALLBACKS
-// #include <App.h>
-#include <App.h>
+
 #include <SDL3/SDL_main.h>
-#include <SDL3_mixer/SDL_mixer.h>
-#include <SDL3_ttf/SDL_ttf.h>
-#include <Timer.h>
+#include <app.h>
+#include <utils.h>
 
 #include <filesystem>
-#include <fstream>
 #include <string>
 #include <vector>
-
-const std::string g_app_name{"lander"};
-constexpr int g_window_start_width{400};
-constexpr int g_window_start_height{400};
 
 // Runs once at startup
 auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
@@ -24,11 +18,15 @@ auto SDL_AppInit(void** appstate, int argc, char* argv[]) -> SDL_AppResult {
 
     // for debugging
     SDL_SetLogPriority(SDL_LOG_CATEGORY_CUSTOM, SDL_LOG_PRIORITY_DEBUG);
-    // extra debugging
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
 
     auto app{std::make_unique<App>()};
-    app->init();
+
+    auto result{app->init()};
+    if (not result) {
+        utils::log(result.error());
+        return SDL_APP_FAILURE;
+    }
 
     // give ownership to SDL
     *appstate = app.release();
@@ -71,7 +69,7 @@ auto SDL_AppIterate(void* appstate) -> SDL_AppResult {
 
     app->update();
 
-    return app->app_status();
+    return app->get_status();
     // return app->should_quit() ? SDL_APP_SUCCESS : SDL_APP_CONTINUE;
     // return SDL_APP_CONTINUE;
 }
@@ -81,9 +79,41 @@ auto SDL_AppQuit(void* appstate, SDL_AppResult result) -> void {
     auto* app{static_cast<App*>(appstate)};
 
     // app->shutdown();
+    app->quit();
     delete static_cast<App*>(appstate);
 
     result == SDL_APP_SUCCESS ? SDL_Log("App quit successfully!") : SDL_Log("App failure.");
     // SDL_Log("App quit successfully!");
     SDL_Quit();
 }
+
+/* Architecture
+ * 1. Separation of concerns: game logic doesn't know about GPU details
+ * 2. Performance: render commands can be sorted/batched efficiently
+ * 3. Flexibility: easy to add new render features without touching game code
+ * 4. Testability: game logic can be tested without GPU
+ * 5. Maintainability: clear boundaries between systems
+ */
+
+/* Example
+ * Player: Game_object with transform, renderable, physics, player controller
+ * Terrain: transform, renderable, collision
+ * UI Elements: separate system with own render commands
+ * Particles: separate system with own render commands
+ */
+
+/* General Guidelines
+Use std::unique_ptr when:
+
+You own the resource and are responsible for its cleanup
+The resource is a C++ object (has constructor/destructor)
+Transfer of ownership might occur
+Exception safety matters during construction
+
+Use raw pointers when:
+
+Non-owning references (like lander pointing into your vector)
+C API handles that have specific cleanup functions
+Performance-critical code where the indirection matters
+Interfacing with C libraries that expect raw pointers
+*/

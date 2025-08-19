@@ -7,7 +7,8 @@
 #include <SDL3_mixer/SDL_mixer.h>
 #include <SDL3_shadercross/SDL_shadercross.h>
 #include <SDL3_ttf/SDL_ttf.h>
-#include <assets.h>
+#include <definitions.h>
+#include <vertex_types.h>
 
 #include <memory>
 #include <string>
@@ -17,7 +18,10 @@
 // Loading files and managing raw assets
 class Resource_manager {
 private:
-    // std::unordered_map<Uint32, Mesh_data> meshes;
+    Uint32 next_mesh_id{1};
+    std::unordered_map<std::string, Uint32> mesh_ids;
+    std::unordered_map<Uint32, vertex_types::Mesh_data> meshes;
+
     // std::unordered_map<Uint32, Material_data> materials;
     // std::unordered_map<Uint32, SDL_GPUTexture*> textures;
     // std::unique_ptr<Text_manager> text_manager;
@@ -45,9 +49,14 @@ public:
     auto load_shader(SDL_GPUDevice* gpu_device, const std::string& file_name)
         -> utils::Result<SDL_GPUShader*>;
 
+    auto create_hardcoded_meshes() -> utils::Result<>;
+    auto create_mesh(defs::vertex_types::Mesh_data vertices) -> utils::Result<Uint32>;
+
     auto get_font(const std::string& file_name) -> utils::Result<TTF_Font*>;
     auto get_sound(const std::string& file_name) -> utils::Result<MIX_Audio*>;
     auto get_shader(const std::string& file_name) -> utils::Result<SDL_GPUShader*>;
+
+    auto get_mesh_id(const std::string& mesh_name) -> utils::Result<Uint32>;
 
     auto release_shader(SDL_GPUDevice* gpu_device, const std::string& file_name)
         -> utils::Result<SDL_GPUShader*>;

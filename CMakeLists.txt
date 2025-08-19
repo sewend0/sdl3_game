@@ -52,7 +52,7 @@ add_executable("${CMAKE_PROJECT_NAME}" ${LANDER_SRC_DIR}/main.cpp)
 target_sources("${CMAKE_PROJECT_NAME}"
         PRIVATE
         # Main
-        ${LANDER_SRC_DIR}/assets.h
+        ${LANDER_SRC_DIR}/definitions.h
         ${LANDER_SRC_DIR}/utils.h
         # Components
         ${LANDER_SRC_DIR}/components/include/components.h
@@ -69,12 +69,12 @@ target_sources("${CMAKE_PROJECT_NAME}"
         ${LANDER_SRC_DIR}/game/include/game_object.h
         ${LANDER_SRC_DIR}/game/include/game_state.h
         ${LANDER_SRC_DIR}/game/include/lander_game.h
-        ${LANDER_SRC_DIR}/game/include/mesh_library.h
+        #        ${LANDER_SRC_DIR}/game/include/mesh_library.h
         # Rendering
         ${LANDER_SRC_DIR}/rendering/render_command.h
         ${LANDER_SRC_DIR}/rendering/render_queue.h
-        ${LANDER_SRC_DIR}/rendering/shader_types.h
-        ${LANDER_SRC_DIR}/rendering/vertex_types.h
+        #        ${LANDER_SRC_DIR}/rendering/shader_types.h
+        #        ${LANDER_SRC_DIR}/rendering/vertex_types.h
         # Systems
         ${LANDER_SRC_DIR}/systems/include/input_system.h
         ${LANDER_SRC_DIR}/systems/include/physics_system.h
@@ -94,6 +94,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         # Game
         ${LANDER_SRC_DIR}/game/camera.cpp
         ${LANDER_SRC_DIR}/game/game_object.cpp
+        #        ${LANDER_SRC_DIR}/game/game_state.cpp
         ${LANDER_SRC_DIR}/game/mesh_library.cpp
         # Systems
         ${LANDER_SRC_DIR}/systems/input_system.cpp

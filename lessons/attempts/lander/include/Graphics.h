@@ -5,12 +5,12 @@
 
 #include <SDL3/SDL.h>
 // #include <SDL3_image/SDL_image.h>
-#include <Assets.h>
 #include <Render_component.h>
 #include <Render_packet.h>
 #include <SDL3_shadercross/SDL_shadercross.h>
 #include <System.h>
 #include <Utility.h>
+#include <definitions.h>
 
 #include <array>
 #include <cassert>

@@ -34,7 +34,7 @@ auto Renderer::make_mesh_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*> {
     // describe vertex buffers
     SDL_GPUVertexBufferDescription vertex_buffer_description{
         .slot = 0,
-        .pitch = sizeof(assets::defs::Mesh_vertex),
+        .pitch = sizeof(vertex_types::Mesh_vertex),
         .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
         .instance_step_rate = 0,
     };
@@ -65,7 +65,7 @@ auto Renderer::make_mesh_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*> {
 
     // get loaded shaders
     auto shaders{
-        TRY(assets::shaders::get_shader_set_file_names(assets::shaders::shader_lander_name))
+        TRY(defs::shaders::get_shader_set_file_names(defs::shaders::shader_lander_name))
     };
     SDL_GPUShader* vert_shader{TRY(resource_manager->get_shader(shaders[0]))};
     SDL_GPUShader* frag_shader{TRY(resource_manager->get_shader(shaders[1]))};

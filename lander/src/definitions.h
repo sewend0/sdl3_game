@@ -11,22 +11,15 @@
 #include <string>
 #include <vector>
 
-namespace assets {
+namespace defs {
 
-    namespace defs {
-        struct Font_def {
-            std::string file_name;
-            float size;
-        };
+    // uniform buffer structures
+    namespace shader_types {
+        // TODO: uniform buffer data structures
+    }
 
-        struct Sound_def {
-            std::string file_name;
-        };
-
-        struct Shader_set_def {
-            std::string shader_set_name;
-        };
-
+    // vertex data definitions
+    namespace vertex_types {
         // For mesh geometry (Lander, environment, etc.)
         struct Mesh_vertex {
             glm::vec2 position;
@@ -40,7 +33,29 @@ namespace assets {
             glm::vec2 uv;
         };
 
-    }    // namespace defs
+        using Mesh_data = std::vector<Mesh_vertex>;
+    }    // namespace vertex_types
+
+    namespace assets {
+        struct Font_def {
+            std::string file_name;
+            float size;
+        };
+
+        struct Sound_def {
+            std::string file_name;
+        };
+
+        struct Shader_set_def {
+            std::string shader_set_name;
+        };
+
+        struct Mesh_def {
+            std::string mesh_name;
+            vertex_types::Mesh_data vertices;
+        };
+
+    }    // namespace assets
 
     namespace paths {
         inline const std::filesystem::path base_path{SDL_GetBasePath()};
@@ -71,7 +86,7 @@ namespace assets {
     namespace fonts {
         inline const std::string font_pong{"pong_font.ttf"};
 
-        inline const std::vector<defs::Font_def> startup_fonts{
+        inline const std::vector<assets::Font_def> startup_fonts{
             {font_pong, 24.0F},
             // {"example.ttf", 12.0F},
         };
@@ -83,7 +98,7 @@ namespace assets {
         inline const std::string sound_move{"move.wav"};
         inline const std::string sound_clear{"clear.wav"};
 
-        inline const std::vector<defs::Sound_def> startup_audio{
+        inline const std::vector<assets::Sound_def> startup_audio{
             {sound_medium},
             {sound_move},
             {sound_clear},
@@ -100,7 +115,7 @@ namespace assets {
         inline const std::string shader_lander_name{"lander"};
         inline const std::string shader_text_name{"text"};
 
-        inline const std::vector<defs::Shader_set_def> startup_shaders{
+        inline const std::vector<assets::Shader_set_def> startup_shaders{
             {shader_lander_name},
             {shader_text_name},
         };
@@ -117,6 +132,23 @@ namespace assets {
 
     }    // namespace shaders
 
-}    // namespace assets
+    namespace meshes {
+        inline const std::string mesh_lander{"lander"};
+        // inline const std::string mesh_ground{"ground"};
+        // inline const std::string mesh_particle{"particle"};
+
+        inline const vertex_types::Mesh_data lander_vertices{
+            {.position = {0.0F, 70.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
+            {.position = {-50.0F, -50.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
+            {.position = {50.0F, -50.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
+        };
+
+        inline const std::vector<assets::Mesh_def> hardcoded_meshes{
+            {mesh_lander, lander_vertices},
+        };
+
+    }    // namespace meshes
+
+}    // namespace defs
 
 #endif    // SDL3_GAME_ASSET_PATHS_H

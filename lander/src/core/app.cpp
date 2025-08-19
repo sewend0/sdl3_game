@@ -32,6 +32,10 @@ auto App::init() -> utils::Result<> {
 
     TRY(load_startup_assets());
 
+    // TODO
+    // game_state->mesh_library = std::make_unique<Mesh_library>();
+    // CHECK_BOOL(game_state->mesh_library->init(game_state->resource_manager.get()));
+
     return {};
 }
 
@@ -83,25 +87,26 @@ auto App::update() -> void {
     static bool has_played = false;
 
     if (has_played == false)
-        if (auto res{game_state->audio_manager->play_sound(assets::audio::sound_clear)}; not res)
+        if (auto res{game_state->audio_manager->play_sound(defs::audio::sound_clear)}; not res)
             utils::log(res.error());
 
     has_played = true;
 }
 
 auto App::load_startup_assets() -> utils::Result<> {
-    for (const auto& [file_name, size] : assets::fonts::startup_fonts)
+    for (const auto& [file_name, size] : defs::fonts::startup_fonts)
         TRY(game_state->resource_manager->load_font(file_name, size));
 
-    for (const auto& sound : assets::audio::startup_audio)
+    for (const auto& sound : defs::audio::startup_audio)
         TRY(game_state->resource_manager->load_sound(sound.file_name));
 
-    for (const auto& shader_set : assets::shaders::startup_shaders)
+    for (const auto& shader_set : defs::shaders::startup_shaders)
         for (const auto& shader :
-             *assets::shaders::get_shader_set_file_names(shader_set.shader_set_name))
+             *defs::shaders::get_shader_set_file_names(shader_set.shader_set_name))
             TRY(game_state->resource_manager->load_shader(
                 game_state->graphics->get_device(), shader
             ));
 
     return {};
 }
+

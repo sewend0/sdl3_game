@@ -3,9 +3,10 @@
 #ifndef SDL3_GAME_RENDERER_H
 #define SDL3_GAME_RENDERER_H
 
-#include <Render_system.h>
-#include <Resource_manager.h>
 #include <SDL3/SDL_gpu.h>
+#include <render_system.h>
+#include <resource_manager.h>
+#include <vertex_types.h>
 
 #include <glm/glm/mat4x4.hpp>
 #include <glm/glm/vec3.hpp>

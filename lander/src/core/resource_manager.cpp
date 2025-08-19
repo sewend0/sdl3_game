@@ -7,6 +7,8 @@ auto Resource_manager::init() -> utils::Result<> {
     fonts = {};
     sounds = {};
 
+    TRY(create_hardcoded_meshes());
+
     return {};
 }
 
@@ -26,7 +28,7 @@ auto Resource_manager::quit(SDL_GPUDevice* gpu_device) -> void {
 auto Resource_manager::load_font(const std::string& file_name, float size)
     -> utils::Result<TTF_Font*> {
     TTF_Font* font{
-        CHECK_PTR(TTF_OpenFont(assets::paths::get_full_path(file_name)->string().c_str(), size))
+        CHECK_PTR(TTF_OpenFont(defs::paths::get_full_path(file_name)->string().c_str(), size))
     };
     fonts[file_name] = font;
     return font;
@@ -35,7 +37,7 @@ auto Resource_manager::load_font(const std::string& file_name, float size)
 auto Resource_manager::load_sound(const std::string& file_name) -> utils::Result<MIX_Audio*> {
     // may need to specify mixer here...
     MIX_Audio* sound{CHECK_PTR(
-        MIX_LoadAudio(nullptr, assets::paths::get_full_path(file_name)->string().c_str(), true)
+        MIX_LoadAudio(nullptr, defs::paths::get_full_path(file_name)->string().c_str(), true)
     )};
 
     sounds[file_name] = sound;
@@ -58,9 +60,9 @@ auto Resource_manager::load_shader(SDL_GPUDevice* gpu_device, const std::string&
 
     // load the shader code
     size_t code_size;
-    void* code{CHECK_PTR(
-        SDL_LoadFile(assets::paths::get_full_path(file_name)->string().c_str(), &code_size)
-    )};
+    void* code{
+        CHECK_PTR(SDL_LoadFile(defs::paths::get_full_path(file_name)->string().c_str(), &code_size))
+    };
 
     // create the vertex/fragment shader
     SDL_ShaderCross_SPIRV_Info shader_info{
@@ -90,6 +92,17 @@ auto Resource_manager::load_shader(SDL_GPUDevice* gpu_device, const std::string&
     return shader;
 }
 
+auto Resource_manager::create_hardcoded_meshes() -> utils::Result<> {
+    // TODO: implement resource_manager create_hardcoded_mesh
+}
+
+auto Resource_manager::create_mesh(defs::vertex_types::Mesh_data vertices)
+    -> utils::Result<Uint32> {
+    // TODO: implement resource_manager create_mesh
+
+    return {};
+}
+
 auto Resource_manager::get_font(const std::string& file_name) -> utils::Result<TTF_Font*> {
     const auto it{fonts.find(file_name)};
     if (it == fonts.end())
@@ -112,6 +125,12 @@ auto Resource_manager::get_shader(const std::string& file_name) -> utils::Result
         return std::unexpected(std::format("Shader '{}' not found", file_name));
 
     return it->second;
+}
+
+auto Resource_manager::get_mesh_id(const std::string& mesh_name) -> utils::Result<Uint32> {
+    const auto it{mesh_ids.find(mesh_name)};
+    return (it != mesh_ids.end()) ? utils::Result<Uint32>{it->second}
+                                  : std::unexpected(std::format("Mesh '{}' not found", mesh_name));
 }
 
 auto Resource_manager::release_shader(SDL_GPUDevice* gpu_device, const std::string& file_name)

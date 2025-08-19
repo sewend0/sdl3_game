@@ -4,6 +4,7 @@
 #define SDL3_GAME_APP_H
 
 #include <audio_manager.h>
+#include <game_state.h>
 #include <graphics_context.h>
 #include <renderer.h>
 #include <text_manager.h>
@@ -12,32 +13,8 @@
 #include <memory>
 
 const std::string g_app_name{"lander"};
-constexpr int g_window_start_width{400};
-constexpr int g_window_start_height{400};
-
-struct Game_state {
-    // Owned resources - unique
-    std::unique_ptr<Graphics_context> graphics;
-    std::unique_ptr<Renderer> renderer;
-    std::unique_ptr<Resource_manager> resource_manager;
-    std::unique_ptr<Text_manager> text_manager;
-    std::unique_ptr<Audio_manager> audio_manager;
-    std::unique_ptr<Render_system> render_system;
-
-    // Owned objects - unique
-    std::vector<std::unique_ptr<Game_object>> game_objects;
-
-    // Value type - no pointer needed
-    Render_queue render_queue;
-
-    // Non-owning references - raw
-    // Game specific
-    Game_object* lander;
-    // Camera camera;
-
-    // make accessors?
-    // auto get_text_manager() const -> Text_manager* { return text_manager.get(); }
-};
+constexpr int g_window_start_width{800};
+constexpr int g_window_start_height{600};
 
 class App {
 private:

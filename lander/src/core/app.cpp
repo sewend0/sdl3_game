@@ -7,12 +7,16 @@ auto App::init() -> utils::Result<> {
     /* 1. Core systems
      * 2. Resource loading
      * 3. Subsystems that depend on resources
+     * 4. Game objects
      */
 
     game_state = std::make_unique<Game_state>();
 
     game_state->graphics = std::make_unique<Graphics_context>();
-    CHECK_BOOL(game_state->graphics->init(200, 200, "test"));
+    CHECK_BOOL(game_state->graphics->init(
+        defs::startup::window_width, defs::startup::window_height,
+        std::string(defs::startup::window_name)
+    ));
 
     // TODO: init other systems:
     // init renderer
@@ -31,17 +35,15 @@ auto App::init() -> utils::Result<> {
     CHECK_BOOL(game_state->audio_manager->init(game_state->resource_manager.get()));
 
     TRY(load_startup_assets());
-
-    // TODO
-    // game_state->mesh_library = std::make_unique<Mesh_library>();
-    // CHECK_BOOL(game_state->mesh_library->init(game_state->resource_manager.get()));
+    TRY(create_lander());
 
     return {};
 }
 
 auto App::quit() -> void {
-    // must shut down first, releasing shaders (shouldn't really need to) requires graphics device,
-    // and MIX_DestroyAudio and TTF_CloseFont require subsystems to be alive
+    // must shut down first, releasing shaders (shouldn't really need to)
+    // requires graphics device, and MIX_DestroyAudio and TTF_CloseFont require
+    // subsystems to be alive
     if (game_state->resource_manager)
         game_state->resource_manager->quit(game_state->graphics->get_device());
 
@@ -65,7 +67,9 @@ auto App::update() -> void {
     // ++counter;
     // if (counter % 50000 == 0) {
     //     counter = 0;
-    //     if (auto res{game_state->audio_manager->play_sound(assets::audio::sound_clear)}; not res)
+    //     if (auto
+    //     res{game_state->audio_manager->play_sound(assets::audio::sound_clear)};
+    //     not res)
     //         utils::log(res.error());
     // }
 
@@ -80,14 +84,17 @@ auto App::update() -> void {
     //
     // if (count % 200 == 0) {
     //     count = 0;
-    //     if (auto res{game_state->audio_manager->play_sound(assets::audio::sound_clear)}; not res)
+    //     if (auto
+    //     res{game_state->audio_manager->play_sound(assets::audio::sound_clear)};
+    //     not res)
     //         utils::log(res.error());
     // }
 
     static bool has_played = false;
 
     if (has_played == false)
-        if (auto res{game_state->audio_manager->play_sound(defs::audio::sound_clear)}; not res)
+        if (auto res{game_state->audio_manager->play_sound(std::string(defs::audio::sound_clear))};
+            not res)
             utils::log(res.error());
 
     has_played = true;
@@ -95,18 +102,47 @@ auto App::update() -> void {
 
 auto App::load_startup_assets() -> utils::Result<> {
     for (const auto& [file_name, size] : defs::fonts::startup_fonts)
-        TRY(game_state->resource_manager->load_font(file_name, size));
+        TRY(game_state->resource_manager->load_font(std::string(file_name), size));
 
     for (const auto& sound : defs::audio::startup_audio)
-        TRY(game_state->resource_manager->load_sound(sound.file_name));
+        TRY(game_state->resource_manager->load_sound(std::string(sound.file_name)));
 
     for (const auto& shader_set : defs::shaders::startup_shaders)
         for (const auto& shader :
-             *defs::shaders::get_shader_set_file_names(shader_set.shader_set_name))
+             *defs::shaders::get_shader_set_file_names(std::string(shader_set.shader_set_name)))
             TRY(game_state->resource_manager->load_shader(
                 game_state->graphics->get_device(), shader
             ));
 
+    for (const auto& mesh : defs::meshes::hardcoded_meshes)
+        TRY(game_state->resource_manager->create_mesh(std::string(mesh.mesh_name), mesh.vertices));
+
     return {};
 }
 
+auto App::create_lander() -> utils::Result<> {
+    auto lander{std::make_unique<Game_object>()};
+
+    // add transform - center, facing up
+    lander->add_component<C_transform>(glm::vec2{400.0F, 300.0F}, 0.0F, glm::vec2{1.0F, 1.0F});
+
+    // add renderable - assume mesh is already loaded
+    auto mid{TRY(game_state->resource_manager->get_mesh_id(std::string(defs::meshes::mesh_lander)))
+    };
+    lander->add_component<C_renderable>(mid, glm::vec4{1.0F, 1.0F, 1.0F, 1.0F}, 0.0F, true);
+
+    // add other components
+    lander->add_component<C_physics>(50.0F);                       // 50kg
+    lander->add_component<C_player_controller>(150.0F, 120.0F);    // thrust, rot speed
+
+    // store ref and add to collection
+    game_state->lander = lander.get();
+    game_state->game_objects.push_back(std::move(lander));
+
+    return {};
+}
+
+// auto Game_state::create_lander() ->
+// utils::Result<std::unique_ptr<Game_object>> {
+
+// }

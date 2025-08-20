@@ -95,7 +95,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         ${LANDER_SRC_DIR}/game/camera.cpp
         ${LANDER_SRC_DIR}/game/game_object.cpp
         #        ${LANDER_SRC_DIR}/game/game_state.cpp
-        ${LANDER_SRC_DIR}/game/mesh_library.cpp
+        #        ${LANDER_SRC_DIR}/game/mesh_library.cpp
         # Systems
         ${LANDER_SRC_DIR}/systems/input_system.cpp
         ${LANDER_SRC_DIR}/systems/physics_system.cpp

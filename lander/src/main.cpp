@@ -87,6 +87,12 @@ auto SDL_AppQuit(void* appstate, SDL_AppResult result) -> void {
     SDL_Quit();
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////
+/// NEXT STEP
+/// complete rest of lander rendering
+/// already have the game object and some rendering code, start connecting it all
+//////////////////////////////////////////////////////////////////////////////////////////
+
 /* Architecture
  * 1. Separation of concerns: game logic doesn't know about GPU details
  * 2. Performance: render commands can be sorted/batched efficiently

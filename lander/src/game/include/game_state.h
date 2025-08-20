@@ -32,15 +32,8 @@ struct Game_state {
     Game_object* lander;
     // Camera camera;
 
-    // nah, this should be put into game_objects right?
-    // std::unique_ptr<Game_object> lander;
-
     // make accessors?
     // auto get_text_manager() const -> Text_manager* { return text_manager.get(); }
-
-    // TODO: what now?
-    // auto init_objects() -> utils::Result<>;
-    // auto create_lander() -> utils::Result<std::unique_ptr<Game_object>>;
 };
 
 #endif    // SDL3_GAME_GAME_STATE_H

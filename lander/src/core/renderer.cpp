@@ -9,6 +9,8 @@ auto Renderer::init(SDL_GPUDevice* gpu_device, SDL_Window* win, Resource_manager
     resource_manager = res_manager;
 
     TRY(make_mesh_pipeline());
+
+    return {};
 }
 
 auto Renderer::execute_commands(const Render_queue& queue) -> void {
@@ -34,7 +36,7 @@ auto Renderer::make_mesh_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*> {
     // describe vertex buffers
     SDL_GPUVertexBufferDescription vertex_buffer_description{
         .slot = 0,
-        .pitch = sizeof(vertex_types::Mesh_vertex),
+        .pitch = sizeof(defs::vertex_types::Mesh_vertex),
         .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
         .instance_step_rate = 0,
     };
@@ -64,9 +66,9 @@ auto Renderer::make_mesh_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*> {
     std::array<SDL_GPUColorTargetDescription, 1> target_descriptions{color_target_description};
 
     // get loaded shaders
-    auto shaders{
-        TRY(defs::shaders::get_shader_set_file_names(defs::shaders::shader_lander_name))
-    };
+    auto shaders{TRY(
+        defs::shaders::get_shader_set_file_names(std::string(defs::shaders::shader_lander_name))
+    )};
     SDL_GPUShader* vert_shader{TRY(resource_manager->get_shader(shaders[0]))};
     SDL_GPUShader* frag_shader{TRY(resource_manager->get_shader(shaders[1]))};
 

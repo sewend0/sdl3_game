@@ -25,6 +25,8 @@ public:
     App() = default;
     ~App() = default;
 
+    // TODO: shouldn't these functions be returning SDL_AppResult, not utils::Results?
+
     // Initialize all systems and required data to run
     // Called once at start of runtime by SDL_AppInit
     auto init() -> utils::Result<>;
@@ -45,6 +47,7 @@ public:
 
 private:
     auto load_startup_assets() -> utils::Result<>;
+    auto create_lander() -> utils::Result<>;
 };
 
 #endif    // SDL3_GAME_APP_H

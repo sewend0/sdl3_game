@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <glm/glm/vec2.hpp>
 #include <glm/glm/vec4.hpp>
+#include <ranges>
 #include <string>
 #include <vector>
 
@@ -16,7 +17,8 @@ namespace defs {
     // uniform buffer structures
     namespace shader_types {
         // TODO: uniform buffer data structures
-    }
+
+    }    // namespace shader_types
 
     // vertex data definitions
     namespace vertex_types {
@@ -38,20 +40,20 @@ namespace defs {
 
     namespace assets {
         struct Font_def {
-            std::string file_name;
+            std::string_view file_name;
             float size;
         };
 
         struct Sound_def {
-            std::string file_name;
+            std::string_view file_name;
         };
 
         struct Shader_set_def {
-            std::string shader_set_name;
+            std::string_view shader_set_name;
         };
 
         struct Mesh_def {
-            std::string mesh_name;
+            std::string_view mesh_name;
             vertex_types::Mesh_data vertices;
         };
 
@@ -84,56 +86,59 @@ namespace defs {
     }    // namespace paths
 
     namespace fonts {
-        inline const std::string font_pong{"pong_font.ttf"};
+        inline constexpr std::string_view font_pong{"pong_font.ttf"};
 
-        inline const std::vector<assets::Font_def> startup_fonts{
+        inline constexpr auto startup_fonts = std::to_array<assets::Font_def>({
             {font_pong, 24.0F},
-            // {"example.ttf", 12.0F},
-        };
+        });
 
     }    // namespace fonts
 
     namespace audio {
-        inline const std::string sound_medium{"medium.wav"};
-        inline const std::string sound_move{"move.wav"};
-        inline const std::string sound_clear{"clear.wav"};
+        inline constexpr std::string_view sound_medium{"medium.wav"};
+        inline constexpr std::string_view sound_move{"move.wav"};
+        inline constexpr std::string_view sound_clear{"clear.wav"};
 
-        inline const std::vector<assets::Sound_def> startup_audio{
+        inline constexpr auto startup_audio = std::to_array<assets::Sound_def>({
             {sound_medium},
             {sound_move},
             {sound_clear},
-        };
+        });
 
     }    // namespace audio
 
     namespace shaders {
-        inline const std::string vert_stage{".vert"};
-        inline const std::string frag_stage{".frag"};
-        // inline const std::string comp_stage{".comp"};
-        inline const std::string file_type{".spv"};
+        inline constexpr std::string_view vert_stage{".vert"};
+        inline constexpr std::string_view frag_stage{".frag"};
+        // inline constexpr std::string_view comp_stage{".comp"};
+        inline constexpr std::string_view file_type{".spv"};
 
-        inline const std::string shader_lander_name{"lander"};
-        inline const std::string shader_text_name{"text"};
+        inline constexpr std::string_view shader_lander_name{"lander"};
+        inline constexpr std::string_view shader_text_name{"text"};
 
-        inline const std::vector<assets::Shader_set_def> startup_shaders{
+        inline constexpr auto startup_shaders = std::to_array<assets::Shader_set_def>({
             {shader_lander_name},
             {shader_text_name},
-        };
+        });
 
         // Helper to get full file names
         [[nodiscard]] inline auto get_shader_set_file_names(const std::string& shader_name)
             -> utils::Result<std::array<std::string, 2>> {
 
             return std::array<std::string, 2>{
-                std::string{shader_name + vert_stage + file_type},
-                std::string{shader_name + frag_stage + file_type},
+                std::string{
+                    std::string(shader_name) + std::string(vert_stage) + std::string(file_type)
+                },
+                std::string{
+                    std::string(shader_name) + std::string(frag_stage) + std::string(file_type)
+                },
             };
         }
 
     }    // namespace shaders
 
     namespace meshes {
-        inline const std::string mesh_lander{"lander"};
+        inline constexpr std::string_view mesh_lander{"lander"};
         // inline const std::string mesh_ground{"ground"};
         // inline const std::string mesh_particle{"particle"};
 
@@ -148,6 +153,12 @@ namespace defs {
         };
 
     }    // namespace meshes
+
+    namespace startup {
+        inline constexpr int window_width{800};
+        inline constexpr int window_height{600};
+        inline constexpr std::string_view window_name{"lander"};
+    }    // namespace startup
 
 }    // namespace defs
 

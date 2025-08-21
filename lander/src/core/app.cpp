@@ -8,6 +8,7 @@ auto App::init() -> utils::Result<> {
      * 2. Resource loading
      * 3. Subsystems that depend on resources
      * 4. Game objects
+     * 5. Others
      */
 
     game_state = std::make_unique<Game_state>();
@@ -23,6 +24,8 @@ auto App::init() -> utils::Result<> {
     // init input manager
     // init timer, or is timer part of something else now?
 
+    game_state->render_system = std::make_unique<Render_system>();
+
     game_state->resource_manager = std::make_unique<Resource_manager>();
     CHECK_BOOL(game_state->resource_manager->init());
 
@@ -36,6 +39,10 @@ auto App::init() -> utils::Result<> {
 
     TRY(load_startup_assets());
     TRY(create_lander());
+
+    game_state->camera = {};
+
+    // game_state->render_queue = {};
 
     return {};
 }
@@ -90,14 +97,33 @@ auto App::update() -> void {
     //         utils::log(res.error());
     // }
 
+    // Audio debug
     static bool has_played = false;
-
     if (has_played == false)
         if (auto res{game_state->audio_manager->play_sound(std::string(defs::audio::sound_clear))};
             not res)
             utils::log(res.error());
 
     has_played = true;
+    //
+
+    // Rendering debug
+    // Collect fresh render data - get commands into render_system's render_queue
+    game_state->render_system->clear_queue();
+    game_state->render_system->collect_renderables(game_state->game_objects);
+
+    // hmm...
+    defs::camera::Frame_data frame_data{
+        .view_matrix = game_state->camera->get_view_matrix(),
+        .proj_matrix = game_state->camera->get_projection_matrix(),
+        .camera_pos = game_state->camera->get_position(),
+    };
+
+    // Render things
+    game_state->renderer->begin_frame(frame_data);
+    game_state->renderer->execute_commands(game_state->render_system->get_queue());
+    game_state->renderer->end_frame();
+    //
 }
 
 auto App::load_startup_assets() -> utils::Result<> {
@@ -129,7 +155,9 @@ auto App::create_lander() -> utils::Result<> {
     // add renderable - assume mesh is already loaded
     auto mid{TRY(game_state->resource_manager->get_mesh_id(std::string(defs::meshes::mesh_lander)))
     };
-    lander->add_component<C_renderable>(mid, glm::vec4{1.0F, 1.0F, 1.0F, 1.0F}, 0.0F, true);
+    // lander->add_component<C_renderable>(mid, glm::vec4{1.0F, 1.0F, 1.0F, 1.0F}, 0.0F, true);
+    lander->add_component<C_mesh>(mid);
+    lander->add_component<C_render>(0.0F, true);
 
     // add other components
     lander->add_component<C_physics>(50.0F);                       // 50kg

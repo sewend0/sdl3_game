@@ -10,11 +10,12 @@ class Render_queue {
 public:
     std::vector<Render_mesh_command> opaque_commands;
     std::vector<Render_mesh_command> transparent_commands;
-    // std::vector<Render_ui_command> ui_commands;
+    std::vector<Render_text_command> text_commands;
 
     auto clear() -> void {
         opaque_commands.clear();
         transparent_commands.clear();
+        text_commands.clear();
         // ui_commands.clear();
     }
 };

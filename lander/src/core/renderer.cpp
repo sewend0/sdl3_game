@@ -8,35 +8,33 @@ auto Renderer::init(SDL_GPUDevice* gpu_device, SDL_Window* win, Resource_manager
     window = win;
     resource_manager = res_manager;
 
-    TRY(make_mesh_pipeline());
+    TRY(make_lander_pipeline());
 
     return {};
 }
 
-auto Renderer::execute_commands(const Render_queue& queue) -> void {
-    // // Sort commands by pipeline/material for efficiency
-    // auto sorted_opaque{queue.opaque_commands};
-    // std::sort(
-    //     sorted_opaque.begin(), sorted_opaque.end(),
-    //     [](const Render_mesh_command& a, const Render_mesh_command& b) {
-    //         if (a.pipeline_id != b.pipeline_id)
-    //             return a.pipeline_id < b.pipeline_id;
-    //         return a.material_id < b.material_id;
-    //     }
-    // );
-    //
-    // // can sort others if necessary...
+auto Renderer::execute_commands(const Render_queue* queue) -> void {
+
+    // sort commands by pipeline for efficiency
+    auto sorted_opaque{queue->opaque_commands};
+    std::sort(
+        sorted_opaque.begin(), sorted_opaque.end(),
+        [](const Render_mesh_command& a, const Render_mesh_command& b) {
+            return a.pipeline_id < b.pipeline_id;
+        }
+    );
+
     // render_opaque(sorted_opaque);
     // render_transparent(queue.transparent_commands);
     // render_ui(queue.ui_commands);
 }
 
-auto Renderer::make_mesh_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*> {
+auto Renderer::make_lander_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*> {
 
     // describe vertex buffers
     SDL_GPUVertexBufferDescription vertex_buffer_description{
         .slot = 0,
-        .pitch = sizeof(defs::vertex_types::Mesh_vertex),
+        .pitch = sizeof(defs::types::vertex::Mesh_vertex),
         .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
         .instance_step_rate = 0,
     };
@@ -66,9 +64,11 @@ auto Renderer::make_mesh_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*> {
     std::array<SDL_GPUColorTargetDescription, 1> target_descriptions{color_target_description};
 
     // get loaded shaders
-    auto shaders{TRY(
-        defs::shaders::get_shader_set_file_names(std::string(defs::shaders::shader_lander_name))
-    )};
+    auto shaders{
+        TRY(defs::assets::shaders::get_shader_set_file_names(
+            std::string(defs::assets::shaders::shader_lander_name)
+        ))
+    };
     SDL_GPUShader* vert_shader{TRY(resource_manager->get_shader(shaders[0]))};
     SDL_GPUShader* frag_shader{TRY(resource_manager->get_shader(shaders[1]))};
 
@@ -100,7 +100,20 @@ auto Renderer::make_mesh_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*> {
     return pipeline;
 }
 
-auto Renderer::make_vertex_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUBuffer*> {
+auto Renderer::make_lander_buffers() -> utils::Result<> {
+    Uint32 buffer_size{sizeof(defs::meshes::lander_vertices)};
+    lander_vertex_buffer = TRY(make_vertex_buffer(buffer_size));
+    lander_transfer_buffer = TRY(make_transfer_buffer(buffer_size));
+    return {};
+}
+
+auto Renderer::lander_copy_pass() -> utils::Result<> {
+    //
+
+    return {};
+}
+
+auto Renderer::make_vertex_buffer(const Uint32 buffer_size) -> utils::Result<SDL_GPUBuffer*> {
     SDL_GPUBufferCreateInfo buffer_info{
         .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
         .size = buffer_size,
@@ -146,3 +159,45 @@ auto Renderer::make_sampler() -> utils::Result<SDL_GPUSampler*> {
 
     return sampler;
 }
+
+auto Renderer::create_pipeline(defs::pipelines::Desc desc) -> utils::Result<Uint32> {
+
+    // get loaded shaders
+    auto shaders{
+        TRY(defs::assets::shaders::get_shader_set_file_names(std::string(desc.shader_name)))
+    };
+    SDL_GPUShader* vert_shader{TRY(resource_manager->get_shader(shaders[0]))};
+    SDL_GPUShader* frag_shader{TRY(resource_manager->get_shader(shaders[1]))};
+
+    // finish describing color target
+    for (auto& [format, blend_state] : desc.color_target_descriptions)
+        format = SDL_GetGPUSwapchainTextureFormat(device, window);
+
+    // wire it all back up, can this be done in definitions?
+    desc.target_info.color_target_descriptions = desc.color_target_descriptions.data();
+
+    desc.vertex_input_state.vertex_buffer_descriptions = desc.vertex_buffer_descriptions.data();
+    desc.vertex_input_state.vertex_attributes = desc.vertex_attributes.data();
+
+    desc.create_info.vertex_shader = vert_shader;
+    desc.create_info.fragment_shader = frag_shader;
+    desc.create_info.vertex_input_state = desc.vertex_input_state;
+    desc.create_info.target_info = desc.target_info;
+
+    // make pipeline
+    SDL_GPUGraphicsPipeline* pipeline{
+        CHECK_PTR(SDL_CreateGPUGraphicsPipeline(device, &desc.create_info))
+    };
+
+    // release shaders
+    TRY(resource_manager->release_shader(device, shaders[0]));
+    TRY(resource_manager->release_shader(device, shaders[1]));
+
+    // store and return pipeline
+    Uint32 pid{next_pipeline_id};
+    pipelines[pid] = pipeline;
+    ++next_pipeline_id;
+
+    return {pid};
+}
+

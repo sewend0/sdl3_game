@@ -17,6 +17,8 @@ class Text_manager {
 private:
     Resource_manager* resource_manager;
     TTF_TextEngine* text_engine;
+    // TODO: this needs to change to be defs::text_types::Text
+    // need to be able to give all the info to a command, including pos, scale, etc
     std::unordered_map<Uint32, TTF_Text*> text_objects;
     Uint32 next_text_id{1};
 

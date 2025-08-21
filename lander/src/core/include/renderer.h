@@ -22,26 +22,37 @@ private:
     SDL_GPURenderPass* current_render_pass;
 
     // Pipelines
-    SDL_GPUGraphicsPipeline* mesh_pipeline;
+
+    SDL_GPUGraphicsPipeline* lander_pipeline;
+    SDL_GPUBuffer* lander_vertex_buffer;
+    SDL_GPUTransferBuffer* lander_transfer_buffer;
 
     SDL_GPUGraphicsPipeline* text_pipeline;
     SDL_GPUBuffer* text_vertex_buffer;
     SDL_GPUBuffer* text_index_buffer;
+    SDL_GPUTransferBuffer* text_transfer_buffer;
+    SDL_GPUSampler* text_sampler;
     // transfer?
 
-    struct Frame_data {
-        glm::mat4 view_matrix;
-        glm::mat4 proj_matrix;
-        glm::vec3 camera_pos;
-    };
+    // Generic update
+    Uint32 next_pipeline_id{1};
+    Uint32 next_buffer_id{1};
+    Uint32 next_sampler_id{1};
+    std::unordered_map<Uint32, SDL_GPUGraphicsPipeline*> pipelines;
+    std::unordered_map<Uint32, SDL_GPUBuffer*> vertex_buffers;
+    std::unordered_map<Uint32, SDL_GPUBuffer*> index_buffers;
+    std::unordered_map<Uint32, SDL_GPUTransferBuffer*> transfer_buffers;
+    std::unordered_map<Uint32, SDL_GPUSampler*> samplers;
+    // Generic update
 
 public:
     auto init(SDL_GPUDevice* gpu_device, SDL_Window* win, Resource_manager* res_manager)
         -> utils::Result<>;
 
-    auto begin_frame(const Frame_data& frame_data) -> void;
-    auto execute_commands(const Render_queue& queue) -> void;
-    auto end_frame();
+    // these three could probably just be one
+    auto begin_frame(const defs::types::camera::Frame_data& frame_data) -> void;
+    auto execute_commands(const Render_queue* queue) -> void;
+    auto end_frame() -> void;
 
 private:
     auto render_opaque(const std::vector<Render_mesh_command>& commands) -> void;
@@ -49,14 +60,29 @@ private:
     // auto render_ui(const std::vector<Render_ui_command>& commands) -> void;
     auto render_text(const std::vector<Render_text_command>& commands) -> void;
 
-    // whats this for?
-    auto upload_text_data(TTF_GPUAtlasDrawSequence* draw_data, glm::vec2 pois, float scale) -> void;
+    // what is this for?
+    auto upload_text_data(TTF_GPUAtlasDrawSequence* draw_data, glm::vec2 pos, float scale) -> void;
 
-    auto make_mesh_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*>;
+    auto make_lander_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*>;
+    auto make_lander_buffers() -> utils::Result<>;
+    auto lander_copy_pass() -> utils::Result<>;
+
     auto make_vertex_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUBuffer*>;
     auto make_index_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUBuffer*>;
     auto make_transfer_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUTransferBuffer*>;
     auto make_sampler() -> utils::Result<SDL_GPUSampler*>;
+
+    // Generic update
+    // Generic creation methods
+    auto create_pipeline(defs::pipelines::Desc desc) -> utils::Result<Uint32>;
+    auto create_vertex_buffer(size_t size) -> utils::Result<Uint32>;
+    auto upload_mesh_data(Uint32 buffer_id, const Mesh_data& data) -> utils::Result<>;
+
+    // Resource lookup
+    auto get_pipeline(Uint32 id) -> SDL_GPUGraphicsPipeline*;
+    auto get_vertex_buffer(Uint32 id) -> SDL_GPUBuffer*;
+
+    // Generic update
 };
 
 #endif    // SDL3_GAME_RENDERER_H

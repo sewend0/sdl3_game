@@ -4,8 +4,8 @@
 #define SDL3_GAME_GAME_STATE_H
 
 #include <audio_manager.h>
+#include <camera.h>
 #include <graphics_context.h>
-// #include <mesh_library.h>
 #include <renderer.h>
 #include <text_manager.h>
 #include <utils.h>
@@ -25,12 +25,14 @@ struct Game_state {
     std::vector<std::unique_ptr<Game_object>> game_objects;
 
     // Value type - no pointer needed
-    Render_queue render_queue;
+    // maybe this should just be in the render_system?
+    // Render_queue render_queue;
 
     // Non-owning references - raw
     // Game specific
     Game_object* lander;
-    // Camera camera;
+    // Camera camera; // who else would own this?
+    std::unique_ptr<Camera> camera;
 
     // make accessors?
     // auto get_text_manager() const -> Text_manager* { return text_manager.get(); }

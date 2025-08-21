@@ -32,20 +32,45 @@ public:
     [[nodiscard]] auto get_matrix() const -> glm::mat4;
 };
 
-// Properties for rendering
-class C_renderable final : public Component {
+class C_mesh final : public Component {
 public:
     Uint32 mesh_id;
-    glm::vec4 color{1.0F, 1.0F, 1.0F, 1.0F};
+
+    explicit C_mesh(const Uint32 mid) : mesh_id{mid} {}
+};
+
+// // do i need a text component? will i be making text as game objects?
+// class C_text final : public Component {
+// public:
+//     Uint32 text_id;
+//
+//     explicit C_text(const Uint32 tid) : text_id{tid} {}
+// };
+
+class C_render final : public Component {
+public:
+    Uint32 pipeline_id;
     float depth{0.0F};
     bool visible{true};
 
-    explicit C_renderable(
-        const Uint32 mid, const glm::vec4 col = {1.0F, 1.0F, 1.0F, 1.0F}, const float d = 0.0F,
-        bool vis = true
-    ) :
-        mesh_id{mid}, color{col}, depth{d}, visible{vis} {}
+    explicit C_render(const Uint32 pid, const float dep = 0.0F, const bool vis = true) :
+        pipeline_id{pid}, depth{dep}, visible{vis} {}
 };
+
+// // Properties for rendering
+// class C_renderable final : public Component {
+// public:
+//     Uint32 mesh_id;
+//     glm::vec4 color{1.0F, 1.0F, 1.0F, 1.0F};
+//     float depth{0.0F};
+//     bool visible{true};
+//
+//     explicit C_renderable(
+//         const Uint32 mid, const glm::vec4 col = {1.0F, 1.0F, 1.0F, 1.0F}, const float d = 0.0F,
+//         bool vis = true
+//     ) :
+//         mesh_id{mid}, color{col}, depth{d}, visible{vis} {}
+// };
 
 class C_physics final : public Component {
 public:

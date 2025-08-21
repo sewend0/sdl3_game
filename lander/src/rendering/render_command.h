@@ -8,11 +8,12 @@
 #include <glm/glm/mat4x4.hpp>
 
 struct Render_mesh_command {
-    // Uint32 pipeline_id;        // where to send data - unecessary
+    Uint32 pipeline_id;        // where to send data, req for sorting
     Uint32 mesh_id;            // may be useful for different shapes
     glm::mat4 model_matrix;    // transform matrix
-    glm::vec4 color;           // prefer to SDL_color for doing math
-    float depth;               // for layering
+    // not sure about having color here, rather than per vertex in mesh?
+    // glm::vec4 color;    // prefer to SDL_color for doing math
+    float depth;    // for layering
 };
 
 // struct Render_ui_command {

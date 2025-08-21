@@ -19,7 +19,7 @@ class Resource_manager {
 private:
     Uint32 next_mesh_id{1};
     std::unordered_map<std::string, Uint32> mesh_ids;
-    std::unordered_map<Uint32, defs::vertex_types::Mesh_data> meshes;
+    std::unordered_map<Uint32, defs::vertex::Mesh_data> meshes;
 
     // std::unordered_map<Uint32, Material_data> materials;
     // std::unordered_map<Uint32, SDL_GPUTexture*> textures;
@@ -48,7 +48,7 @@ public:
     auto load_shader(SDL_GPUDevice* gpu_device, const std::string& file_name)
         -> utils::Result<SDL_GPUShader*>;
 
-    auto create_mesh(const std::string& mesh_name, const defs::vertex_types::Mesh_data& vertices)
+    auto create_mesh(const std::string& mesh_name, const defs::vertex::Mesh_data& vertices)
         -> utils::Result<Uint32>;
 
     auto get_font(const std::string& file_name) -> utils::Result<TTF_Font*>;

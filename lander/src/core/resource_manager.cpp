@@ -91,7 +91,7 @@ auto Resource_manager::load_shader(SDL_GPUDevice* gpu_device, const std::string&
 }
 
 auto Resource_manager::create_mesh(
-    const std::string& mesh_name, const defs::vertex_types::Mesh_data& vertices
+    const std::string& mesh_name, const defs::vertex::Mesh_data& vertices
 ) -> utils::Result<Uint32> {
 
     // only create new, do not overwrite

@@ -10,10 +10,18 @@
 // Game system that collects renderable data
 class Render_system {
 private:
-    Render_queue* render_queue;
+    Render_queue render_queue;
 
 public:
-    auto collect_renderables(const std::vector<Game_object*>& objects) -> void;
+    Render_system() = default;
+    ~Render_system() = default;
+
+    // collect objects with transform, mesh, render
+    auto collect_renderables(const std::vector<std::unique_ptr<Game_object>>& objects) -> void;
+    // auto collect_text() -> void;
+
+    auto get_queue() -> Render_queue* { return &render_queue; }
+    auto clear_queue() -> void { render_queue.clear(); }
 };
 
 #endif    // SDL3_GAME_RENDER_SYSTEM_H

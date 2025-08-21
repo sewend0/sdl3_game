@@ -6,7 +6,9 @@
 #include <utils.h>
 
 #include <filesystem>
+#include <glm/glm/mat4x4.hpp>
 #include <glm/glm/vec2.hpp>
+#include <glm/glm/vec3.hpp>
 #include <glm/glm/vec4.hpp>
 #include <ranges>
 #include <string>
@@ -14,50 +16,70 @@
 
 namespace defs {
 
-    // uniform buffer structures
-    namespace shader_types {
-        // TODO: uniform buffer data structures
+    namespace types {
 
-    }    // namespace shader_types
+        // uniform buffer structures
+        namespace shader {
+            // TODO: uniform buffer data structures
+        }    // namespace shader
 
-    // vertex data definitions
-    namespace vertex_types {
-        // For mesh geometry (Lander, environment, etc.)
-        struct Mesh_vertex {
-            glm::vec2 position;
-            glm::vec4 color;
-        };
+        // vertex data definitions
+        namespace vertex {
+            // For mesh geometry (Lander, environment, etc.)
+            struct Mesh_vertex {
+                glm::vec2 position;
+                glm::vec4 color;
+            };
 
-        // For textured geometry (text glyphs, sprites, etc.)
-        struct Textured_vertex {
-            glm::vec2 position;
-            glm::vec4 color;
-            glm::vec2 uv;
-        };
+            // For textured geometry (text glyphs, sprites, etc.)
+            struct Textured_vertex {
+                glm::vec2 position;
+                glm::vec4 color;
+                glm::vec2 uv;
+            };
 
-        using Mesh_data = std::vector<Mesh_vertex>;
-    }    // namespace vertex_types
+            using Mesh_data = std::vector<Mesh_vertex>;
+        }    // namespace vertex
 
-    namespace assets {
-        struct Font_def {
-            std::string_view file_name;
-            float size;
-        };
+        namespace text {
+            struct Text {
+                TTF_Text text;
+                glm::vec2 position;
+                glm::vec4 color;
+                float scale;
+            };
+        }    // namespace text
 
-        struct Sound_def {
-            std::string_view file_name;
-        };
+        namespace camera {
+            struct Frame_data {
+                glm::mat4 view_matrix;
+                glm::mat4 proj_matrix;
+                glm::vec3 camera_pos;
+            };
+        }    // namespace camera
 
-        struct Shader_set_def {
-            std::string_view shader_set_name;
-        };
+        namespace assets {
+            struct Font_def {
+                std::string_view file_name;
+                float size;
+            };
 
-        struct Mesh_def {
-            std::string_view mesh_name;
-            vertex_types::Mesh_data vertices;
-        };
+            struct Sound_def {
+                std::string_view file_name;
+            };
 
-    }    // namespace assets
+            struct Shader_set_def {
+                std::string_view shader_set_name;
+            };
+
+            struct Mesh_def {
+                std::string_view mesh_name;
+                vertex::Mesh_data vertices;
+            };
+
+        }    // namespace assets
+
+    }    // namespace types
 
     namespace paths {
         inline const std::filesystem::path base_path{SDL_GetBasePath()};
@@ -85,80 +107,170 @@ namespace defs {
 
     }    // namespace paths
 
-    namespace fonts {
-        inline constexpr std::string_view font_pong{"pong_font.ttf"};
+    namespace assets {
+        namespace fonts {
+            inline constexpr std::string_view font_pong{"pong_font.ttf"};
 
-        inline constexpr auto startup_fonts = std::to_array<assets::Font_def>({
-            {font_pong, 24.0F},
-        });
+            inline constexpr auto startup_fonts = std::to_array<types::assets::Font_def>({
+                {font_pong, 24.0F},
+            });
 
-    }    // namespace fonts
+        }    // namespace fonts
 
-    namespace audio {
-        inline constexpr std::string_view sound_medium{"medium.wav"};
-        inline constexpr std::string_view sound_move{"move.wav"};
-        inline constexpr std::string_view sound_clear{"clear.wav"};
+        namespace audio {
+            inline constexpr std::string_view sound_medium{"medium.wav"};
+            inline constexpr std::string_view sound_move{"move.wav"};
+            inline constexpr std::string_view sound_clear{"clear.wav"};
 
-        inline constexpr auto startup_audio = std::to_array<assets::Sound_def>({
-            {sound_medium},
-            {sound_move},
-            {sound_clear},
-        });
+            inline constexpr auto startup_audio = std::to_array<types::assets::Sound_def>({
+                {sound_medium},
+                {sound_move},
+                {sound_clear},
+            });
 
-    }    // namespace audio
+        }    // namespace audio
 
-    namespace shaders {
-        inline constexpr std::string_view vert_stage{".vert"};
-        inline constexpr std::string_view frag_stage{".frag"};
-        // inline constexpr std::string_view comp_stage{".comp"};
-        inline constexpr std::string_view file_type{".spv"};
+        namespace shaders {
+            inline constexpr std::string_view vert_stage{".vert"};
+            inline constexpr std::string_view frag_stage{".frag"};
+            // inline constexpr std::string_view comp_stage{".comp"};
+            inline constexpr std::string_view file_type{".spv"};
 
-        inline constexpr std::string_view shader_lander_name{"lander"};
-        inline constexpr std::string_view shader_text_name{"text"};
+            inline constexpr std::string_view shader_lander_name{"lander"};
+            inline constexpr std::string_view shader_text_name{"text"};
 
-        inline constexpr auto startup_shaders = std::to_array<assets::Shader_set_def>({
-            {shader_lander_name},
-            {shader_text_name},
-        });
+            inline constexpr auto startup_shaders = std::to_array<types::assets::Shader_set_def>({
+                {shader_lander_name},
+                {shader_text_name},
+            });
 
-        // Helper to get full file names
-        [[nodiscard]] inline auto get_shader_set_file_names(const std::string& shader_name)
-            -> utils::Result<std::array<std::string, 2>> {
+            // Helper to get full file names
+            [[nodiscard]] inline auto get_shader_set_file_names(const std::string& shader_name)
+                -> utils::Result<std::array<std::string, 2>> {
 
-            return std::array<std::string, 2>{
-                std::string{
-                    std::string(shader_name) + std::string(vert_stage) + std::string(file_type)
-                },
-                std::string{
-                    std::string(shader_name) + std::string(frag_stage) + std::string(file_type)
-                },
+                return std::array<std::string, 2>{
+                    std::string{
+                        std::string(shader_name) + std::string(vert_stage) + std::string(file_type)
+                    },
+                    std::string{
+                        std::string(shader_name) + std::string(frag_stage) + std::string(file_type)
+                    },
+                };
+            }
+
+        }    // namespace shaders
+
+        namespace meshes {
+            inline constexpr std::string_view mesh_lander{"lander"};
+            // inline const std::string mesh_ground{"ground"};
+            // inline const std::string mesh_particle{"particle"};
+
+            inline const types::vertex::Mesh_data lander_vertices{
+                {.position = {0.0F, 70.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
+                {.position = {-50.0F, -50.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
+                {.position = {50.0F, -50.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
             };
-        }
 
-    }    // namespace shaders
+            inline const std::vector<types::assets::Mesh_def> hardcoded_meshes{
+                {mesh_lander, lander_vertices},
+            };
 
-    namespace meshes {
-        inline constexpr std::string_view mesh_lander{"lander"};
-        // inline const std::string mesh_ground{"ground"};
-        // inline const std::string mesh_particle{"particle"};
-
-        inline const vertex_types::Mesh_data lander_vertices{
-            {.position = {0.0F, 70.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
-            {.position = {-50.0F, -50.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
-            {.position = {50.0F, -50.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
-        };
-
-        inline const std::vector<assets::Mesh_def> hardcoded_meshes{
-            {mesh_lander, lander_vertices},
-        };
-
-    }    // namespace meshes
+        }    // namespace meshes
+    }    // namespace assets
 
     namespace startup {
         inline constexpr int window_width{800};
         inline constexpr int window_height{600};
         inline constexpr std::string_view window_name{"lander"};
     }    // namespace startup
+
+    namespace pipelines {
+        enum class Type {
+            Mesh = 0,
+            Text,
+            // Particle,
+        };
+
+        struct Desc {
+            Type type;
+            std::string_view shader_name;
+            std::vector<SDL_GPUVertexBufferDescription> vertex_buffer_descriptions;
+            std::vector<SDL_GPUVertexAttribute> vertex_attributes;
+            std::vector<SDL_GPUColorTargetDescription> color_target_descriptions;
+            SDL_GPUGraphicsPipelineTargetInfo target_info;
+            SDL_GPUVertexInputState vertex_input_state;
+            SDL_GPUGraphicsPipelineCreateInfo create_info;
+        };
+
+        namespace descriptors::lander {
+
+            inline const std::vector<SDL_GPUVertexBufferDescription> vertex_buffer_descriptions{{
+                .slot = 0,
+                .pitch = sizeof(types::vertex::Mesh_vertex),
+                .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+                .instance_step_rate = 0,
+            }};
+
+            inline const std::vector<SDL_GPUVertexAttribute> vertex_attributes{
+                {
+                    .location = 0,
+                    .buffer_slot = 0,
+                    .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+                    .offset = 0,
+                },
+                {
+                    .location = 1,
+                    .buffer_slot = 0,
+                    .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
+                    .offset = sizeof(float) * 2,
+                },
+            };
+
+            inline const std::vector<SDL_GPUColorTargetDescription> color_target_descriptions{
+                {
+                    // .format =
+                },
+            };
+
+            inline constexpr SDL_GPUGraphicsPipelineTargetInfo pipeline_target_info{
+                // .color_target_descriptions =
+                .num_color_targets = 1,
+            };
+
+            inline constexpr SDL_GPUVertexInputState vertex_input_state{
+                // .vertex_buffer_descriptions =
+                .num_vertex_buffers = 1,
+                // .vertex_attributes =
+                .num_vertex_attributes = 2,
+            };
+
+            inline constexpr SDL_GPUGraphicsPipelineCreateInfo pipeline_create_info{
+                // .vertex_shader =,
+                // .fragment_shader =,
+                // .vertex_input_state =,
+                .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+                // .target_info =,
+            };
+
+        }    // namespace descriptors::lander
+
+        inline const Desc lander_desc{
+            .type = Type::Mesh,
+            .shader_name = assets::shaders::shader_lander_name,
+            .vertex_buffer_descriptions = descriptors::lander::vertex_buffer_descriptions,
+            .vertex_attributes = descriptors::lander::vertex_attributes,
+            .color_target_descriptions = descriptors::lander::color_target_descriptions,
+            .target_info = descriptors::lander::pipeline_target_info,
+            .vertex_input_state = descriptors::lander::vertex_input_state,
+            .create_info = descriptors::lander::pipeline_create_info,
+        };
+
+        inline const std::vector<Desc> default_pipelines{
+            lander_desc,
+            // ...
+        };
+
+    }    // namespace pipelines
 
 }    // namespace defs
 

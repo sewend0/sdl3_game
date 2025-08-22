@@ -91,20 +91,18 @@ auto Resource_manager::load_shader(SDL_GPUDevice* gpu_device, const std::string&
 }
 
 auto Resource_manager::create_mesh(
-    const std::string& mesh_name, const defs::vertex::Mesh_data& vertices
+    const std::string& mesh_name, const defs::types::vertex::Mesh_data& vertices
 ) -> utils::Result<Uint32> {
 
     // only create new, do not overwrite
     if (get_mesh_id(mesh_name))
         return std::unexpected(std::format("Mesh '{}' already registered", mesh_name));
 
-    const Uint32 mid{next_mesh_id};
-    ++next_mesh_id;
+    const Uint32 mesh_id{next_mesh_id++};
+    mesh_ids[mesh_name] = mesh_id;
+    meshes[mesh_id] = vertices;
 
-    mesh_ids[mesh_name] = mid;
-    meshes[mid] = vertices;
-
-    return utils::Result<Uint32>{mid};
+    return utils::Result<Uint32>{mesh_id};
 }
 
 auto Resource_manager::get_font(const std::string& file_name) -> utils::Result<TTF_Font*> {

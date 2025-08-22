@@ -10,6 +10,13 @@
 #include <glm/glm/mat4x4.hpp>
 #include <glm/glm/vec3.hpp>
 
+// maybe this should just have a pipeline id too...
+struct Buffer_mapping {
+    Uint32 vertex_id;
+    Uint32 index_id;
+    Uint32 transfer_id;
+};
+
 class Renderer {
 private:
     // External references
@@ -22,7 +29,6 @@ private:
     SDL_GPURenderPass* current_render_pass;
 
     // Pipelines
-
     SDL_GPUGraphicsPipeline* lander_pipeline;
     SDL_GPUBuffer* lander_vertex_buffer;
     SDL_GPUTransferBuffer* lander_transfer_buffer;
@@ -43,6 +49,12 @@ private:
     std::unordered_map<Uint32, SDL_GPUBuffer*> index_buffers;
     std::unordered_map<Uint32, SDL_GPUTransferBuffer*> transfer_buffers;
     std::unordered_map<Uint32, SDL_GPUSampler*> samplers;
+
+    // // GPU resource IDs
+    std::unordered_map<Uint32, Buffer_mapping> mesh_to_buffers;    // mesh_id -> buffer_id
+    // std::unordered_map<Uint32, Uint32> mesh_vertex_buffers;    // mesh_id -> buffer_id
+    // std::unordered_map<std::string, Uint32> pipeline_ids;      // pipeline_name -> pipeline_id
+
     // Generic update
 
 public:
@@ -51,11 +63,20 @@ public:
 
     // these three could probably just be one
     auto begin_frame(const defs::types::camera::Frame_data& frame_data) -> void;
-    auto execute_commands(const Render_queue* queue) -> void;
+    auto execute_commands(const Render_queue* queue) -> utils::Result<>;
     auto end_frame() -> void;
 
+    // Generic update
+    // Create and store pipeline from patching a Desc template, return created pipeline's id
+    auto create_pipeline(const defs::pipelines::Desc& desc) -> utils::Result<Uint32>;
+
+    // Mesh registration
+    // dont pass this const defs::types::vertex::Mesh_data& mesh_data, just ask rm
+    auto register_mesh(Uint32 mesh_id) -> utils::Result<>;
+    // Generic update
+
 private:
-    auto render_opaque(const std::vector<Render_mesh_command>& commands) -> void;
+    auto render_opaque(const std::vector<Render_mesh_command>& commands) -> utils::Result<>;
     auto render_transparent(const std::vector<Render_mesh_command>& commands) -> void;
     // auto render_ui(const std::vector<Render_ui_command>& commands) -> void;
     auto render_text(const std::vector<Render_text_command>& commands) -> void;
@@ -73,13 +94,11 @@ private:
     auto make_sampler() -> utils::Result<SDL_GPUSampler*>;
 
     // Generic update
-    // Generic creation methods
-    auto create_pipeline(defs::pipelines::Desc desc) -> utils::Result<Uint32>;
-    auto create_vertex_buffer(size_t size) -> utils::Result<Uint32>;
+    auto create_vertex_buffer(Uint32 buffer_size) -> utils::Result<Uint32>;
     auto upload_mesh_data(Uint32 buffer_id, const Mesh_data& data) -> utils::Result<>;
 
     // Resource lookup
-    auto get_pipeline(Uint32 id) -> SDL_GPUGraphicsPipeline*;
+    auto get_pipeline(Uint32 id) -> utils::Result<SDL_GPUGraphicsPipeline*>;
     auto get_vertex_buffer(Uint32 id) -> SDL_GPUBuffer*;
 
     // Generic update

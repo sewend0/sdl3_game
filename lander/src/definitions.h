@@ -14,6 +14,8 @@
 #include <string>
 #include <vector>
 
+// TODO: replace vectors with spans
+
 namespace defs {
 
     namespace types {
@@ -194,9 +196,9 @@ namespace defs {
         struct Desc {
             Type type;
             std::string_view shader_name;
-            std::vector<SDL_GPUVertexBufferDescription> vertex_buffer_descriptions;
-            std::vector<SDL_GPUVertexAttribute> vertex_attributes;
-            std::vector<SDL_GPUColorTargetDescription> color_target_descriptions;
+            std::span<const SDL_GPUVertexBufferDescription> vertex_buffer_descriptions;
+            std::span<const SDL_GPUVertexAttribute> vertex_attributes;
+            std::span<const SDL_GPUColorTargetDescription> color_target_descriptions;
             SDL_GPUGraphicsPipelineTargetInfo target_info;
             SDL_GPUVertexInputState vertex_input_state;
             SDL_GPUGraphicsPipelineCreateInfo create_info;
@@ -204,14 +206,17 @@ namespace defs {
 
         namespace descriptors::lander {
 
-            inline const std::vector<SDL_GPUVertexBufferDescription> vertex_buffer_descriptions{{
-                .slot = 0,
-                .pitch = sizeof(types::vertex::Mesh_vertex),
-                .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
-                .instance_step_rate = 0,
-            }};
+            inline constexpr auto vertex_buffer_descriptions =
+                std::to_array<SDL_GPUVertexBufferDescription>({
+                    {
+                        .slot = 0,
+                        .pitch = sizeof(types::vertex::Mesh_vertex),
+                        .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+                        .instance_step_rate = 0,
+                    },
+                });
 
-            inline const std::vector<SDL_GPUVertexAttribute> vertex_attributes{
+            inline constexpr auto vertex_attributes = std::to_array<SDL_GPUVertexAttribute>({
                 {
                     .location = 0,
                     .buffer_slot = 0,
@@ -224,37 +229,38 @@ namespace defs {
                     .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
                     .offset = sizeof(float) * 2,
                 },
-            };
+            });
 
-            inline const std::vector<SDL_GPUColorTargetDescription> color_target_descriptions{
-                {
-                    // .format =
-                },
-            };
+            inline constexpr auto color_target_descriptions =
+                std::to_array<SDL_GPUColorTargetDescription>({
+                    {
+                        .format = SDL_GPU_TEXTUREFORMAT_INVALID,    // manual
+                    },
+                });
 
             inline constexpr SDL_GPUGraphicsPipelineTargetInfo pipeline_target_info{
-                // .color_target_descriptions =
+                .color_target_descriptions = color_target_descriptions.data(),
                 .num_color_targets = 1,
             };
 
             inline constexpr SDL_GPUVertexInputState vertex_input_state{
-                // .vertex_buffer_descriptions =
+                .vertex_buffer_descriptions = vertex_buffer_descriptions.data(),
                 .num_vertex_buffers = 1,
-                // .vertex_attributes =
+                .vertex_attributes = vertex_attributes.data(),
                 .num_vertex_attributes = 2,
             };
 
             inline constexpr SDL_GPUGraphicsPipelineCreateInfo pipeline_create_info{
-                // .vertex_shader =,
-                // .fragment_shader =,
-                // .vertex_input_state =,
+                .vertex_shader = nullptr,      // manual
+                .fragment_shader = nullptr,    // manual
+                .vertex_input_state = vertex_input_state,
                 .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-                // .target_info =,
+                .target_info = pipeline_target_info,
             };
 
         }    // namespace descriptors::lander
 
-        inline const Desc lander_desc{
+        inline constexpr Desc lander_desc{
             .type = Type::Mesh,
             .shader_name = assets::shaders::shader_lander_name,
             .vertex_buffer_descriptions = descriptors::lander::vertex_buffer_descriptions,
@@ -265,10 +271,10 @@ namespace defs {
             .create_info = descriptors::lander::pipeline_create_info,
         };
 
-        inline const std::vector<Desc> default_pipelines{
+        inline constexpr auto default_pipelines = std::to_array<Desc>({
             lander_desc,
             // ...
-        };
+        });
 
     }    // namespace pipelines
 

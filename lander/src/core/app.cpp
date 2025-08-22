@@ -20,7 +20,7 @@ auto App::init() -> utils::Result<> {
     ));
 
     // TODO: init other systems:
-    // init renderer
+    // init renderer, also create default pipelines
     // init input manager
     // init timer, or is timer part of something else now?
 
@@ -100,7 +100,9 @@ auto App::update() -> void {
     // Audio debug
     static bool has_played = false;
     if (has_played == false)
-        if (auto res{game_state->audio_manager->play_sound(std::string(defs::audio::sound_clear))};
+        if (auto res{
+                game_state->audio_manager->play_sound(std::string(defs::assets::audio::sound_clear))
+            };
             not res)
             utils::log(res.error());
 
@@ -113,7 +115,7 @@ auto App::update() -> void {
     game_state->render_system->collect_renderables(game_state->game_objects);
 
     // hmm...
-    defs::camera::Frame_data frame_data{
+    defs::types::camera::Frame_data frame_data{
         .view_matrix = game_state->camera->get_view_matrix(),
         .proj_matrix = game_state->camera->get_projection_matrix(),
         .camera_pos = game_state->camera->get_position(),
@@ -127,21 +129,26 @@ auto App::update() -> void {
 }
 
 auto App::load_startup_assets() -> utils::Result<> {
-    for (const auto& [file_name, size] : defs::fonts::startup_fonts)
+    for (const auto& [file_name, size] : defs::assets::fonts::startup_fonts)
         TRY(game_state->resource_manager->load_font(std::string(file_name), size));
 
-    for (const auto& sound : defs::audio::startup_audio)
+    for (const auto& sound : defs::assets::audio::startup_audio)
         TRY(game_state->resource_manager->load_sound(std::string(sound.file_name)));
 
-    for (const auto& shader_set : defs::shaders::startup_shaders)
-        for (const auto& shader :
-             *defs::shaders::get_shader_set_file_names(std::string(shader_set.shader_set_name)))
+    for (const auto& shader_set : defs::assets::shaders::startup_shaders)
+        for (const auto& shader : *defs::assets::shaders::get_shader_set_file_names(
+                 std::string(shader_set.shader_set_name)
+             ))
             TRY(game_state->resource_manager->load_shader(
                 game_state->graphics->get_device(), shader
             ));
 
-    for (const auto& mesh : defs::meshes::hardcoded_meshes)
-        TRY(game_state->resource_manager->create_mesh(std::string(mesh.mesh_name), mesh.vertices));
+    for (const auto& mesh : defs::assets::meshes::hardcoded_meshes) {
+        auto mesh_id{TRY(
+            game_state->resource_manager->create_mesh(std::string(mesh.mesh_name), mesh.vertices)
+        )};
+        TRY(game_state->renderer->register_mesh(mesh_id));
+    }
 
     return {};
 }
@@ -153,8 +160,9 @@ auto App::create_lander() -> utils::Result<> {
     lander->add_component<C_transform>(glm::vec2{400.0F, 300.0F}, 0.0F, glm::vec2{1.0F, 1.0F});
 
     // add renderable - assume mesh is already loaded
-    auto mid{TRY(game_state->resource_manager->get_mesh_id(std::string(defs::meshes::mesh_lander)))
-    };
+    auto mid{TRY(
+        game_state->resource_manager->get_mesh_id(std::string(defs::assets::meshes::mesh_lander))
+    )};
     // lander->add_component<C_renderable>(mid, glm::vec4{1.0F, 1.0F, 1.0F, 1.0F}, 0.0F, true);
     lander->add_component<C_mesh>(mid);
     lander->add_component<C_render>(0.0F, true);

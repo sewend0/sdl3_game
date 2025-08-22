@@ -13,7 +13,7 @@ auto Renderer::init(SDL_GPUDevice* gpu_device, SDL_Window* win, Resource_manager
     return {};
 }
 
-auto Renderer::execute_commands(const Render_queue* queue) -> void {
+auto Renderer::execute_commands(const Render_queue* queue) -> utils::Result<> {
 
     // sort commands by pipeline for efficiency
     auto sorted_opaque{queue->opaque_commands};
@@ -24,9 +24,24 @@ auto Renderer::execute_commands(const Render_queue* queue) -> void {
         }
     );
 
-    // render_opaque(sorted_opaque);
+    render_opaque(sorted_opaque);
     // render_transparent(queue.transparent_commands);
     // render_ui(queue.ui_commands);
+
+    return {};
+}
+
+auto Renderer::render_opaque(const std::vector<Render_mesh_command>& commands) -> utils::Result<> {
+    for (const auto& cmd : commands) {
+        SDL_GPUGraphicsPipeline* pipeline{TRY(get_pipeline(cmd.pipeline_id))};
+        // get vertex buffer, get index buffer
+
+        // render
+        // SDL_BindGPUGraphicsPipeline()...
+        // etc...
+    }
+
+    return {};
 }
 
 auto Renderer::make_lander_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*> {
@@ -101,7 +116,7 @@ auto Renderer::make_lander_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*>
 }
 
 auto Renderer::make_lander_buffers() -> utils::Result<> {
-    Uint32 buffer_size{sizeof(defs::meshes::lander_vertices)};
+    Uint32 buffer_size{sizeof(defs::assets::meshes::lander_vertices)};
     lander_vertex_buffer = TRY(make_vertex_buffer(buffer_size));
     lander_transfer_buffer = TRY(make_transfer_buffer(buffer_size));
     return {};
@@ -160,33 +175,34 @@ auto Renderer::make_sampler() -> utils::Result<SDL_GPUSampler*> {
     return sampler;
 }
 
-auto Renderer::create_pipeline(defs::pipelines::Desc desc) -> utils::Result<Uint32> {
-
-    // get loaded shaders
+auto Renderer::create_pipeline(const defs::pipelines::Desc& desc) -> utils::Result<Uint32> {
+    // get runtime-dependent data
     auto shaders{
         TRY(defs::assets::shaders::get_shader_set_file_names(std::string(desc.shader_name)))
     };
     SDL_GPUShader* vert_shader{TRY(resource_manager->get_shader(shaders[0]))};
     SDL_GPUShader* frag_shader{TRY(resource_manager->get_shader(shaders[1]))};
+    SDL_GPUTextureFormat swapchain_format{SDL_GetGPUSwapchainTextureFormat(device, window)};
 
-    // finish describing color target
-    for (auto& [format, blend_state] : desc.color_target_descriptions)
-        format = SDL_GetGPUSwapchainTextureFormat(device, window);
+    // create mutable copy of struct array and patch it
+    std::vector<SDL_GPUColorTargetDescription> color_target_descriptions(
+        desc.color_target_descriptions.begin(), desc.color_target_descriptions.end()
+    );
+    for (auto& ctd : color_target_descriptions)
+        ctd.format = swapchain_format;
 
-    // wire it all back up, can this be done in definitions?
-    desc.target_info.color_target_descriptions = desc.color_target_descriptions.data();
+    // copy and patch next struct in chain
+    auto target_info{desc.target_info};
+    target_info.color_target_descriptions = color_target_descriptions.data();
 
-    desc.vertex_input_state.vertex_buffer_descriptions = desc.vertex_buffer_descriptions.data();
-    desc.vertex_input_state.vertex_attributes = desc.vertex_attributes.data();
-
-    desc.create_info.vertex_shader = vert_shader;
-    desc.create_info.fragment_shader = frag_shader;
-    desc.create_info.vertex_input_state = desc.vertex_input_state;
-    desc.create_info.target_info = desc.target_info;
+    // copy top-level creation struct and patch with runtime data
+    auto create_info{desc.create_info};
+    create_info.vertex_shader = vert_shader;
+    create_info.fragment_shader = frag_shader;
+    create_info.target_info = target_info;
 
     // make pipeline
-    SDL_GPUGraphicsPipeline* pipeline{
-        CHECK_PTR(SDL_CreateGPUGraphicsPipeline(device, &desc.create_info))
+    SDL_GPUGraphicsPipeline* pipeline{CHECK_PTR(SDL_CreateGPUGraphicsPipeline(device, &create_info))
     };
 
     // release shaders
@@ -201,3 +217,42 @@ auto Renderer::create_pipeline(defs::pipelines::Desc desc) -> utils::Result<Uint
     return {pid};
 }
 
+auto Renderer::register_mesh(Uint32 mesh_id) -> utils::Result<> {
+    // silently do not register multiple times
+    if (mesh_to_buffers.contains(mesh_id))
+        return {};
+
+    const defs::types::vertex::Mesh_data* mesh_data{resource_manager->get_mesh_data(mesh_id)};
+
+    // create buffers
+    Uint32 buffer_size{static_cast<Uint32>(sizeof(mesh_data) * mesh_data->size())};
+    Uint32 vertex_buffer_id = TRY(create_vertex_buffer(buffer_size));
+
+    // TODO: do i want to do this here...?
+    TRY(upload_mesh_data(vertex_buffer_id, mesh_data));
+
+    // store mappings
+    mesh_to_buffers[mesh_id] = {.vertex_id = vertex_buffer_id};
+
+    return {};
+}
+
+auto Renderer::create_vertex_buffer(const Uint32 buffer_size) -> utils::Result<Uint32> {
+    SDL_GPUBufferCreateInfo buffer_info{
+        .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
+        .size = buffer_size,
+    };
+    SDL_GPUBuffer* vertex_buffer{CHECK_PTR(SDL_CreateGPUBuffer(device, &buffer_info))};
+
+    Uint32 buffer_id = next_buffer_id++;
+    vertex_buffers[buffer_id] = vertex_buffer;
+
+    return buffer_id;
+}
+
+auto Renderer::get_pipeline(Uint32 id) -> utils::Result<SDL_GPUGraphicsPipeline*> {
+    const auto pipeline_it{pipelines.find(id)};
+    return (pipeline_it != pipelines.end())
+               ? utils::Result<SDL_GPUGraphicsPipeline*>{pipeline_it->second}
+               : std::unexpected(std::format("Pipeline '{}' not found", id));
+}

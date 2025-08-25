@@ -8,6 +8,7 @@
 #include <graphics_context.h>
 #include <renderer.h>
 #include <text_manager.h>
+#include <timer.h>
 #include <utils.h>
 
 #include <memory>
@@ -48,6 +49,7 @@ public:
 private:
     auto load_startup_assets() -> utils::Result<>;
     auto create_lander() -> utils::Result<>;
+    auto create_default_pipelines() -> utils::Result<>;
 };
 
 #endif    // SDL3_GAME_APP_H

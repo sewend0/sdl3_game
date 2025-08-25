@@ -11,10 +11,43 @@
 #include <glm/glm/vec3.hpp>
 
 // maybe this should just have a pipeline id too...
-struct Buffer_mapping {
-    Uint32 vertex_id;
-    Uint32 index_id;
-    Uint32 transfer_id;
+// struct Buffer_ids {
+//     Uint32 vertex_id;
+//     Uint32 index_id;
+//     Uint32 transfer_id;
+// };
+
+struct Buffer_handles {
+    SDL_GPUBuffer* vertex_buffer{nullptr};
+    SDL_GPUBuffer* index_buffer{nullptr};
+    SDL_GPUTransferBuffer* transfer_buffer{nullptr};
+};
+
+// struct Render_state {
+//     SDL_GPUCommandBuffer* command_buffer{nullptr};
+//     SDL_GPUTexture* swapchain_texture{nullptr};
+//     Uint32 width{0};
+//     Uint32 height{0};
+//     SDL_GPURenderPass* render_pass{nullptr};
+//     defs::types::camera::Frame_data* frame_data{nullptr};
+// };
+
+struct Frame_context {
+    SDL_GPUCommandBuffer* command_buffer{nullptr};
+    SDL_GPURenderPass* render_pass{nullptr};
+    SDL_GPUTexture* swapchain_texture{nullptr};
+    Uint32 width{0};
+    Uint32 height{0};
+    defs::types::camera::Frame_data frame_data{};
+
+    auto reset() -> void {
+        command_buffer = nullptr;
+        render_pass = nullptr;
+        width = 0;
+        height = 0;
+        swapchain_texture = nullptr;
+        frame_data = {};
+    }
 };
 
 class Renderer {
@@ -24,20 +57,22 @@ private:
     SDL_Window* window;
     Resource_manager* resource_manager;
 
-    // Render state
-    SDL_GPUCommandBuffer* command_buffer;
-    SDL_GPURenderPass* current_render_pass;
+    // // Render state
+    // SDL_GPUCommandBuffer* command_buffer;
+    // SDL_GPURenderPass* current_render_pass;
+
+    Frame_context current_frame{};
 
     // Pipelines
-    SDL_GPUGraphicsPipeline* lander_pipeline;
-    SDL_GPUBuffer* lander_vertex_buffer;
-    SDL_GPUTransferBuffer* lander_transfer_buffer;
-
-    SDL_GPUGraphicsPipeline* text_pipeline;
-    SDL_GPUBuffer* text_vertex_buffer;
-    SDL_GPUBuffer* text_index_buffer;
-    SDL_GPUTransferBuffer* text_transfer_buffer;
-    SDL_GPUSampler* text_sampler;
+    // SDL_GPUGraphicsPipeline* lander_pipeline;
+    // SDL_GPUBuffer* lander_vertex_buffer;
+    // SDL_GPUTransferBuffer* lander_transfer_buffer;
+    //
+    // SDL_GPUGraphicsPipeline* text_pipeline;
+    // SDL_GPUBuffer* text_vertex_buffer;
+    // SDL_GPUBuffer* text_index_buffer;
+    // SDL_GPUTransferBuffer* text_transfer_buffer;
+    // SDL_GPUSampler* text_sampler;
     // transfer?
 
     // Generic update
@@ -51,55 +86,58 @@ private:
     std::unordered_map<Uint32, SDL_GPUSampler*> samplers;
 
     // // GPU resource IDs
-    std::unordered_map<Uint32, Buffer_mapping> mesh_to_buffers;    // mesh_id -> buffer_id
-    // std::unordered_map<Uint32, Uint32> mesh_vertex_buffers;    // mesh_id -> buffer_id
-    // std::unordered_map<std::string, Uint32> pipeline_ids;      // pipeline_name -> pipeline_id
+    // std::unordered_map<Uint32, Buffer_ids> mesh_to_buffer_ids;     // mesh_id -> buffer_ids
+    std::unordered_map<Uint32, Buffer_handles> mesh_to_buffers;    // mesh_id -> buffer ptrs
+    // std::unordered_map<Uint32, Uint32> mesh_vertex_buffers;  // mesh_id -> buffer_id
+    // std::unordered_map<std::string, Uint32> pipeline_ids;    // pipeline_name -> pipeline_id
 
     // Generic update
 
 public:
     auto init(SDL_GPUDevice* gpu_device, SDL_Window* win, Resource_manager* res_manager)
         -> utils::Result<>;
+    auto quit() -> void;
 
     // these three could probably just be one
-    auto begin_frame(const defs::types::camera::Frame_data& frame_data) -> void;
-    auto execute_commands(const Render_queue* queue) -> utils::Result<>;
-    auto end_frame() -> void;
+    auto render_frame(const Render_queue* queue, const defs::types::camera::Frame_data& frame_data)
+        -> utils::Result<>;
 
     // Generic update
     // Create and store pipeline from patching a Desc template, return created pipeline's id
     auto create_pipeline(const defs::pipelines::Desc& desc) -> utils::Result<Uint32>;
 
     // Mesh registration
-    // dont pass this const defs::types::vertex::Mesh_data& mesh_data, just ask rm
     auto register_mesh(Uint32 mesh_id) -> utils::Result<>;
     // Generic update
 
 private:
+    auto begin_frame(const defs::types::camera::Frame_data& frame_data) -> utils::Result<>;
+    auto execute_commands(const Render_queue* queue) -> utils::Result<>;
+    auto end_frame() -> utils::Result<>;
+
     auto render_opaque(const std::vector<Render_mesh_command>& commands) -> utils::Result<>;
-    auto render_transparent(const std::vector<Render_mesh_command>& commands) -> void;
-    // auto render_ui(const std::vector<Render_ui_command>& commands) -> void;
-    auto render_text(const std::vector<Render_text_command>& commands) -> void;
+    auto render_transparent(const std::vector<Render_mesh_command>& commands) -> utils::Result<>;
+    // auto render_ui(const std::vector<Render_ui_command>& commands) -> utils::Result<>;
+    auto render_text(const std::vector<Render_text_command>& commands) -> utils::Result<>;
 
     // what is this for?
     auto upload_text_data(TTF_GPUAtlasDrawSequence* draw_data, glm::vec2 pos, float scale) -> void;
 
-    auto make_lander_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*>;
-    auto make_lander_buffers() -> utils::Result<>;
-    auto lander_copy_pass() -> utils::Result<>;
-
-    auto make_vertex_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUBuffer*>;
+    // auto make_vertex_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUBuffer*>;
     auto make_index_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUBuffer*>;
     auto make_transfer_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUTransferBuffer*>;
     auto make_sampler() -> utils::Result<SDL_GPUSampler*>;
 
     // Generic update
     auto create_vertex_buffer(Uint32 buffer_size) -> utils::Result<Uint32>;
-    auto upload_mesh_data(Uint32 buffer_id, const Mesh_data& data) -> utils::Result<>;
+    auto create_transfer_buffer(Uint32 buffer_size) -> utils::Result<Uint32>;
+    auto upload_mesh_data(
+        Buffer_handles* buffers, const defs::types::vertex::Mesh_data& vertex_data
+    ) -> utils::Result<>;
 
     // Resource lookup
-    auto get_pipeline(Uint32 id) -> utils::Result<SDL_GPUGraphicsPipeline*>;
-    auto get_vertex_buffer(Uint32 id) -> SDL_GPUBuffer*;
+    auto get_pipeline(Uint32 id) const -> utils::Result<SDL_GPUGraphicsPipeline*>;
+    auto get_buffers(Uint32 mesh_id) const -> utils::Result<Buffer_handles>;
 
     // Generic update
 };

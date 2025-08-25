@@ -42,7 +42,7 @@ auto Graphics_context::create_device() -> utils::Result<SDL_GPUDevice*> {
 
     CHECK_BOOL(SDL_ClaimWindowForGPUDevice(gpu_device, window), "Failed claiming window");
 
-    // Extra configuration of GPU
+    // // Extra configuration of GPU
     // SDL_GPUPresentMode present_mode{SDL_GPU_PRESENTMODE_VSYNC};
     // if (SDL_WindowSupportsGPUPresentMode(gpu_device, window, SDL_GPU_PRESENTMODE_IMMEDIATE))
     //     present_mode = SDL_GPU_PRESENTMODE_IMMEDIATE;

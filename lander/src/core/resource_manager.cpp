@@ -135,6 +135,13 @@ auto Resource_manager::get_mesh_id(const std::string& mesh_name) -> utils::Resul
                                   : std::unexpected(std::format("Mesh '{}' not found", mesh_name));
 }
 
+auto Resource_manager::get_mesh_data(Uint32 mesh_id) const
+    -> utils::Result<defs::types::vertex::Mesh_data> {
+    const auto it{meshes.find(mesh_id)};
+    return (it != meshes.end()) ? utils::Result<defs::types::vertex::Mesh_data>{it->second}
+                                : std::unexpected(std::format("Mesh '{}' not found", mesh_id));
+}
+
 auto Resource_manager::release_shader(SDL_GPUDevice* gpu_device, const std::string& file_name)
     -> utils::Result<SDL_GPUShader*> {
     SDL_GPUShader* shader{TRY(get_shader(file_name))};

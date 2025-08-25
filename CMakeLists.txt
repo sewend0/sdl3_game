@@ -64,17 +64,15 @@ target_sources("${CMAKE_PROJECT_NAME}"
         ${LANDER_SRC_DIR}/core/include/renderer.h
         ${LANDER_SRC_DIR}/core/include/resource_manager.h
         ${LANDER_SRC_DIR}/core/include/text_manager.h
+        ${LANDER_SRC_DIR}/core/include/timer.h
         # Game
         ${LANDER_SRC_DIR}/game/include/camera.h
         ${LANDER_SRC_DIR}/game/include/game_object.h
         ${LANDER_SRC_DIR}/game/include/game_state.h
         ${LANDER_SRC_DIR}/game/include/lander_game.h
-        #        ${LANDER_SRC_DIR}/game/include/mesh_library.h
         # Rendering
         ${LANDER_SRC_DIR}/rendering/render_command.h
         ${LANDER_SRC_DIR}/rendering/render_queue.h
-        #        ${LANDER_SRC_DIR}/rendering/shader_types.h
-        #        ${LANDER_SRC_DIR}/rendering/vertex_types.h
         # Systems
         ${LANDER_SRC_DIR}/systems/include/input_system.h
         ${LANDER_SRC_DIR}/systems/include/physics_system.h
@@ -91,11 +89,10 @@ target_sources("${CMAKE_PROJECT_NAME}"
         ${LANDER_SRC_DIR}/core/renderer.cpp
         ${LANDER_SRC_DIR}/core/resource_manager.cpp
         ${LANDER_SRC_DIR}/core/text_manager.cpp
+        ${LANDER_SRC_DIR}/core/timer.cpp
         # Game
         ${LANDER_SRC_DIR}/game/camera.cpp
         ${LANDER_SRC_DIR}/game/game_object.cpp
-        #        ${LANDER_SRC_DIR}/game/game_state.cpp
-        #        ${LANDER_SRC_DIR}/game/mesh_library.cpp
         # Systems
         ${LANDER_SRC_DIR}/systems/input_system.cpp
         ${LANDER_SRC_DIR}/systems/physics_system.cpp

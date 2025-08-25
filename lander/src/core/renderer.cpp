@@ -8,13 +8,99 @@ auto Renderer::init(SDL_GPUDevice* gpu_device, SDL_Window* win, Resource_manager
     window = win;
     resource_manager = res_manager;
 
-    TRY(make_lander_pipeline());
+    // TRY(make_lander_pipeline());
+
+    return {};
+}
+
+auto Renderer::quit() -> void {
+    SDL_WaitForGPUIdle(device);
+
+    // clean up pipelines
+    for (auto& [id, pipeline] : pipelines)
+        if (pipeline)
+            SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
+    pipelines.clear();
+
+    // clean up buffers
+    for (auto& [id, buffer] : vertex_buffers)
+        if (buffer)
+            SDL_ReleaseGPUBuffer(device, buffer);
+    vertex_buffers.clear();
+
+    for (auto& [id, buffer] : index_buffers)
+        if (buffer)
+            SDL_ReleaseGPUBuffer(device, buffer);
+    index_buffers.clear();
+
+    for (auto& [id, buffer] : transfer_buffers)
+        if (buffer)
+            SDL_ReleaseGPUTransferBuffer(device, buffer);
+    transfer_buffers.clear();
+
+    // clear handle references
+    mesh_to_buffers.clear();
+}
+
+auto Renderer::render_frame(
+    const Render_queue* queue, const defs::types::camera::Frame_data& frame_data
+) -> utils::Result<> {
+
+    // TRY(begin_frame(frame_data));
+    // TRY(execute_commands(queue));
+    // TRY(end_frame());
+
+    utils::log("beginning frame");
+    if (auto res = begin_frame(frame_data); not res) {
+        utils::log("dbg: " + res.error());
+        TRY(end_frame());
+    }
+
+    utils::log("executing commands");
+    if (auto res = execute_commands(queue); not res)
+        utils::log("dbg" + res.error());
+
+    utils::log("ending frame");
+    if (auto res = end_frame(); not res)
+        utils::log("dbg" + res.error());
+
+    return {};
+}
+
+auto Renderer::begin_frame(const defs::types::camera::Frame_data& frame_data) -> utils::Result<> {
+
+    current_frame.frame_data = frame_data;
+
+    // get the command buffer
+    current_frame.command_buffer = CHECK_PTR(SDL_AcquireGPUCommandBuffer(device));
+
+    // get the swapchain texture - end frame early if not available
+    if (not SDL_WaitAndAcquireGPUSwapchainTexture(
+            current_frame.command_buffer, window, &current_frame.swapchain_texture,
+            &current_frame.width, &current_frame.height
+        )) {
+        SDL_SubmitGPUCommandBuffer(current_frame.command_buffer);
+        return {};
+    }
+
+    // update data
+    // this is essentially where old text system did its copy pass
+
+    // begin render pass
+    SDL_GPUColorTargetInfo color_target_info{
+        .texture = current_frame.swapchain_texture,
+        .clear_color = {0.15F, 0.17F, 0.20F, 1.00F},
+        .load_op = SDL_GPU_LOADOP_CLEAR,
+        .store_op = SDL_GPU_STOREOP_STORE,
+    };
+    current_frame.render_pass = CHECK_PTR(
+        SDL_BeginGPURenderPass(current_frame.command_buffer, &color_target_info, 1, nullptr)
+    );
 
     return {};
 }
 
 auto Renderer::execute_commands(const Render_queue* queue) -> utils::Result<> {
-
     // sort commands by pipeline for efficiency
     auto sorted_opaque{queue->opaque_commands};
     std::sort(
@@ -24,119 +110,70 @@ auto Renderer::execute_commands(const Render_queue* queue) -> utils::Result<> {
         }
     );
 
-    render_opaque(sorted_opaque);
+    TRY(render_opaque(sorted_opaque));
     // render_transparent(queue.transparent_commands);
     // render_ui(queue.ui_commands);
 
     return {};
 }
 
+auto Renderer::end_frame() -> utils::Result<> {
+    // end render pass, submit command buffer
+    SDL_EndGPURenderPass(current_frame.render_pass);
+    CHECK_BOOL(SDL_SubmitGPUCommandBuffer(current_frame.command_buffer));
+
+    current_frame.reset();
+
+    return {};
+}
+
 auto Renderer::render_opaque(const std::vector<Render_mesh_command>& commands) -> utils::Result<> {
+
     for (const auto& cmd : commands) {
         SDL_GPUGraphicsPipeline* pipeline{TRY(get_pipeline(cmd.pipeline_id))};
-        // get vertex buffer, get index buffer
+        Buffer_handles buffers{TRY(get_buffers(cmd.mesh_id))};
 
-        // render
-        // SDL_BindGPUGraphicsPipeline()...
-        // etc...
+        // check not nullptr before using a buffer
+        if (not buffers.vertex_buffer)
+            return std::unexpected(std::format("vertex buffer = nullptr"));
+
+        // bind the graphics pipeline
+        SDL_BindGPUGraphicsPipeline(current_frame.render_pass, pipeline);
+
+        // bind the vertex buffer
+        SDL_GPUBufferBinding buffer_binding{
+            .buffer = buffers.vertex_buffer,
+            .offset = 0,
+        };
+        SDL_BindGPUVertexBuffers(current_frame.render_pass, 0, &buffer_binding, 1);
+
+        // update uniform data (this does not necessarily need to be done here)
+        // cant i just give the shader the matrices, and let it to do the math?
+        // Build 2D model matrix with translation, rotation, and scale
+        glm::mat4 mvp{
+            current_frame.frame_data.proj_matrix * current_frame.frame_data.view_matrix *
+            cmd.model_matrix
+        };
+
+        // bind uniform data
+        SDL_PushGPUVertexUniformData(current_frame.command_buffer, 0, &mvp, sizeof(glm::mat4));
+
+        // issue draw call
+        SDL_DrawGPUPrimitives(current_frame.render_pass, 3, 1, 0, 0);
     }
 
     return {};
 }
 
-auto Renderer::make_lander_pipeline() -> utils::Result<SDL_GPUGraphicsPipeline*> {
-
-    // describe vertex buffers
-    SDL_GPUVertexBufferDescription vertex_buffer_description{
-        .slot = 0,
-        .pitch = sizeof(defs::types::vertex::Mesh_vertex),
-        .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
-        .instance_step_rate = 0,
-    };
-    std::array<SDL_GPUVertexBufferDescription, 1> vertex_buffer_descriptions{
-        vertex_buffer_description
-    };
-
-    // describe vertex attributes
-    SDL_GPUVertexAttribute a_position{
-        .location = 0,
-        .buffer_slot = 0,
-        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
-        .offset = 0,
-    };
-    SDL_GPUVertexAttribute a_color{
-        .location = 1,
-        .buffer_slot = 0,
-        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
-        .offset = sizeof(float) * 2,
-    };
-    std::array<SDL_GPUVertexAttribute, 2> vertex_attributes{a_position, a_color};
-
-    // describe color target
-    SDL_GPUColorTargetDescription color_target_description{
-        .format = SDL_GetGPUSwapchainTextureFormat(device, window),
-    };
-    std::array<SDL_GPUColorTargetDescription, 1> target_descriptions{color_target_description};
-
-    // get loaded shaders
-    auto shaders{
-        TRY(defs::assets::shaders::get_shader_set_file_names(
-            std::string(defs::assets::shaders::shader_lander_name)
-        ))
-    };
-    SDL_GPUShader* vert_shader{TRY(resource_manager->get_shader(shaders[0]))};
-    SDL_GPUShader* frag_shader{TRY(resource_manager->get_shader(shaders[1]))};
-
-    // create pipeline - bind shaders
-    SDL_GPUGraphicsPipelineTargetInfo target_info{
-        .color_target_descriptions = target_descriptions.data(),
-        .num_color_targets = 1,
-    };
-    SDL_GPUVertexInputState vertex_input_state{
-        .vertex_buffer_descriptions = vertex_buffer_descriptions.data(),
-        .num_vertex_buffers = 1,
-        .vertex_attributes = vertex_attributes.data(),
-        .num_vertex_attributes = 2,
-    };
-    SDL_GPUGraphicsPipelineCreateInfo create_info{
-        .vertex_shader = vert_shader,
-        .fragment_shader = frag_shader,
-        .vertex_input_state = vertex_input_state,
-        .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-        .target_info = target_info,
-    };
-    SDL_GPUGraphicsPipeline* pipeline{CHECK_PTR(SDL_CreateGPUGraphicsPipeline(device, &create_info))
-    };
-
-    // release shaders
-    TRY(resource_manager->release_shader(device, shaders[0]));
-    TRY(resource_manager->release_shader(device, shaders[1]));
-
-    return pipeline;
-}
-
-auto Renderer::make_lander_buffers() -> utils::Result<> {
-    Uint32 buffer_size{sizeof(defs::assets::meshes::lander_vertices)};
-    lander_vertex_buffer = TRY(make_vertex_buffer(buffer_size));
-    lander_transfer_buffer = TRY(make_transfer_buffer(buffer_size));
-    return {};
-}
-
-auto Renderer::lander_copy_pass() -> utils::Result<> {
-    //
-
-    return {};
-}
-
-auto Renderer::make_vertex_buffer(const Uint32 buffer_size) -> utils::Result<SDL_GPUBuffer*> {
-    SDL_GPUBufferCreateInfo buffer_info{
-        .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
-        .size = buffer_size,
-    };
-    SDL_GPUBuffer* vertex_buffer{CHECK_PTR(SDL_CreateGPUBuffer(device, &buffer_info))};
-
-    return vertex_buffer;
-}
+// auto Renderer::make_vertex_buffer(const Uint32 buffer_size) -> utils::Result<SDL_GPUBuffer*> {
+//     SDL_GPUBufferCreateInfo buffer_info{
+//         .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
+//         .size = buffer_size,
+//     };
+//     SDL_GPUBuffer* vertex_buffer{CHECK_PTR(SDL_CreateGPUBuffer(device, &buffer_info))};
+//
+//     return vertex_buffer;
+// }
 
 auto Renderer::make_index_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUBuffer*> {
     SDL_GPUBufferCreateInfo buffer_info{
@@ -222,17 +259,26 @@ auto Renderer::register_mesh(Uint32 mesh_id) -> utils::Result<> {
     if (mesh_to_buffers.contains(mesh_id))
         return {};
 
-    const defs::types::vertex::Mesh_data* mesh_data{resource_manager->get_mesh_data(mesh_id)};
+    const defs::types::vertex::Mesh_data mesh_data{*resource_manager->get_mesh_data(mesh_id)};
 
     // create buffers
-    Uint32 buffer_size{static_cast<Uint32>(sizeof(mesh_data) * mesh_data->size())};
+    Uint32 buffer_size{static_cast<Uint32>(sizeof(mesh_data) * mesh_data.size())};
     Uint32 vertex_buffer_id = TRY(create_vertex_buffer(buffer_size));
-
-    // TODO: do i want to do this here...?
-    TRY(upload_mesh_data(vertex_buffer_id, mesh_data));
+    Uint32 transfer_buffer_id = TRY(create_transfer_buffer(buffer_size));
 
     // store mappings
-    mesh_to_buffers[mesh_id] = {.vertex_id = vertex_buffer_id};
+    mesh_to_buffers[mesh_id] = {
+        .vertex_buffer = vertex_buffers[vertex_buffer_id],
+        .transfer_buffer = transfer_buffers[transfer_buffer_id],
+    };
+
+    // upload data and relase buffers (if not using again)
+    // TODO: do i want to do this here...?
+    TRY(upload_mesh_data(&mesh_to_buffers[mesh_id], mesh_data));
+
+    SDL_ReleaseGPUTransferBuffer(device, mesh_to_buffers[mesh_id].transfer_buffer);
+    mesh_to_buffers[mesh_id].transfer_buffer = nullptr;
+    transfer_buffers.erase(transfer_buffer_id);
 
     return {};
 }
@@ -250,9 +296,89 @@ auto Renderer::create_vertex_buffer(const Uint32 buffer_size) -> utils::Result<U
     return buffer_id;
 }
 
-auto Renderer::get_pipeline(Uint32 id) -> utils::Result<SDL_GPUGraphicsPipeline*> {
+auto Renderer::create_transfer_buffer(const Uint32 buffer_size) -> utils::Result<Uint32> {
+    // create transfer buffer to upload data with
+    SDL_GPUTransferBufferCreateInfo transfer_info{
+        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+        .size = buffer_size,
+    };
+    SDL_GPUTransferBuffer* transfer_buffer{
+        CHECK_PTR(SDL_CreateGPUTransferBuffer(device, &transfer_info))
+    };
+
+    Uint32 buffer_id = next_buffer_id++;
+    transfer_buffers[buffer_id] = transfer_buffer;
+
+    return buffer_id;
+}
+
+// this acquires and uses a command buffer of its own...
+// may want to rethink how/when this does its job
+auto Renderer::upload_mesh_data(
+    Buffer_handles* buffers, const defs::types::vertex::Mesh_data& vertex_data
+) -> utils::Result<> {
+    // TODO: implement this
+
+    Uint32 buffer_size{
+        static_cast<Uint32>(vertex_data.size() * sizeof(defs::types::vertex::Mesh_vertex))
+    };
+    // map transfer buffer to a pointer
+    defs::types::vertex::Mesh_vertex* transfer_ptr{CHECK_PTR(
+        static_cast<defs::types::vertex::Mesh_vertex*>(
+            SDL_MapGPUTransferBuffer(device, buffers->transfer_buffer, false)
+        )
+    )};
+
+    // copy the data, and unmap when finished updating transfer buffer
+    SDL_memcpy(transfer_ptr, vertex_data.data(), buffer_size);
+    SDL_UnmapGPUTransferBuffer(device, buffers->transfer_buffer);
+
+    // start a copy pass
+    SDL_GPUCommandBuffer* command_buffer{CHECK_PTR(SDL_AcquireGPUCommandBuffer(device))};
+    SDL_GPUCopyPass* copy_pass{CHECK_PTR(SDL_BeginGPUCopyPass(command_buffer))};
+
+    // locate the data
+    SDL_GPUTransferBufferLocation location{
+        .transfer_buffer = buffers->transfer_buffer,
+        .offset = 0,
+    };
+
+    // locate upload destination
+    SDL_GPUBufferRegion region{
+        .buffer = buffers->vertex_buffer,
+        .offset = 0,
+        .size = buffer_size,
+    };
+
+    // upload the data, end the copy pass, and submit command buffer
+    SDL_UploadToGPUBuffer(copy_pass, &location, &region, true);
+    SDL_EndGPUCopyPass(copy_pass);
+    CHECK_BOOL(SDL_SubmitGPUCommandBuffer(command_buffer));
+
+    return {};
+}
+
+auto Renderer::get_pipeline(Uint32 id) const -> utils::Result<SDL_GPUGraphicsPipeline*> {
     const auto pipeline_it{pipelines.find(id)};
     return (pipeline_it != pipelines.end())
                ? utils::Result<SDL_GPUGraphicsPipeline*>{pipeline_it->second}
                : std::unexpected(std::format("Pipeline '{}' not found", id));
+}
+
+// auto Renderer::get_buffer_ids(Uint32 mesh_id) -> utils::Result<Buffer_ids> {
+//     const auto it{mesh_to_buffer_ids.find(mesh_id)};
+//     return (it == mesh_to_buffer_ids.end())
+//                ? utils::Result<Buffer_ids>{it->second}
+//                : std::unexpected(std::format("Mesh ID '{}' not found", mesh_id));
+// }
+
+auto Renderer::get_buffers(Uint32 mesh_id) const -> utils::Result<Buffer_handles> {
+    const auto it{mesh_to_buffers.find(mesh_id)};
+    // return (it == mesh_to_buffers.end())
+    //            ? utils::Result<Buffer_handles>{it->second}
+    //            : std::unexpected(std::format("Mesh ID '{}' not found", mesh_id));
+
+    return (it != mesh_to_buffers.end())
+               ? utils::Result<Buffer_handles>{it->second}
+               : std::unexpected(std::format("Mesh ID '{}' not found", mesh_id));
 }

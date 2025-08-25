@@ -188,9 +188,9 @@ namespace defs {
 
     namespace pipelines {
         enum class Type {
-            Mesh = 0,
-            Text,
-            // Particle,
+            Mesh = 1,
+            Text = 2,
+            Particle = 3,
         };
 
         struct Desc {

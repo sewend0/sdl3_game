@@ -5,6 +5,8 @@
 
 #include <SDL3/SDL.h>
 
+#include <glm/glm/ext/matrix_transform.hpp>
+#include <glm/glm/glm.hpp>
 #include <glm/glm/matrix.hpp>
 #include <glm/glm/vec2.hpp>
 
@@ -49,11 +51,11 @@ public:
 
 class C_render final : public Component {
 public:
-    Uint32 pipeline_id;
+    Uint32 pipeline_id{0};
     float depth{0.0F};
     bool visible{true};
 
-    explicit C_render(const Uint32 pid, const float dep = 0.0F, const bool vis = true) :
+    explicit C_render(Uint32 pid, const float dep = 0.0F, const bool vis = true) :
         pipeline_id{pid}, depth{dep}, visible{vis} {}
 };
 

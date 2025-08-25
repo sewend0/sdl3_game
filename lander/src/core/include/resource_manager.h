@@ -61,8 +61,7 @@ public:
     auto get_shader(const std::string& file_name) -> utils::Result<SDL_GPUShader*>;
 
     auto get_mesh_id(const std::string& mesh_name) -> utils::Result<Uint32>;
-    // TODO: implement this
-    auto get_mesh_data(Uint32 mesh_id) const -> const defs::types::vertex::Mesh_data*;
+    auto get_mesh_data(Uint32 mesh_id) const -> utils::Result<defs::types::vertex::Mesh_data>;
 
     auto release_shader(SDL_GPUDevice* gpu_device, const std::string& file_name)
         -> utils::Result<SDL_GPUShader*>;

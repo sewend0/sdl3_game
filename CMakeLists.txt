@@ -69,6 +69,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         ${LANDER_SRC_DIR}/game/include/camera.h
         ${LANDER_SRC_DIR}/game/include/game_object.h
         ${LANDER_SRC_DIR}/game/include/game_state.h
+        ${LANDER_SRC_DIR}/game/include/input_state.h
         ${LANDER_SRC_DIR}/game/include/lander_game.h
         # Rendering
         ${LANDER_SRC_DIR}/rendering/render_command.h
@@ -76,6 +77,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         # Systems
         ${LANDER_SRC_DIR}/systems/include/input_system.h
         ${LANDER_SRC_DIR}/systems/include/physics_system.h
+        ${LANDER_SRC_DIR}/systems/include/player_control_system.h
         ${LANDER_SRC_DIR}/systems/include/render_system.h
         ${LANDER_SRC_DIR}/systems/include/ui_system.h
         PUBLIC
@@ -96,6 +98,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         # Systems
         ${LANDER_SRC_DIR}/systems/input_system.cpp
         ${LANDER_SRC_DIR}/systems/physics_system.cpp
+        ${LANDER_SRC_DIR}/systems/player_control_system.cpp
         ${LANDER_SRC_DIR}/systems/render_system.cpp
         ${LANDER_SRC_DIR}/systems/ui_system.cpp
 )

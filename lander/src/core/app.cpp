@@ -19,12 +19,14 @@ auto App::init() -> utils::Result<> {
         std::string(defs::startup::window_name)
     ));
 
-    // TODO: init other systems:
-    // init input manager
-    // init timer, or is timer part of something else now?
-
     game_state->timer = std::make_unique<Timer>();
 
+    game_state->input_manager = std::make_unique<Input_manager>();
+    TRY(game_state->input_manager->init());
+
+    game_state->input_system = std::make_unique<Input_system>();
+    game_state->player_control_system = std::make_unique<Player_control_system>();
+    game_state->physics_system = std::make_unique<Physics_system>();
     game_state->render_system = std::make_unique<Render_system>();
 
     game_state->resource_manager = std::make_unique<Resource_manager>();
@@ -75,8 +77,28 @@ auto App::quit() -> void {
         game_state->graphics->quit();
 }
 
+auto App::handle_event(const SDL_Event& event) -> utils::Result<> {
+    TRY(game_state->input_manager->handle_input(event));
+
+    return {};
+}
+
 auto App::update() -> void {
     game_state->timer->tick();
+
+    while (game_state->timer->should_sim()) {
+        // physics prev state = physics current state
+        // 'integrate' (updating pos/velo with t and dt)
+
+        const Input_state* input_state{game_state->input_manager->get_state()};
+        game_state->input_system->iterate(game_state->game_objects, *input_state);
+        game_state->player_control_system->iterate(game_state->game_objects);
+        game_state->physics_system->iterate(
+            game_state->game_objects, game_state->timer->sim_delta_seconds()
+        );
+
+        game_state->timer->advance_sim();
+    }
 
     if (game_state->timer->should_render()) {
         double alpha{game_state->timer->interpolation_alpha()};

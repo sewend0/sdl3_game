@@ -1,0 +1,31 @@
+Why do this on the CPU vs GPU
+---
+Sending one matrix, the mvp, compared to the three uncombined is less bandwidth
+For thousands of objects this will add up
+
+4x4 = 16 floats = 64 bytes
+3 * 64 = 192 bytes
+
+The projection * view matrix can be calculated once per frame and cached
+Sending all three to the GPU would mean doing this calculation for every single vertex of every object
+
+To make optimizations like frustum culling, this data is needed anyway.
+
+
+
+Typical game engine workflow
+---
+Once per frame (at the start of render_frame):
+1. Get the camera's position and orientation
+2. Calculate the View matrix
+3. Calculate the Projection matrix (based on fov, aspec ratio, etc.)
+4. Multiply them together and cache the result:
+     glm::mat4 view_projection_matrix = projection * view;
+
+For each object (inside render_opaque):
+1. Get the object's Model matrix from its transform component
+2. Calculate final matrix for that specific object:
+     glm::mat4 mvp = view_projection_matrix * model_matrix;
+3. Perform frustum culling using the mvp; if object is not visible, skip to next object
+4. Push a single mvp matrix to the shader's uniform buffer
+5. Issue the draw call

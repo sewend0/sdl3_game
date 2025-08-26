@@ -3,7 +3,7 @@
 #include <resource_manager.h>
 
 auto Resource_manager::init() -> utils::Result<> {
-    loaded_files = {};
+    // loaded_files = {};
     fonts = {};
     sounds = {};
 
@@ -107,26 +107,20 @@ auto Resource_manager::create_mesh(
 
 auto Resource_manager::get_font(const std::string& file_name) -> utils::Result<TTF_Font*> {
     const auto it{fonts.find(file_name)};
-    if (it == fonts.end())
-        return std::unexpected(std::format("Font '{}' not found", file_name));
-
-    return it->second;
+    return (it != fonts.end()) ? utils::Result<TTF_Font*>{it->second}
+                               : std::unexpected(std::format("Font '{}' not found", file_name));
 }
 
 auto Resource_manager::get_sound(const std::string& file_name) -> utils::Result<MIX_Audio*> {
     const auto it{sounds.find(file_name)};
-    if (it == sounds.end())
-        return std::unexpected(std::format("Sound '{}' not found", file_name));
-
-    return it->second;
+    return (it != sounds.end()) ? utils::Result<MIX_Audio*>{it->second}
+                                : std::unexpected(std::format("Sound '{}' not found", file_name));
 }
 
 auto Resource_manager::get_shader(const std::string& file_name) -> utils::Result<SDL_GPUShader*> {
     const auto it{shaders.find(file_name)};
-    if (it == shaders.end())
-        return std::unexpected(std::format("Shader '{}' not found", file_name));
-
-    return it->second;
+    return (it != shaders.end()) ? utils::Result<SDL_GPUShader*>{it->second}
+                                 : std::unexpected(std::format("Shader '{}' not found", file_name));
 }
 
 auto Resource_manager::get_mesh_id(const std::string& mesh_name) -> utils::Result<Uint32> {

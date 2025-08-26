@@ -50,17 +50,17 @@ auto Renderer::render_frame(
     // TRY(execute_commands(queue));
     // TRY(end_frame());
 
-    utils::log("beginning frame");
+    // utils::log("beginning frame");
     if (auto res = begin_frame(frame_data); not res) {
         utils::log("dbg: " + res.error());
         TRY(end_frame());
     }
 
-    utils::log("executing commands");
+    // utils::log("executing commands");
     if (auto res = execute_commands(queue); not res)
         utils::log("dbg" + res.error());
 
-    utils::log("ending frame");
+    // utils::log("ending frame");
     if (auto res = end_frame(); not res)
         utils::log("dbg" + res.error());
 
@@ -185,18 +185,19 @@ auto Renderer::make_index_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUBuf
     return index_buffer;
 }
 
-auto Renderer::make_transfer_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUTransferBuffer*> {
-    // create transfer buffer to upload data with
-    SDL_GPUTransferBufferCreateInfo transfer_info{
-        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-        .size = buffer_size,
-    };
-    SDL_GPUTransferBuffer* transfer_buffer{
-        CHECK_PTR(SDL_CreateGPUTransferBuffer(device, &transfer_info))
-    };
-
-    return transfer_buffer;
-}
+// auto Renderer::make_transfer_buffer(Uint32 buffer_size) -> utils::Result<SDL_GPUTransferBuffer*>
+// {
+//     // create transfer buffer to upload data with
+//     SDL_GPUTransferBufferCreateInfo transfer_info{
+//         .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+//         .size = buffer_size,
+//     };
+//     SDL_GPUTransferBuffer* transfer_buffer{
+//         CHECK_PTR(SDL_CreateGPUTransferBuffer(device, &transfer_info))
+//     };
+//
+//     return transfer_buffer;
+// }
 
 auto Renderer::make_sampler() -> utils::Result<SDL_GPUSampler*> {
     SDL_GPUSamplerCreateInfo info{

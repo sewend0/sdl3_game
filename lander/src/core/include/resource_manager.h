@@ -21,30 +21,13 @@ private:
     std::unordered_map<std::string, Uint32> mesh_ids;
     std::unordered_map<Uint32, defs::types::vertex::Mesh_data> meshes;
 
-    // // GPU resource IDs
-    // std::unordered_map<Uint32, Uint32> mesh_vertex_buffers; // mesh_id -> buffer_id
-    // std::unordered_map<std::string, Uint32> pipeline_ids;   // pipeline_name -> pipeline_id
-    //
-
-    // std::unordered_map<Uint32, Material_data> materials;
-    // std::unordered_map<Uint32, SDL_GPUTexture*> textures;
-    // std::unique_ptr<Text_manager> text_manager;
-
-    std::unordered_map<std::string, std::vector<Uint8>> loaded_files;
+    // std::unordered_map<std::string, std::vector<Uint8>> loaded_files;
     std::unordered_map<std::string, TTF_Font*> fonts;
     std::unordered_map<std::string, MIX_Audio*> sounds;
     // maybe this should have both shaders of a pair under one key...
     std::unordered_map<std::string, SDL_GPUShader*> shaders;
 
 public:
-    // auto load_mesh(const std::string& path) -> Uint32;
-    // auto load_texture(const std::string& path) -> Uint32;
-    // auto create_material(const Material_desc& desc) -> Uint32;
-
-    // auto get_mesh(Uint32 id) const -> Mesh_data&;
-    // auto get_material(Uint32 id) const -> Material_data&;
-    // auto get_texture(Uint32 id) const -> SDL_GPUTexture*;
-
     auto init() -> utils::Result<>;
     auto quit(SDL_GPUDevice* gpu_device) -> void;
 

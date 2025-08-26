@@ -34,7 +34,7 @@ public:
 
     auto quit() -> void;
 
-    // auto handle_event(const SDL_Event& e) -> void;
+    auto handle_event(const SDL_Event& event) -> utils::Result<>;
 
     // Handles updating app state per frame
     // Called every frame by SDL_AppIterate

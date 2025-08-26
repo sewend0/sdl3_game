@@ -59,39 +59,38 @@ public:
         pipeline_id{pid}, depth{dep}, visible{vis} {}
 };
 
-// // Properties for rendering
-// class C_renderable final : public Component {
-// public:
-//     Uint32 mesh_id;
-//     glm::vec4 color{1.0F, 1.0F, 1.0F, 1.0F};
-//     float depth{0.0F};
-//     bool visible{true};
-//
-//     explicit C_renderable(
-//         const Uint32 mid, const glm::vec4 col = {1.0F, 1.0F, 1.0F, 1.0F}, const float d = 0.0F,
-//         bool vis = true
-//     ) :
-//         mesh_id{mid}, color{col}, depth{d}, visible{vis} {}
-// };
-
 class C_physics final : public Component {
 public:
+    // linear physics
     glm::vec2 velocity{0.0F};
-    glm::vec2 acceleration{0.0F};
+    glm::vec2 forces{0.0F};
     float mass{1.0F};
-    // collision shape, etc.
 
-    explicit C_physics(const float m = 1.0F) : mass{m} {}
+    // angular physics
+    float angular_velocity{0.0F};     // radians per second
+    float torque{0.0F};
+    float moment_of_inertia{1.0F};    // resistance to spinning
+
+    // placeholder moi calculation
+    explicit C_physics(const float m = 1.0F) : mass{m} { moment_of_inertia = mass * 0.5F; }
+
+    // accumulate forces from systems, clear after each physics step
+    auto add_force(const glm::vec2& force) -> void { forces += force; }
+    auto add_torque(const float t) -> void { torque += t; }
 };
 
 class C_player_controller final : public Component {
 public:
+    // config
     float thrust_power{100.0F};
-    bool thrust_active{false};
-    float rotation_speed{90.0F};    // degrees per second
+    float rotation_power{100.0F};    // torque
 
-    explicit C_player_controller(const float thrust = 100.0F, const float rot_speed = 90.0F) :
-        thrust_power{thrust}, rotation_speed{rot_speed} {}
+    // per-frame intent
+    bool thrust_intent{false};
+    float rotation_intent{0.0F};    // left: -1, none: 0, right: 1
+
+    explicit C_player_controller(const float thrust = 100.0F, const float torque = 100.0F) :
+        thrust_power{thrust}, rotation_power{torque} {}
 };
 
 #endif    // SDL3_GAME_COMPONENTS_H

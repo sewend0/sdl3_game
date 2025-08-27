@@ -4,6 +4,7 @@
 #define SDL3_GAME_RENDER_COMMAND_H
 
 #include <SDL3/SDL.h>
+#include <definitions.h>
 
 #include <glm/glm/mat4x4.hpp>
 
@@ -22,9 +23,10 @@ struct Render_mesh_command {
 
 // include the TTF_GPUAtlastDrawSequence?
 struct Render_text_command {
-    Uint32 text_id;
-    glm::vec2 position;
-    float scale{1.0F};
+    // Uint32 text_id;
+    // glm::vec2 position;
+    // float scale{1.0F};
+    defs::types::text::Text text_obj;
 };
 
 #endif    // SDL3_GAME_RENDER_COMMAND_H

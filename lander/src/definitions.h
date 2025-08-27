@@ -46,6 +46,7 @@ namespace defs {
         namespace text {
             struct Text {
                 TTF_Text text;
+                TTF_GPUAtlasDrawSequence draw_data;
                 glm::vec2 position;
                 glm::vec4 color;
                 float scale;
@@ -169,8 +170,8 @@ namespace defs {
 
             inline const types::vertex::Mesh_data lander_vertices{
                 {.position = {0.0F, 70.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
-                {.position = {-50.0F, -50.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
-                {.position = {50.0F, -50.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
+                {.position = {-30.0F, -30.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
+                {.position = {30.0F, -30.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
             };
 
             inline const std::vector<types::assets::Mesh_def> hardcoded_meshes{
@@ -193,6 +194,9 @@ namespace defs {
             Particle = 3,
         };
 
+        inline constexpr Uint32 max_text_vertex{8000};
+        inline constexpr Uint32 max_text_index{12000};
+
         struct Desc {
             Type type;
             std::string_view shader_name;
@@ -204,61 +208,134 @@ namespace defs {
             SDL_GPUGraphicsPipelineCreateInfo create_info;
         };
 
-        namespace descriptors::lander {
+        namespace descriptors {
+            namespace lander {
+                inline constexpr auto vertex_buffer_descriptions =
+                    std::to_array<SDL_GPUVertexBufferDescription>({
+                        {
+                            .slot = 0,
+                            .pitch = sizeof(types::vertex::Mesh_vertex),
+                            .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+                            .instance_step_rate = 0,
+                        },
+                    });
 
-            inline constexpr auto vertex_buffer_descriptions =
-                std::to_array<SDL_GPUVertexBufferDescription>({
+                inline constexpr auto vertex_attributes = std::to_array<SDL_GPUVertexAttribute>({
                     {
-                        .slot = 0,
-                        .pitch = sizeof(types::vertex::Mesh_vertex),
-                        .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
-                        .instance_step_rate = 0,
+                        .location = 0,
+                        .buffer_slot = 0,
+                        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+                        .offset = 0,
+                    },
+                    {
+                        .location = 1,
+                        .buffer_slot = 0,
+                        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
+                        .offset = sizeof(float) * 2,
                     },
                 });
 
-            inline constexpr auto vertex_attributes = std::to_array<SDL_GPUVertexAttribute>({
-                {
-                    .location = 0,
-                    .buffer_slot = 0,
-                    .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
-                    .offset = 0,
-                },
-                {
-                    .location = 1,
-                    .buffer_slot = 0,
-                    .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
-                    .offset = sizeof(float) * 2,
-                },
-            });
+                inline constexpr auto color_target_descriptions =
+                    std::to_array<SDL_GPUColorTargetDescription>({
+                        {
+                            .format = SDL_GPU_TEXTUREFORMAT_INVALID,    // manual
+                        },
+                    });
 
-            inline constexpr auto color_target_descriptions =
-                std::to_array<SDL_GPUColorTargetDescription>({
+                inline constexpr SDL_GPUGraphicsPipelineTargetInfo pipeline_target_info{
+                    .color_target_descriptions = color_target_descriptions.data(),
+                    .num_color_targets = 1,
+                };
+
+                inline constexpr SDL_GPUVertexInputState vertex_input_state{
+                    .vertex_buffer_descriptions = vertex_buffer_descriptions.data(),
+                    .num_vertex_buffers = 1,
+                    .vertex_attributes = vertex_attributes.data(),
+                    .num_vertex_attributes = 2,
+                };
+
+                inline constexpr SDL_GPUGraphicsPipelineCreateInfo pipeline_create_info{
+                    .vertex_shader = nullptr,      // manual
+                    .fragment_shader = nullptr,    // manual
+                    .vertex_input_state = vertex_input_state,
+                    .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+                    .target_info = pipeline_target_info,
+                };
+            }    // namespace lander
+
+            namespace text {
+                inline constexpr auto vertex_buffer_descriptions =
+                    std::to_array<SDL_GPUVertexBufferDescription>({
+                        {
+                            .slot = 0,
+                            .pitch = sizeof(types::vertex::Textured_vertex),
+                            .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+                            .instance_step_rate = 0,
+                        },
+                    });
+
+                inline constexpr auto vertex_attributes = std::to_array<SDL_GPUVertexAttribute>({
                     {
-                        .format = SDL_GPU_TEXTUREFORMAT_INVALID,    // manual
+                        .location = 0,
+                        .buffer_slot = 0,
+                        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+                        .offset = 0,
+                    },
+                    {
+                        .location = 1,
+                        .buffer_slot = 0,
+                        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
+                        .offset = sizeof(float) * 2,
+                    },
+                    {
+                        .location = 2,
+                        .buffer_slot = 0,
+                        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+                        .offset = sizeof(float) * 6,
                     },
                 });
 
-            inline constexpr SDL_GPUGraphicsPipelineTargetInfo pipeline_target_info{
-                .color_target_descriptions = color_target_descriptions.data(),
-                .num_color_targets = 1,
-            };
+                inline constexpr SDL_GPUColorTargetBlendState color_target_blend_state{
+                    .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+                    .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                    .color_blend_op = SDL_GPU_BLENDOP_ADD,
+                    .src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+                    .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_DST_ALPHA,
+                    .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+                    .color_write_mask = 0xF,
+                    .enable_blend = true,
+                };
 
-            inline constexpr SDL_GPUVertexInputState vertex_input_state{
-                .vertex_buffer_descriptions = vertex_buffer_descriptions.data(),
-                .num_vertex_buffers = 1,
-                .vertex_attributes = vertex_attributes.data(),
-                .num_vertex_attributes = 2,
-            };
+                inline constexpr auto color_target_descriptions =
+                    std::to_array<SDL_GPUColorTargetDescription>({
+                        {
+                            .format = SDL_GPU_TEXTUREFORMAT_INVALID,    // manual
+                            .blend_state = color_target_blend_state,
+                        },
+                    });
 
-            inline constexpr SDL_GPUGraphicsPipelineCreateInfo pipeline_create_info{
-                .vertex_shader = nullptr,      // manual
-                .fragment_shader = nullptr,    // manual
-                .vertex_input_state = vertex_input_state,
-                .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-                .target_info = pipeline_target_info,
-            };
+                inline constexpr SDL_GPUGraphicsPipelineTargetInfo pipeline_target_info{
+                    .color_target_descriptions = color_target_descriptions.data(),
+                    .num_color_targets = 1,
+                    .has_depth_stencil_target = false,
+                };
 
-        }    // namespace descriptors::lander
+                inline constexpr SDL_GPUVertexInputState vertex_input_state{
+                    .vertex_buffer_descriptions = vertex_buffer_descriptions.data(),
+                    .num_vertex_buffers = 1,
+                    .vertex_attributes = vertex_attributes.data(),
+                    .num_vertex_attributes = 3,
+                };
+
+                inline constexpr SDL_GPUGraphicsPipelineCreateInfo pipeline_create_info{
+                    .vertex_shader = nullptr,      // manual
+                    .fragment_shader = nullptr,    // manual
+                    .vertex_input_state = vertex_input_state,
+                    .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+                    .target_info = pipeline_target_info,
+                };
+            }    // namespace text
+        }    // namespace descriptors
 
         inline constexpr Desc lander_desc{
             .type = Type::Mesh,
@@ -271,9 +348,20 @@ namespace defs {
             .create_info = descriptors::lander::pipeline_create_info,
         };
 
+        inline constexpr Desc text_desc{
+            .type = Type::Text,
+            .shader_name = assets::shaders::shader_text_name,
+            .vertex_buffer_descriptions = descriptors::text::vertex_buffer_descriptions,
+            .vertex_attributes = descriptors::text::vertex_attributes,
+            .color_target_descriptions = descriptors::text::color_target_descriptions,
+            .target_info = descriptors::text::pipeline_target_info,
+            .vertex_input_state = descriptors::text::vertex_input_state,
+            .create_info = descriptors::text::pipeline_create_info,
+        };
+
         inline constexpr auto default_pipelines = std::to_array<Desc>({
             lander_desc,
-            // ...
+            text_desc,
         });
 
     }    // namespace pipelines

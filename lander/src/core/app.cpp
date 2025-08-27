@@ -150,6 +150,10 @@ auto App::update() -> void {
         game_state->render_system->clear_queue();
         game_state->render_system->collect_renderables(game_state->game_objects);
 
+        auto text_object{game_state->text_manager->get_text_objects()};
+        if (text_object)
+            game_state->render_system->collect_text(text_object.value());
+
         // hmm...
         const defs::types::camera::Frame_data frame_data{
             .view_matrix = game_state->camera->get_view_matrix(),
@@ -197,20 +201,19 @@ auto App::load_startup_assets() -> utils::Result<> {
 auto App::create_lander() -> utils::Result<> {
     auto lander{std::make_unique<Game_object>()};
 
-    // add transform - center, facing up
+    // add transform - center, facing up, default scale
     lander->add_component<C_transform>(glm::vec2{400.0F, 300.0F}, 0.0F, glm::vec2{1.0F, 1.0F});
 
     // add renderable - assume mesh is already loaded
     auto mid{TRY(
         game_state->resource_manager->get_mesh_id(std::string(defs::assets::meshes::mesh_lander))
     )};
-    // lander->add_component<C_renderable>(mid, glm::vec4{1.0F, 1.0F, 1.0F, 1.0F}, 0.0F, true);
     lander->add_component<C_mesh>(mid);
     lander->add_component<C_render>(static_cast<Uint32>(defs::pipelines::Type::Mesh), 0.0F, true);
 
     // add other components
-    lander->add_component<C_physics>(50.0F);                       // 50kg
-    lander->add_component<C_player_controller>(150.0F, 120.0F);    // thrust, rot speed
+    lander->add_component<C_physics>(50.0F);         // 50kg
+    lander->add_component<C_player_controller>();    // thrust, rot speed
 
     // store ref and add to collection
     game_state->lander = lander.get();

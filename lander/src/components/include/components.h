@@ -17,7 +17,7 @@ public:
     virtual auto update(float delta_time) -> void {}
 };
 
-// Translation, rotation, and scale
+// Translation, rotation (degrees), and scale
 class C_transform final : public Component {
 public:
     glm::vec2 position{0.0F};
@@ -82,14 +82,14 @@ public:
 class C_player_controller final : public Component {
 public:
     // config
-    float thrust_power{100.0F};
-    float rotation_power{100.0F};    // torque
+    float thrust_power;
+    float rotation_power;    // torque
 
     // per-frame intent
     bool thrust_intent{false};
     float rotation_intent{0.0F};    // left: -1, none: 0, right: 1
 
-    explicit C_player_controller(const float thrust = 100.0F, const float torque = 100.0F) :
+    explicit C_player_controller(const float thrust = 10.0F, const float torque = 500.0F) :
         thrust_power{thrust}, rotation_power{torque} {}
 };
 

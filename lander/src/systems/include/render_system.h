@@ -4,6 +4,7 @@
 #define SDL3_GAME_RENDER_SYSTEM_H
 
 #include <SDL3/SDL_gpu.h>
+#include <definitions.h>
 #include <game_object.h>
 #include <render_queue.h>
 
@@ -18,7 +19,7 @@ public:
 
     // collect objects with transform, mesh, render
     auto collect_renderables(const std::vector<std::unique_ptr<Game_object>>& objects) -> void;
-    // auto collect_text() -> void;
+    auto collect_text(const std::vector<defs::types::text::Text>& objects) -> void;
 
     auto get_queue() -> Render_queue* { return &render_queue; }
     auto clear_queue() -> void { render_queue.clear(); }

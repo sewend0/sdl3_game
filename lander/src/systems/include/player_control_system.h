@@ -4,6 +4,7 @@
 #define SDL3_GAME_PLAYER_CONTROL_SYSTEM_H
 
 #include <game_object.h>
+#include <utils.h>
 
 #include <vector>
 

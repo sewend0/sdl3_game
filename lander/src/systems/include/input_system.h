@@ -5,6 +5,7 @@
 
 #include <game_object.h>
 #include <input_state.h>
+#include <utils.h>
 
 #include <vector>
 

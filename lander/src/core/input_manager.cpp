@@ -27,6 +27,7 @@ auto Input_manager::handle_input(const SDL_Event& event) -> utils::Result<> {
                 default:
                     break;
             }
+            break;
 
         case SDL_EVENT_KEY_UP:
             switch (event.key.key) {
@@ -42,6 +43,7 @@ auto Input_manager::handle_input(const SDL_Event& event) -> utils::Result<> {
                 default:
                     break;
             }
+            break;
 
         default:
             break;

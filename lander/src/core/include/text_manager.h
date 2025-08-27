@@ -17,9 +17,8 @@ class Text_manager {
 private:
     Resource_manager* resource_manager;
     TTF_TextEngine* text_engine;
-    // TODO: this needs to change to be defs::text_types::Text
-    // need to be able to give all the info to a command, including pos, scale, etc
-    std::unordered_map<Uint32, TTF_Text*> text_objects;
+
+    std::unordered_map<Uint32, defs::types::text::Text> text_objects;
     Uint32 next_text_id{1};
 
 public:
@@ -33,6 +32,10 @@ public:
 
     // Rendering data
     auto get_draw_data(Uint32 text_id) -> TTF_GPUAtlasDrawSequence*;
+
+    auto create_draw_data(defs::types::text::Text& text_object) -> utils::Result<>;
+
+    auto get_text_objects() -> utils::Result<std::vector<defs::types::text::Text>>;
 };
 
 #endif    // SDL3_GAME_TEXT_MANAGER_H

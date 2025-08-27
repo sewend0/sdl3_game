@@ -24,10 +24,39 @@ auto Text_manager::create_text(
 
     TTF_Font* font{TRY(resource_manager->get_font(file_name))};
 
-    TTF_Text* text_obj{CHECK_PTR(TTF_CreateText(text_engine, font, text.c_str(), 0))};
-    TTF_SetTextColorFloat(text_obj, color.r, color.g, color.b, color.a);
+    TTF_Text* ttf_text_obj{CHECK_PTR(TTF_CreateText(text_engine, font, text.c_str(), 0))};
+
+    // hmm...
+    TTF_SetTextColorFloat(ttf_text_obj, color.r, color.g, color.b, color.a);
+
+    defs::types::text::Text text_obj{
+        .text = *ttf_text_obj,
+        .position = {0.0F, 0.0F},
+        .color = color,
+        .scale = 1.0F,
+    };
 
     Uint32 id{next_text_id++};
     text_objects[id] = text_obj;
+
     return id;
+}
+
+auto Text_manager::create_draw_data(defs::types::text::Text& text_object) -> utils::Result<> {
+    text_object.draw_data = *TTF_GetGPUTextDrawData(&text_object.text);
+
+    return {};
+}
+
+auto Text_manager::get_text_objects() -> utils::Result<std::vector<defs::types::text::Text>> {
+
+    std::vector<defs::types::text::Text> objects;
+    for (const auto& text : text_objects) {
+        objects.push_back(text.second);
+    }
+
+    for (auto& text : objects)
+        TRY(create_draw_data(text));
+
+    return {objects};
 }

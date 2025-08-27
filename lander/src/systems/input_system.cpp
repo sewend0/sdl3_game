@@ -13,9 +13,9 @@ auto Input_system::iterate(
             controller->thrust_intent = state.is_space;
 
             if (state.is_a)
-                controller->rotation_intent = -1.0F;
-            else if (state.is_d)
                 controller->rotation_intent = 1.0F;
+            else if (state.is_d)
+                controller->rotation_intent = -1.0F;
             else
                 controller->rotation_intent = 0.0F;
         }

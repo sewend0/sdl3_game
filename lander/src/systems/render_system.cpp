@@ -24,3 +24,12 @@ auto Render_system::collect_renderables(const std::vector<std::unique_ptr<Game_o
     }
 }
 
+auto Render_system::collect_text(const std::vector<defs::types::text::Text>& objects) -> void {
+    for (const auto& obj : objects) {
+        const Render_text_command cmd{
+            .text_obj = obj,
+        };
+
+        render_queue.text_commands.push_back(cmd);
+    }
+}

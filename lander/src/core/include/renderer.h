@@ -58,6 +58,7 @@ private:
     // std::unordered_map<Uint32, Uint32> mesh_vertex_buffers;  // mesh_id -> buffer_id
     // std::unordered_map<std::string, Uint32> pipeline_ids;    // pipeline_name -> pipeline_id
 
+    Uint32 text_pipeline_id{};
     Buffer_handles text_buffers{};
     SDL_GPUSampler* text_sampler{nullptr};
 

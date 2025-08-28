@@ -2,7 +2,9 @@
 
 #ifndef SDL3_GAME_ASSET_PATHS_H
 #define SDL3_GAME_ASSET_PATHS_H
+
 #include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
 #include <utils.h>
 
 #include <filesystem>
@@ -45,11 +47,20 @@ namespace defs {
 
         namespace text {
             struct Text {
-                TTF_Text text;
-                TTF_GPUAtlasDrawSequence draw_data;
-                glm::vec2 position;
-                glm::vec4 color;
-                float scale;
+                std::string font_name;
+                std::string content;
+
+                glm::vec2 position{0.0F, 0.0F};
+                float rotation{0.0F};
+                glm::vec2 scale{1.0F, 1.0F};
+                glm::vec4 color{0.0F};
+                glm::mat4 model_matrix;
+
+                TTF_Text* ttf_text{nullptr};
+                TTF_GPUAtlasDrawSequence* draw_data{nullptr};
+
+                bool needs_regen{true};
+                bool visible{true};
             };
         }    // namespace text
 
@@ -186,6 +197,17 @@ namespace defs {
         inline constexpr int window_height{600};
         inline constexpr std::string_view window_name{"lander"};
     }    // namespace startup
+
+    namespace ui {
+        inline constexpr glm::vec4 default_color{1.0F, 1.0F, 1.0F, 1.0F};
+
+        inline constexpr std::string_view debug_text{"debug"};
+        inline constexpr std::string_view score_text{"score"};
+        inline constexpr std::string_view fuel_text{"fuel"};
+
+        inline constexpr auto default_elements =
+            std::to_array<std::string_view>({debug_text, score_text, fuel_text});
+    }    // namespace ui
 
     namespace pipelines {
         enum class Type {

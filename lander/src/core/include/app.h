@@ -50,6 +50,7 @@ private:
     auto load_startup_assets() -> utils::Result<>;
     auto create_lander() -> utils::Result<>;
     auto create_default_pipelines() -> utils::Result<>;
+    auto create_default_ui() -> utils::Result<>;
 };
 
 #endif    // SDL3_GAME_APP_H

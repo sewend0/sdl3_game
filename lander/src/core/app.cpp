@@ -49,6 +49,7 @@ auto App::init() -> utils::Result<> {
     TRY(load_startup_assets());
     TRY(create_default_pipelines());
     TRY(create_lander());
+    TRY(create_default_ui());
 
     game_state->camera = {};
 
@@ -150,9 +151,12 @@ auto App::update() -> void {
         game_state->render_system->clear_queue();
         game_state->render_system->collect_renderables(game_state->game_objects);
 
-        auto text_object{game_state->text_manager->get_text_objects()};
-        if (text_object)
-            game_state->render_system->collect_text(text_object.value());
+        game_state->text_manager->update_text_content(
+            std::string(defs::ui::debug_text), "hello world"
+        );
+
+        auto text_objects{game_state->text_manager->get_text_objects()};
+        game_state->render_system->collect_text(text_objects);
 
         // hmm...
         const defs::types::camera::Frame_data frame_data{
@@ -225,6 +229,20 @@ auto App::create_lander() -> utils::Result<> {
 auto App::create_default_pipelines() -> utils::Result<> {
     for (const auto& pipeline : defs::pipelines::default_pipelines)
         TRY(game_state->renderer->create_pipeline(pipeline));
+
+    return {};
+}
+
+auto App::create_default_ui() -> utils::Result<> {
+    TRY(game_state->text_manager->create_text(
+        std::string(defs::ui::debug_text), std::string(defs::assets::fonts::font_pong), "debug",
+        {300.0F, 300.0F}, {1.0F, 1.0F}, defs::ui::default_color
+    ));
+
+    TRY(game_state->text_manager->create_text(
+        std::string(defs::ui::score_text), std::string(defs::assets::fonts::font_pong), "000",
+        {100.0F, 100.0F}, {1.0F, 1.0F}, defs::ui::default_color
+    ));
 
     return {};
 }

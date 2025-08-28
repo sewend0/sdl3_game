@@ -26,8 +26,13 @@ auto Render_system::collect_renderables(const std::vector<std::unique_ptr<Game_o
 
 auto Render_system::collect_text(const std::vector<defs::types::text::Text>& objects) -> void {
     for (const auto& obj : objects) {
+        if (not obj.visible || not obj.draw_data)
+            continue;
+
         const Render_text_command cmd{
-            .text_obj = obj,
+            .draw_data = obj.draw_data,
+            .model_matrix = obj.model_matrix,
+            .depth = obj.position.y,    // can sort however
         };
 
         render_queue.text_commands.push_back(cmd);

@@ -84,6 +84,10 @@ auto Renderer::create_pipeline(const defs::pipelines::Desc& desc) -> utils::Resu
     Uint32 pipeline_id{next_pipeline_id++};
     pipelines[pipeline_id] = pipeline;
 
+    // dumb workaround for identifying single text pipeline
+    if (desc.type == defs::pipelines::Type::Text)
+        text_pipeline_id = pipeline_id;
+
     return {pipeline_id};
 }
 
@@ -155,6 +159,9 @@ auto Renderer::render_frame(
         utils::log("dbg: " + res.error());
         TRY(end_frame());
     }
+
+    // TODO: handle dynamic text data before rendering
+    // TRY(upload_text_data();
 
     // utils::log("executing commands");
     if (auto res = execute_commands(queue); not res)
@@ -249,7 +256,6 @@ auto Renderer::render_opaque(const std::vector<Render_mesh_command>& commands) -
         SDL_BindGPUVertexBuffers(current_frame.render_pass, 0, &buffer_binding, 1);
 
         // update uniform data (this does not necessarily need to be done here)
-        // cant i just give the shader the matrices, and let it to do the math?
         // Build 2D model matrix with translation, rotation, and scale
         glm::mat4 mvp{
             current_frame.frame_data.proj_matrix * current_frame.frame_data.view_matrix *
@@ -267,7 +273,18 @@ auto Renderer::render_opaque(const std::vector<Render_mesh_command>& commands) -
 }
 
 auto Renderer::render_text(const std::vector<Render_text_command>& commands) -> utils::Result<> {
-    //
+
+    // bind text pipeline once
+    SDL_GPUGraphicsPipeline* pipeline{TRY(get_pipeline(text_pipeline_id))};
+    SDL_BindGPUGraphicsPipeline(current_frame.render_pass, pipeline);
+
+    for (const auto& cmd : commands) {
+        // upload model matrix as uniform (same as meshes)
+        // upload text-specific draw data
+        // render
+    }
+
+    return {};
 }
 
 auto Renderer::create_vertex_buffer(const Uint32 buffer_size) -> utils::Result<Uint32> {

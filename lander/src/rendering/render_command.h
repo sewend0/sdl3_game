@@ -21,12 +21,11 @@ struct Render_mesh_command {
 //     //
 // };
 
-// include the TTF_GPUAtlastDrawSequence?
 struct Render_text_command {
-    // Uint32 text_id;
-    // glm::vec2 position;
-    // float scale{1.0F};
-    defs::types::text::Text text_obj;
+    // Uint32 pipeline_id;
+    TTF_GPUAtlasDrawSequence* draw_data;
+    glm::mat4 model_matrix;
+    float depth;
 };
 
 #endif    // SDL3_GAME_RENDER_COMMAND_H

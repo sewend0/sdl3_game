@@ -6,7 +6,6 @@
 #include <SDL3/SDL.h>
 
 #include <glm/glm/ext/matrix_transform.hpp>
-#include <glm/glm/glm.hpp>
 #include <glm/glm/matrix.hpp>
 #include <glm/glm/vec2.hpp>
 

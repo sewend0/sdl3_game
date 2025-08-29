@@ -16,6 +16,16 @@ struct Buffer_handles {
     SDL_GPUTransferBuffer* transfer_buffer{nullptr};
 };
 
+struct Text_handles {
+    // Uint32 text_pipeline_id{};
+    SDL_GPUGraphicsPipeline* pipeline{nullptr};
+    SDL_GPUBuffer* vertex_buffer{nullptr};
+    SDL_GPUBuffer* index_buffer{nullptr};
+    SDL_GPUTransferBuffer* vertex_transfer_buffer{nullptr};
+    SDL_GPUTransferBuffer* index_transfer_buffer{nullptr};
+    SDL_GPUSampler* sampler{nullptr};
+};
+
 struct Frame_context {
     SDL_GPUCommandBuffer* command_buffer{nullptr};
     SDL_GPURenderPass* render_pass{nullptr};
@@ -58,9 +68,12 @@ private:
     // std::unordered_map<Uint32, Uint32> mesh_vertex_buffers;  // mesh_id -> buffer_id
     // std::unordered_map<std::string, Uint32> pipeline_ids;    // pipeline_name -> pipeline_id
 
-    Uint32 text_pipeline_id{};
-    Buffer_handles text_buffers{};
-    SDL_GPUSampler* text_sampler{nullptr};
+    // Uint32 text_pipeline_id{};
+    // Buffer_handles text_buffers{};
+    // SDL_GPUSampler* text_sampler{nullptr};
+    Text_handles text_handles{};
+    size_t text_vertex_buffer_size{0};
+    size_t text_index_buffer_size{0};
 
 public:
     auto init(SDL_GPUDevice* gpu_device, SDL_Window* win, Resource_manager* res_manager)
@@ -99,7 +112,11 @@ private:
     ) -> utils::Result<>;
     // auto upload_text_data(TTF_GPUAtlasDrawSequence* draw_data, glm::vec2 pos, float scale) ->
     // void;
-    auto upload_text_data(const Render_text_command& command) -> utils::Result<>;
+    auto upload_text_data(std::vector<Render_text_command>& commands) -> utils::Result<>;
+    auto make_glyph_vertices(const TTF_GPUAtlasDrawSequence* glyph)
+        -> std::vector<defs::types::vertex::Textured_vertex>;
+
+    auto ensure_text_buffer_capacity(size_t vertex_count, size_t index_count) -> utils::Result<>;
 
     auto get_pipeline(Uint32 id) const -> utils::Result<SDL_GPUGraphicsPipeline*>;
     auto get_buffers(Uint32 mesh_id) const -> utils::Result<Buffer_handles>;

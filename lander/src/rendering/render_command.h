@@ -26,6 +26,12 @@ struct Render_text_command {
     TTF_GPUAtlasDrawSequence* draw_data;
     glm::mat4 model_matrix;
     float depth;
+
+    // batch rendering - byte offsets in buffer, totals for all glyphs
+    size_t vertex_offset{0};
+    size_t index_offset{0};
+    size_t vertex_count{0};
+    size_t index_count{0};
 };
 
 #endif    // SDL3_GAME_RENDER_COMMAND_H

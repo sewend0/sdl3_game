@@ -86,7 +86,8 @@ auto Renderer::create_pipeline(const defs::pipelines::Desc& desc) -> utils::Resu
 
     // dumb workaround for identifying single text pipeline
     if (desc.type == defs::pipelines::Type::Text)
-        text_pipeline_id = pipeline_id;
+        text_handles.pipeline = pipelines[pipeline_id];
+    // text_pipeline_id = pipeline_id;
 
     return {pipeline_id};
 }
@@ -122,22 +123,17 @@ auto Renderer::register_mesh(Uint32 mesh_id) -> utils::Result<> {
 
 auto Renderer::prepare_text_buffers() -> utils::Result<> {
     // create buffers and sampler
-    Uint32 vertex_buffer_id = TRY(create_vertex_buffer(defs::pipelines::max_text_vertex));
-    Uint32 index_buffer_id = TRY(create_index_buffer(defs::pipelines::max_text_index));
-    Uint32 transfer_buffer_id = TRY(
-        create_transfer_buffer(defs::pipelines::max_text_vertex + defs::pipelines::max_text_index)
-    );
-    Uint32 sampler_id = TRY(create_sampler());
+    Uint32 vertex_buffer_id{TRY(create_vertex_buffer(defs::pipelines::max_text_vertex))};
+    Uint32 index_buffer_id{TRY(create_index_buffer(defs::pipelines::max_text_index))};
+    Uint32 vertex_transfer_buffer_id{TRY(create_transfer_buffer(defs::pipelines::max_text_vertex))};
+    Uint32 index_transfer_buffer_id{TRY(create_transfer_buffer(defs::pipelines::max_text_index))};
+    Uint32 sampler_id{TRY(create_sampler())};
 
-    // store handles
-    Buffer_handles handles{
-        .vertex_buffer = vertex_buffers[vertex_buffer_id],
-        .index_buffer = index_buffers[index_buffer_id],
-        .transfer_buffer = transfer_buffers[transfer_buffer_id],
-    };
-
-    text_buffers = handles;
-    text_sampler = samplers[sampler_id];
+    text_handles.vertex_buffer = vertex_buffers[vertex_buffer_id];
+    text_handles.index_buffer = index_buffers[index_buffer_id];
+    text_handles.vertex_transfer_buffer = transfer_buffers[vertex_transfer_buffer_id];
+    text_handles.index_transfer_buffer = transfer_buffers[index_transfer_buffer_id];
+    text_handles.sampler = samplers[sampler_id];
 
     // not uploading, keeping transfer
 
@@ -161,7 +157,9 @@ auto Renderer::render_frame(
     }
 
     // TODO: handle dynamic text data before rendering
-    // TRY(upload_text_data();
+    // handle dynamic text data before rendering
+    if (not queue->text_commands.empty())
+        TRY(upload_text_data(queue->text_commands));
 
     // utils::log("executing commands");
     if (auto res = execute_commands(queue); not res)
@@ -273,15 +271,33 @@ auto Renderer::render_opaque(const std::vector<Render_mesh_command>& commands) -
 }
 
 auto Renderer::render_text(const std::vector<Render_text_command>& commands) -> utils::Result<> {
+    if (commands.empty())
+        return {};
 
-    // bind text pipeline once
-    SDL_GPUGraphicsPipeline* pipeline{TRY(get_pipeline(text_pipeline_id))};
-    SDL_BindGPUGraphicsPipeline(current_frame.render_pass, pipeline);
+    // bind text pipeline and buffers once
+    // SDL_GPUGraphicsPipeline* pipeline{TRY(get_pipeline(text_pipeline_id))};
+    SDL_BindGPUGraphicsPipeline(current_frame.render_pass, text_handles.pipeline);
 
+    SDL_GPUBufferBinding vertex_binding{
+        .buffer = text_handles.vertex_buffer,
+        .offset = 0,
+    };
+    SDL_BindGPUVertexBuffers(current_frame.render_pass, 0, &vertex_binding, 1);
+
+    SDL_GPUBufferBinding index_binding{
+        .buffer = text_handles.index_buffer,
+        .offset = 0,
+    };
+    SDL_BindGPUIndexBuffer(
+        current_frame.render_pass, &index_binding, SDL_GPU_INDEXELEMENTSIZE_16BIT
+    );
+
+    // render each text command
     for (const auto& cmd : commands) {
-        // upload model matrix as uniform (same as meshes)
-        // upload text-specific draw data
-        // render
+        // upload uniforms (model matrix):
+        // upload_text_uniforms(cmd.model_matrix, current_frame.frame_data);
+        // draw this text's portion of the buffer:
+        // SDL_DrawGPUIndexedPrimitives();
     }
 
     return {};
@@ -391,8 +407,189 @@ auto Renderer::upload_mesh_data(
     return {};
 }
 
-auto Renderer::upload_text_data(const Render_text_command& command) -> utils::Result<> {
-    //
+// Uint32 buffer_size{
+//     static_cast<Uint32>(vertex_data.size() * sizeof(defs::types::vertex::Mesh_vertex))
+// };
+// // map transfer buffer to a pointer
+// defs::types::vertex::Mesh_vertex* transfer_ptr{CHECK_PTR(
+//     static_cast<defs::types::vertex::Mesh_vertex*>(
+//         SDL_MapGPUTransferBuffer(device, buffers->transfer_buffer, false)
+//     )
+// )};
+//
+// // copy the data, and unmap when finished updating transfer buffer
+// SDL_memcpy(transfer_ptr, vertex_data.data(), buffer_size);
+// SDL_UnmapGPUTransferBuffer(device, buffers->transfer_buffer);
+
+auto Renderer::upload_text_data(std::vector<Render_text_command>& commands) -> utils::Result<> {
+
+    // calculate total vertices needed for ALL text
+    size_t total_vertices{0};
+    size_t total_indices{0};
+    for (const auto& cmd : commands)
+        if (cmd.draw_data) {
+            TTF_GPUAtlasDrawSequence* current{cmd.draw_data};
+            while (current) {
+                total_vertices += cmd.draw_data->num_vertices;
+                total_indices += cmd.draw_data->num_indices;
+
+                current = current->next;
+            }
+        }
+
+    if (total_vertices == 0)
+        return {};
+
+    // ensure buffers are large enough
+    TRY(ensure_text_buffer_capacity(total_vertices, total_indices));
+
+    // map transfer buffers
+    void* vertex_ptr{
+        CHECK_PTR(SDL_MapGPUTransferBuffer(device, text_handles.vertex_transfer_buffer, false))
+    };
+    void* index_ptr{
+        CHECK_PTR(SDL_MapGPUTransferBuffer(device, text_handles.index_transfer_buffer, false))
+    };
+
+    // copy all text data into transfer buffers
+    size_t vertex_offset{0};    // byte offsets
+    size_t index_offset{0};
+    for (auto& cmd : commands) {
+        if (not cmd.draw_data)
+            continue;
+
+        // byte offsets - store where this command's data starts
+        cmd.vertex_offset = vertex_offset;
+        cmd.index_offset = index_offset;
+
+        size_t command_vertex_count{0};
+        size_t command_index_count{0};
+
+        // iterate through all glyphs in this command
+        TTF_GPUAtlasDrawSequence* current_glyph{cmd.draw_data};
+        while (current_glyph) {
+
+            // create glyph's vertices
+            const std::vector<defs::types::vertex::Textured_vertex> vertices{
+                make_glyph_vertices(current_glyph)
+            };
+
+            // copy vertices - destination: buffer + byte offset, source: vertex data, size in bytes
+            SDL_memcpy(
+                static_cast<char*>(vertex_ptr) + vertex_offset, vertices.data(),
+                vertices.size() * sizeof(defs::types::vertex::Textured_vertex)
+            );
+
+            // copy and adjust indices for batching
+            /* left side:
+             * static_cast<Uint16*>(index_ptr)
+             * treat buffer as an array of Uint16s
+             * index_offset / sizeof(Uint16)
+             * convert byte offset to element offset (how many Uint16s in)
+             * + i
+             * add current index being processed
+             *
+             * right side:
+             * cmd.draw_data->indices[i]
+             * original index (0, 1, 2, etc.)
+             * vertex_offset / sizeof(defs::types::vertex::Textured_vertex)
+             * how many vertices came before this text
+             * adding them together adjusts the index to point to correct vertex in combined buffer
+             */
+            for (int i = 0; i < current_glyph->num_indices; ++i) {
+                static_cast<Uint16*>(index_ptr)[index_offset / sizeof(Uint16) + i] =
+                    current_glyph->indices[i] +
+                    (vertex_offset / sizeof(defs::types::vertex::Textured_vertex));
+            }
+
+            // update offsets for next glyph
+            vertex_offset +=
+                current_glyph->num_vertices * sizeof(defs::types::vertex::Textured_vertex);
+            index_offset += current_glyph->num_indices * sizeof(Uint16);
+
+            // track totals for this command
+            command_vertex_count += current_glyph->num_vertices;
+            command_index_count += current_glyph->num_indices;
+
+            // move to next glyph
+            current_glyph = current_glyph->next;
+        }
+
+        // store total counts (all glyphs) for entire command
+        cmd.vertex_count = command_vertex_count;
+        cmd.index_count = command_index_count;
+    }
+
+    SDL_UnmapGPUTransferBuffer(device, text_handles.vertex_transfer_buffer);
+    SDL_UnmapGPUTransferBuffer(device, text_handles.index_transfer_buffer);
+
+    // perform copy pass
+    SDL_GPUCopyPass* copy_pass{CHECK_PTR(SDL_BeginGPUCopyPass(current_frame.command_buffer))};
+
+    // locate the data/source
+    SDL_GPUTransferBufferLocation vertex_source{
+        .transfer_buffer = text_handles.vertex_transfer_buffer,
+        .offset = 0,
+    };
+    SDL_GPUTransferBufferLocation index_source{
+        .transfer_buffer = text_handles.index_transfer_buffer,
+        .offset = 0,
+    };
+
+    // locate upload destination
+    SDL_GPUBufferRegion vertex_destination{
+        .buffer = text_handles.vertex_buffer,
+        .offset = 0,
+        .size = static_cast<Uint32>(total_vertices * sizeof(defs::types::vertex::Textured_vertex)),
+    };
+    SDL_GPUBufferRegion index_destination{
+        .buffer = text_handles.index_buffer,
+        .offset = 0,
+        .size = static_cast<Uint32>(total_indices * sizeof(Uint16)),
+    };
+
+    // upload the data, end the copy pass, and submit command buffer
+    SDL_UploadToGPUBuffer(copy_pass, &vertex_source, &vertex_destination, true);
+    SDL_UploadToGPUBuffer(copy_pass, &index_source, &index_destination, true);
+    SDL_EndGPUCopyPass(copy_pass);
+
+    return {};
+}
+
+auto Renderer::make_glyph_vertices(const TTF_GPUAtlasDrawSequence* glyph)
+    -> std::vector<defs::types::vertex::Textured_vertex> {
+
+    std::vector<defs::types::vertex::Textured_vertex> vertices{};
+    for (int i = 0; i < glyph->num_vertices; ++i) {
+        const defs::types::vertex::Textured_vertex vertex{
+            .position = {glyph->xy[i].x, glyph->xy[i].y},
+            .color = {1.0F, 1.0F, 1.0F, 1.0F},
+            .uv = {glyph->uv[i].x, glyph->uv[i].y},
+        };
+
+        vertices.push_back(vertex);
+    }
+    return vertices;
+}
+
+auto Renderer::ensure_text_buffer_capacity(size_t vertex_count, size_t index_count)
+    -> utils::Result<> {
+    size_t needed_vertex_size{vertex_count * sizeof(defs::types::vertex::Textured_vertex)};
+    size_t needed_index_size{index_count * sizeof(Uint16)};
+
+    // TODO: finish this
+    // grow buffers if needed (with some headroom)
+    if (needed_vertex_size > text_vertex_buffer_size) {
+        size_t new_size{needed_vertex_size * 2};
+        // TRY(recreate_text_vertex_buffers(new_size));
+    }
+
+    if (needed_index_size > text_index_buffer_size) {
+        size_t new_size{needed_index_size * 2};
+        // TRY(recreate_text_index_buffers(new_size));
+    }
+
+    return {};
 }
 
 auto Renderer::get_pipeline(Uint32 id) const -> utils::Result<SDL_GPUGraphicsPipeline*> {

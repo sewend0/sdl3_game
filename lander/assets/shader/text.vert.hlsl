@@ -1,8 +1,5 @@
-cbuffer uniforms : register(b0, space1)
-{
-    row_major float4x4 proj_view : packoffset(c0);
-    row_major float4x4 model : packoffset(c4);
-    // row_major float4x4 model : packoffset(c0);
+cbuffer uniform_buffer : register(b0, space1) {
+    float4x4 mvp;
 };
 
 struct vs_input
@@ -22,13 +19,12 @@ struct vs_output
 vs_output main(vs_input input)
 {
     float4 pos = float4(input.position, 0.0F, 1.0F);
-    float4x4 mvp = float4x4(mul(model, proj_view));
 
     vs_output output;
     output.color = input.color;
     output.tex_coord = input.tex_coord;
-    // output.position = mul(float4(input.position, 0.0F, 1.0F), mul(model, proj_view));
-    output.position = mul(pos, mvp);
+    output.position = mul(mvp, pos);
+
     return output;
 }
 

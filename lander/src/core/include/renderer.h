@@ -76,7 +76,7 @@ private:
     size_t text_index_buffer_size{0};
 
 public:
-    auto init(SDL_GPUDevice* gpu_device, SDL_Window* win, Resource_manager* res_manager)
+    auto init(SDL_GPUDevice& gpu_device, SDL_Window& win, Resource_manager& res_manager)
         -> utils::Result<>;
     auto quit() -> void;
 
@@ -86,39 +86,42 @@ public:
     // Prepare buffers for a mesh and upload data
     auto register_mesh(Uint32 mesh_id) -> utils::Result<>;
 
-    auto prepare_text_buffers() -> utils::Result<>;
+    auto prepare_text_resources() -> utils::Result<>;
+    auto create_text_vertex_buffers(size_t buffer_size) -> utils::Result<>;
+    auto create_text_index_buffers(size_t buffer_size) -> utils::Result<>;
 
     // Single call to render a frame
-    auto render_frame(const Render_queue* queue, const defs::types::camera::Frame_data& frame_data)
+    auto render_frame(Render_queue& queue, const defs::types::camera::Frame_data& frame_data)
         -> utils::Result<>;
 
 private:
-    auto begin_frame(const defs::types::camera::Frame_data& frame_data) -> utils::Result<>;
-    auto execute_commands(const Render_queue* queue) -> utils::Result<>;
+    auto begin_frame(Render_queue& queue, const defs::types::camera::Frame_data& frame_data)
+        -> utils::Result<>;
+    auto execute_commands(const Render_queue& queue) const -> utils::Result<>;
     auto end_frame() -> utils::Result<>;
 
-    auto render_opaque(const std::vector<Render_mesh_command>& commands) -> utils::Result<>;
+    auto render_opaque(const std::vector<Render_mesh_command>& commands) const -> utils::Result<>;
     // auto render_transparent(const std::vector<Render_mesh_command>& commands) -> utils::Result<>;
     // auto render_ui(const std::vector<Render_ui_command>& commands) -> utils::Result<>;
-    auto render_text(const std::vector<Render_text_command>& commands) -> utils::Result<>;
+    auto render_text(const std::vector<Render_text_command>& commands) const -> utils::Result<>;
 
-    auto create_vertex_buffer(Uint32 buffer_size) -> utils::Result<Uint32>;
-    auto create_index_buffer(Uint32 buffer_size) -> utils::Result<Uint32>;
-    auto create_transfer_buffer(Uint32 buffer_size) -> utils::Result<Uint32>;
+    auto create_vertex_buffer(size_t buffer_size) -> utils::Result<Uint32>;
+    auto create_index_buffer(size_t buffer_size) -> utils::Result<Uint32>;
+    auto create_transfer_buffer(size_t buffer_size) -> utils::Result<Uint32>;
     auto create_sampler() -> utils::Result<Uint32>;
 
     auto upload_mesh_data(
-        Buffer_handles* buffers, const defs::types::vertex::Mesh_data& vertex_data
-    ) -> utils::Result<>;
+        const Buffer_handles& buffers, const defs::types::vertex::Mesh_data& vertex_data
+    ) const -> utils::Result<>;
     // auto upload_text_data(TTF_GPUAtlasDrawSequence* draw_data, glm::vec2 pos, float scale) ->
     // void;
     auto upload_text_data(std::vector<Render_text_command>& commands) -> utils::Result<>;
-    auto make_glyph_vertices(const TTF_GPUAtlasDrawSequence* glyph)
+    static auto make_glyph_vertices(const TTF_GPUAtlasDrawSequence& glyph)
         -> std::vector<defs::types::vertex::Textured_vertex>;
 
     auto ensure_text_buffer_capacity(size_t vertex_count, size_t index_count) -> utils::Result<>;
 
-    auto get_pipeline(Uint32 id) const -> utils::Result<SDL_GPUGraphicsPipeline*>;
+    auto get_pipeline(Uint32 pipeline_id) const -> utils::Result<SDL_GPUGraphicsPipeline*>;
     auto get_buffers(Uint32 mesh_id) const -> utils::Result<Buffer_handles>;
 };
 

@@ -142,24 +142,19 @@ auto Text_manager::get_matrix(const defs::types::text::Text& text) -> glm::mat4 
 
 auto Text_manager::regenerate_text_if_needed(defs::types::text::Text& text) -> utils::Result<> {
     // need to update?
-    // if (not text.needs_regen && text.draw_data)
     if (not text.needs_regen)
         return {};
 
     // get font
     TTF_Font* font{TRY(resource_manager->get_font(text.font_name))};
 
-    // create/recreate TTF_Text if needed
-    if (text.needs_regen) {
-        if (text.ttf_text)
-            TTF_DestroyText(text.ttf_text);
+    // create/recreate TTF_Text
+    if (text.ttf_text)
+        TTF_DestroyText(text.ttf_text);
 
-        text.ttf_text = CHECK_PTR(TTF_CreateText(text_engine, font, text.content.c_str(), 0));
+    text.ttf_text = CHECK_PTR(TTF_CreateText(text_engine, font, text.content.c_str(), 0));
 
-        TTF_SetTextColorFloat(
-            text.ttf_text, text.color.r, text.color.g, text.color.b, text.color.a
-        );
-    }
+    TTF_SetTextColorFloat(text.ttf_text, text.color.r, text.color.g, text.color.b, text.color.a);
 
     // // always regen draw data (frame-specific)
     // if (text.draw_data) {

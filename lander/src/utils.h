@@ -11,45 +11,18 @@
 
 namespace utils {
 
+    // can this constexpr?
     inline auto log(const std::string& msg) -> void {
         SDL_Log(std::format("{}", msg).c_str());
     }
 
-    // Error checking
-    // class App_exception final : public std::runtime_error {
-    // public:
-    //     explicit App_exception(std::string_view message) :
-    //         std::runtime_error(std::format("{}: {}", message, SDL_GetError())) {}
-    //
-    //     App_exception() : std::runtime_error(SDL_GetError()) {}
-    // };
-    //
-    // inline auto check_bool(const bool okay) -> void {
-    //     if (not okay)
-    //         throw App_exception();
-    // }
-    //
-    // inline auto check_bool(const bool okay, const std::string& msg) -> void {
-    //     if (not okay)
-    //         throw App_exception(msg);
-    // }
-    //
-    // template <typename T>
-    // inline auto check_ptr(T* ptr) -> T* {
-    //     if (!ptr)
-    //         throw App_exception();
-    //     return ptr;
-    // }
-    //
-    // template <typename T>
-    // inline auto check_ptr(T* ptr, const ::std::string& msg) -> T* {
-    //     if (!ptr)
-    //         throw App_exception(msg);
-    //     return ptr;
-    // }
-
     template <typename T = void>
     using Result = std::expected<T, std::string>;
+
+    // inline constexpr auto size_to_u32(size_t size) -> Result<Uint32> {
+    //     return (size <= UINT32_MAX) ? Result<Uint32>(static_cast<Uint32>(size))
+    //                                 : std::unexpected("Size exceeds SDL limits");
+    // }
 
     // TRY macro for extracting values from Result<T>
 #define TRY(expr)                                   \
@@ -129,6 +102,22 @@ namespace utils {
 #define CHECK_PTR(...) CHECK_PTR_CHOOSER(__VA_ARGS__)(__VA_ARGS__)
 
     // Math helpers
+
+    // #define VALID_SDL_SIZE(size)                                   \
+//     do {                                                       \
+//         if ((size) >= UINT32_MAX) {                            \
+//             return std::unexpected("Size exceeds SDL limits"); \
+//         }                                                      \
+//     } while (0)
+
+#define VALID_SDL_SIZE(size)                                   \
+    ({                                                         \
+        if (size >= UINT32_MAX) {                              \
+            return std::unexpected("Size exceeds SDL limits"); \
+        }                                                      \
+        size;                                                  \
+    })
+
     // File helpers
     // etc...
 

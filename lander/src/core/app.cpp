@@ -34,8 +34,8 @@ auto App::init() -> utils::Result<> {
 
     game_state->renderer = std::make_unique<Renderer>();
     CHECK_BOOL(game_state->renderer->init(
-        game_state->graphics->get_device(), game_state->graphics->get_window(),
-        game_state->resource_manager.get()
+        *game_state->graphics->get_device(), *game_state->graphics->get_window(),
+        *game_state->resource_manager.get()
     ));
 
     game_state->text_manager = std::make_unique<Text_manager>();
@@ -151,9 +151,43 @@ auto App::update() -> void {
         game_state->render_system->clear_queue();
         game_state->render_system->collect_renderables(game_state->game_objects);
 
-        game_state->text_manager->update_text_content(
-            std::string(defs::ui::debug_text), "hello world"
-        );
+        std::string dbg_msg{""};
+        std::string dbg_msg1{"hello world"};
+        std::string dbg_msg2{"debug"};
+
+        // method1 - failed to regen
+        double limit{2};
+        static double time{0};
+
+        time += game_state->timer->sim_delta_seconds();
+        if (time > limit * 2) {
+            time = 0;
+        } else if (time > limit) {
+            dbg_msg = dbg_msg2;
+        } else {
+            dbg_msg = dbg_msg1;
+        }
+
+        // method2 - no error
+        // static int counter{0};
+        // ++counter;
+        // if (counter % 1000 == 0)
+        //     counter = 0;
+        //
+        // if (counter <= 500)
+        //     dbg_msg = dbg_msg1;
+        // else if (counter > 500)
+        //     dbg_msg = dbg_msg2;
+
+        // TODO: 'Failed to regenerate text:'
+        game_state->text_manager->update_text_content(std::string(defs::ui::debug_text), dbg_msg);
+
+        // TODO: Validation Error:
+        // 'vkCmdCopyBuffer(): pRegions[0].size (2432) is greater than the destination buffer
+        // size (2000) minus dstOffset (0).'
+        // game_state->text_manager->update_text_content(
+        //     std::string(defs::ui::score_text), std::to_string(game_state->timer->get_fps())
+        // );
 
         auto text_objects{game_state->text_manager->get_text_objects()};
         game_state->render_system->collect_text(text_objects);
@@ -169,7 +203,7 @@ auto App::update() -> void {
         // game_state->renderer->begin_frame(frame_data);
         // game_state->renderer->execute_commands(game_state->render_system->get_queue());
         // game_state->renderer->end_frame();
-        game_state->renderer->render_frame(game_state->render_system->get_queue(), frame_data);
+        game_state->renderer->render_frame(*game_state->render_system->get_queue(), frame_data);
         //
 
         game_state->timer->mark_render();

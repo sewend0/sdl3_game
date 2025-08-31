@@ -216,8 +216,11 @@ namespace defs {
             Particle = 3,
         };
 
-        inline constexpr Uint32 initial_text_vertex_limit{2000};
-        inline constexpr Uint32 initial_text_index_limit{3000};
+        // inline constexpr Uint32 initial_text_vertex_limit{2000};
+        // inline constexpr Uint32 initial_text_index_limit{3000};
+
+        inline constexpr size_t initial_text_vertex_bytes{2000};
+        inline constexpr size_t initial_text_index_bytes{2000};
 
         struct Desc {
             Type type;

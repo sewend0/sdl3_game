@@ -151,43 +151,28 @@ auto App::update() -> void {
         game_state->render_system->clear_queue();
         game_state->render_system->collect_renderables(game_state->game_objects);
 
-        std::string dbg_msg{""};
+        static std::string dbg_msg{""};
         std::string dbg_msg1{"hello world"};
         std::string dbg_msg2{"debug"};
 
-        // method1 - failed to regen
-        double limit{2};
-        static double time{0};
+        static int counter{0};
+        ++counter;
+        if (counter % 120 == 0)
+            counter = 0;
 
-        time += game_state->timer->sim_delta_seconds();
-        if (time > limit * 2) {
-            time = 0;
-        } else if (time > limit) {
-            dbg_msg = dbg_msg2;
-        } else {
+        if (counter <= 60)
             dbg_msg = dbg_msg1;
-        }
+        else if (counter > 60)
+            dbg_msg = dbg_msg2;
 
-        // method2 - no error
-        // static int counter{0};
-        // ++counter;
-        // if (counter % 1000 == 0)
-        //     counter = 0;
-        //
-        // if (counter <= 500)
-        //     dbg_msg = dbg_msg1;
-        // else if (counter > 500)
-        //     dbg_msg = dbg_msg2;
-
-        // TODO: 'Failed to regenerate text:'
         game_state->text_manager->update_text_content(std::string(defs::ui::debug_text), dbg_msg);
 
         // TODO: Validation Error:
         // 'vkCmdCopyBuffer(): pRegions[0].size (2432) is greater than the destination buffer
         // size (2000) minus dstOffset (0).'
-        // game_state->text_manager->update_text_content(
-        //     std::string(defs::ui::score_text), std::to_string(game_state->timer->get_fps())
-        // );
+
+        std::string fps_msg{std::format("{:.2f}", game_state->timer->get_fps())};
+        game_state->text_manager->update_text_content(std::string(defs::ui::score_text), fps_msg);
 
         auto text_objects{game_state->text_manager->get_text_objects()};
         game_state->render_system->collect_text(text_objects);

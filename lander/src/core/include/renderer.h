@@ -87,8 +87,8 @@ public:
     auto register_mesh(Uint32 mesh_id) -> utils::Result<>;
 
     auto prepare_text_resources() -> utils::Result<>;
-    auto create_text_vertex_buffers(size_t buffer_size) -> utils::Result<>;
-    auto create_text_index_buffers(size_t buffer_size) -> utils::Result<>;
+    auto create_text_vertex_buffers(size_t buffer_bytes) -> utils::Result<>;
+    auto create_text_index_buffers(size_t buffer_bytes) -> utils::Result<>;
 
     // Single call to render a frame
     auto render_frame(Render_queue& queue, const defs::types::camera::Frame_data& frame_data)

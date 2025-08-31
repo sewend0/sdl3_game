@@ -69,6 +69,8 @@ auto Text_manager::update_text_content(Uint32 text_id, const std::string& new_co
         // need to properly destroy sequence, think this will just mess it up
         // if (text->draw_data)
         //     text->draw_data = nullptr;
+    } else {
+        text->needs_regen = false;
     }
 
     return {};
@@ -149,8 +151,10 @@ auto Text_manager::regenerate_text_if_needed(defs::types::text::Text& text) -> u
     TTF_Font* font{TRY(resource_manager->get_font(text.font_name))};
 
     // create/recreate TTF_Text
-    if (text.ttf_text)
+    if (text.ttf_text) {
         TTF_DestroyText(text.ttf_text);
+        text.ttf_text = nullptr;
+    }
 
     text.ttf_text = CHECK_PTR(TTF_CreateText(text_engine, font, text.content.c_str(), 0));
 

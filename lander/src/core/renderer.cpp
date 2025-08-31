@@ -123,9 +123,17 @@ auto Renderer::register_mesh(const Uint32 mesh_id) -> utils::Result<> {
 }
 
 auto Renderer::prepare_text_resources() -> utils::Result<> {
-    // create buffers and sampler
-    TRY(create_text_vertex_buffers(defs::pipelines::initial_text_vertex_limit));
-    TRY(create_text_index_buffers(defs::pipelines::initial_text_index_limit));
+    // create buffers (remember to use bytes) and sampler
+    TRY(ensure_text_buffer_capacity(
+        defs::pipelines::initial_text_vertex_bytes, defs::pipelines::initial_text_index_bytes
+    ));
+
+    // size_t vertex_bytes{
+    //     defs::pipelines::initial_text_vertex_limit * sizeof(defs::types::vertex::Textured_vertex)
+    // };
+    // size_t index_bytes{defs::pipelines::initial_text_index_limit * sizeof(Uint16)};
+    // TRY(create_text_vertex_buffers(vertex_bytes));
+    // TRY(create_text_index_buffers(index_bytes));
 
     const Uint32 sampler_id{TRY(create_sampler())};
     text_handles.sampler = samplers[sampler_id];
@@ -133,7 +141,7 @@ auto Renderer::prepare_text_resources() -> utils::Result<> {
     return {};
 }
 
-auto Renderer::create_text_vertex_buffers(size_t buffer_size) -> utils::Result<> {
+auto Renderer::create_text_vertex_buffers(size_t buffer_bytes) -> utils::Result<> {
 
     // clean up old resources
     if (text_handles.vertex_buffer) {
@@ -152,21 +160,17 @@ auto Renderer::create_text_vertex_buffers(size_t buffer_size) -> utils::Result<>
     }
 
     // create buffers
-    const Uint32 vertex_buffer_id{
-        TRY(create_vertex_buffer(defs::pipelines::initial_text_vertex_limit))
-    };
-    const Uint32 vertex_transfer_buffer_id{
-        TRY(create_transfer_buffer(defs::pipelines::initial_text_vertex_limit))
-    };
+    const Uint32 vertex_buffer_id{TRY(create_vertex_buffer(buffer_bytes))};
+    const Uint32 vertex_transfer_buffer_id{TRY(create_transfer_buffer(buffer_bytes))};
 
     text_handles.vertex_buffer = vertex_buffers[vertex_buffer_id];
     text_handles.vertex_transfer_buffer = transfer_buffers[vertex_transfer_buffer_id];
-    text_vertex_buffer_size = buffer_size;
+    text_vertex_buffer_size = buffer_bytes;
 
     return {};
 }
 
-auto Renderer::create_text_index_buffers(size_t buffer_size) -> utils::Result<> {
+auto Renderer::create_text_index_buffers(size_t buffer_bytes) -> utils::Result<> {
 
     // clean up old resources
     if (text_handles.index_buffer) {
@@ -185,15 +189,12 @@ auto Renderer::create_text_index_buffers(size_t buffer_size) -> utils::Result<> 
     }
 
     // create buffers
-    const Uint32 index_buffer_id{TRY(create_index_buffer(defs::pipelines::initial_text_index_limit))
-    };
-    const Uint32 index_transfer_buffer_id{
-        TRY(create_transfer_buffer(defs::pipelines::initial_text_index_limit))
-    };
+    const Uint32 index_buffer_id{TRY(create_index_buffer(buffer_bytes))};
+    const Uint32 index_transfer_buffer_id{TRY(create_transfer_buffer(buffer_bytes))};
 
     text_handles.index_buffer = index_buffers[index_buffer_id];
     text_handles.index_transfer_buffer = transfer_buffers[index_transfer_buffer_id];
-    text_index_buffer_size = buffer_size;
+    text_index_buffer_size = buffer_bytes;
 
     return {};
 }

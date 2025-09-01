@@ -29,7 +29,6 @@ public:
     ) :
         position{pos}, rotation{rot}, scale{sc} {}
 
-    // Should I get matrix cpu side? or form matrix in shader?
     [[nodiscard]] auto get_matrix() const -> glm::mat4;
 };
 
@@ -39,14 +38,6 @@ public:
 
     explicit C_mesh(const Uint32 mid) : mesh_id{mid} {}
 };
-
-// // do i need a text component? will i be making text as game objects?
-// class C_text final : public Component {
-// public:
-//     Uint32 text_id;
-//
-//     explicit C_text(const Uint32 tid) : text_id{tid} {}
-// };
 
 class C_render final : public Component {
 public:
@@ -90,6 +81,27 @@ public:
 
     explicit C_player_controller(const float thrust = 10.0F, const float torque = 500.0F) :
         thrust_power{thrust}, rotation_power{torque} {}
+};
+
+class C_points final : public Component {
+public:
+    std::vector<glm::vec2> points;
+
+    C_points() = default;
+    explicit C_points(const std::vector<glm::vec2>& positions) : points{positions} {}
+
+    auto replace(const std::vector<glm::vec2>& positions) -> void;
+};
+
+class C_landing_zones final : public Component {
+public:
+    std::vector<std::pair<glm::vec2, glm::vec2>> zones;
+
+    C_landing_zones() = default;
+    explicit C_landing_zones(const std::vector<std::pair<glm::vec2, glm::vec2>>& pairs) :
+        zones{pairs} {}
+
+    auto replace(const std::vector<std::pair<glm::vec2, glm::vec2>>& pairs) -> void;
 };
 
 #endif    // SDL3_GAME_COMPONENTS_H

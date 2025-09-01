@@ -1,0 +1,57 @@
+## 🧪 3. Recommended Build Order
+
+Start with a simple development spiral — each step gives you something testable:
+
+### ✅ Step 1: Build physics and lander controls
+
+* Display the lander as a triangle
+* Apply gravity
+* Rotate and thrust
+* Move with velocity
+
+### ✅ Step 2: Add static terrain
+
+* Render a flat or bumpy surface
+* No collision yet
+
+### ✅ Step 3: Collision detection
+
+* Test if lander "touches" terrain
+* Mark crash/land if certain conditions met
+
+### ✅ Step 4: Add fuel and HUD
+
+* Fuel drains when thrusting
+* Show simple text/fuel bar
+
+### ✅ Step 5: Game states & reset
+
+* Display messages: "Landed!", "Crashed!", etc.
+* Allow restart via keypress
+
+---
+
+## 🎯 4. MVP Milestone Goals
+
+You’re done with your MVP when you can:
+
+* [x] Rotate, thrust, and fall with momentum
+* [x] Land softly or crash based on physics
+* [x] Run out of fuel if used poorly
+* [x] See basic HUD and win/lose states
+* [x] Restart the game without quitting
+
+---
+
+## 🧠 Tips and Design Notes
+
+* Use `float` or `double` for all simulation — SDL integers for rendering only.
+* Treat your simulation as "meters" and scale it visually (e.g. 1 meter = 20 pixels).
+* Physics doesn’t need to be super precise — you’re making a game, not a sim!
+* If you're unsure about units, define constants like:
+
+  ```cpp
+  constexpr float gravity = 9.8f;
+  constexpr float thrust_force = 15.0f;
+  constexpr float pixel_scale = 20.0f;
+  ```

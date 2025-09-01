@@ -43,6 +43,8 @@ struct Game_state {
     // Non-owning references - raw
     // Game specific
     Game_object* lander;
+    Game_object* terrain;
+
     // Camera camera; // who else would own this?
     std::unique_ptr<Camera> camera;
 

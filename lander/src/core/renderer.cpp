@@ -2,6 +2,8 @@
 
 #include <renderer.h>
 
+#include <algorithm>
+
 auto Renderer::init(SDL_GPUDevice& gpu_device, SDL_Window& win, Resource_manager& res_manager)
     -> utils::Result<> {
     device = &gpu_device;
@@ -15,29 +17,29 @@ auto Renderer::quit() -> void {
     SDL_WaitForGPUIdle(device);
 
     // clean up pipelines
-    for (auto& [id, pipeline] : pipelines)
+    for (const auto& pipeline : pipelines | std::views::values)
         if (pipeline)
             SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
     pipelines.clear();
 
     // clean up buffers
-    for (auto& [id, buffer] : vertex_buffers)
+    for (const auto& buffer : vertex_buffers | std::views::values)
         if (buffer)
             SDL_ReleaseGPUBuffer(device, buffer);
     vertex_buffers.clear();
 
-    for (auto& [id, buffer] : index_buffers)
+    for (const auto& buffer : index_buffers | std::views::values)
         if (buffer)
             SDL_ReleaseGPUBuffer(device, buffer);
     index_buffers.clear();
 
-    for (auto& [id, buffer] : transfer_buffers)
+    for (const auto& buffer : transfer_buffers | std::views::values)
         if (buffer)
             SDL_ReleaseGPUTransferBuffer(device, buffer);
     transfer_buffers.clear();
 
     // clean up samplers
-    for (auto& [id, sampler] : samplers)
+    for (const auto& sampler : samplers | std::views::values)
         if (sampler)
             SDL_ReleaseGPUSampler(device, sampler);
     samplers.clear();
@@ -59,8 +61,8 @@ auto Renderer::create_pipeline(const defs::pipelines::Desc& desc) -> utils::Resu
     std::vector<SDL_GPUColorTargetDescription> color_target_descriptions(
         desc.color_target_descriptions.begin(), desc.color_target_descriptions.end()
     );
-    for (auto& ctd : color_target_descriptions)
-        ctd.format = swapchain_format;
+    for (auto& [format, _] : color_target_descriptions)
+        format = swapchain_format;
 
     // copy and patch next struct in chain
     auto target_info{desc.target_info};
@@ -101,7 +103,9 @@ auto Renderer::register_mesh(const Uint32 mesh_id) -> utils::Result<> {
     const defs::types::vertex::Mesh_data mesh_data{*resource_manager->get_mesh_data(mesh_id)};
 
     // create buffers
-    const Uint32 buffer_size{static_cast<Uint32>(sizeof(mesh_data) * mesh_data.size())};
+    const Uint32 buffer_size{
+        static_cast<Uint32>(mesh_data.size() * sizeof(defs::types::vertex::Mesh_vertex))
+    };
     const Uint32 vertex_buffer_id = TRY(create_vertex_buffer(buffer_size));
     const Uint32 transfer_buffer_id = TRY(create_transfer_buffer(buffer_size));
 
@@ -141,7 +145,7 @@ auto Renderer::prepare_text_resources() -> utils::Result<> {
     return {};
 }
 
-auto Renderer::create_text_vertex_buffers(size_t buffer_bytes) -> utils::Result<> {
+auto Renderer::create_text_vertex_buffers(const size_t buffer_bytes) -> utils::Result<> {
 
     // clean up old resources
     if (text_handles.vertex_buffer) {
@@ -170,7 +174,7 @@ auto Renderer::create_text_vertex_buffers(size_t buffer_bytes) -> utils::Result<
     return {};
 }
 
-auto Renderer::create_text_index_buffers(size_t buffer_bytes) -> utils::Result<> {
+auto Renderer::create_text_index_buffers(const size_t buffer_bytes) -> utils::Result<> {
 
     // clean up old resources
     if (text_handles.index_buffer) {
@@ -260,7 +264,7 @@ auto Renderer::begin_frame(Render_queue& queue, const defs::types::camera::Frame
 auto Renderer::execute_commands(const Render_queue& queue) const -> utils::Result<> {
     // sort commands by pipeline for efficiency
     auto sorted_opaque{queue.opaque_commands};
-    std::sort(
+    std::ranges::sort(
         sorted_opaque.begin(), sorted_opaque.end(),
         [](const Render_mesh_command& a, const Render_mesh_command& b) {
             return a.pipeline_id < b.pipeline_id;

@@ -49,6 +49,7 @@ auto App::init() -> utils::Result<> {
     TRY(load_startup_assets());
     TRY(create_default_pipelines());
     TRY(create_lander());
+    TRY(create_terrain());
     TRY(create_default_ui());
 
     game_state->camera = {};
@@ -167,10 +168,6 @@ auto App::update() -> void {
 
         game_state->text_manager->update_text_content(std::string(defs::ui::debug_text), dbg_msg);
 
-        // TODO: Validation Error:
-        // 'vkCmdCopyBuffer(): pRegions[0].size (2432) is greater than the destination buffer
-        // size (2000) minus dstOffset (0).'
-
         std::string fps_msg{std::format("{:.2f}", game_state->timer->get_fps())};
         game_state->text_manager->update_text_content(std::string(defs::ui::score_text), fps_msg);
 
@@ -189,6 +186,10 @@ auto App::update() -> void {
         // game_state->renderer->execute_commands(game_state->render_system->get_queue());
         // game_state->renderer->end_frame();
         game_state->renderer->render_frame(*game_state->render_system->get_queue(), frame_data);
+        //
+
+        // Terrain debug
+        auto pts = game::generate_landing_zones();
         //
 
         game_state->timer->mark_render();
@@ -265,3 +266,17 @@ auto App::create_default_ui() -> utils::Result<> {
 
     return {};
 }
+
+auto App::create_terrain() -> utils::Result<> {
+    auto terrain{std::make_unique<Game_object>()};
+
+    terrain->add_component<C_landing_zones>();
+    terrain->add_component<C_points>();
+
+    // store ref and add to collection
+    game_state->terrain = terrain.get();
+    game_state->game_objects.push_back(std::move(terrain));
+
+    return {};
+}
+

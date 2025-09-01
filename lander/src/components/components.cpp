@@ -9,3 +9,13 @@ auto C_transform::get_matrix() const -> glm::mat4 {
     model = glm::scale(model, glm::vec3(scale, 1.0F));
     return model;
 }
+
+auto C_points::replace(const std::vector<glm::vec2>& positions) -> void {
+    points.clear();
+    points = positions;
+}
+
+auto C_landing_zones::replace(const std::vector<std::pair<glm::vec2, glm::vec2>>& pairs) -> void {
+    zones.clear();
+    zones = pairs;
+}

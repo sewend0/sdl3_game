@@ -9,6 +9,8 @@
 #include <glm/glm/matrix.hpp>
 #include <glm/glm/vec2.hpp>
 
+#include "definitions.h"
+
 // Base component interface
 class Component {
 public:
@@ -83,25 +85,40 @@ public:
         thrust_power{thrust}, rotation_power{torque} {}
 };
 
-class C_points final : public Component {
+// class C_points final : public Component {
+// public:
+//     std::vector<glm::vec2> points;
+//
+//     C_points() = default;
+//     explicit C_points(const std::vector<glm::vec2>& positions) : points{positions} {}
+//
+//     auto replace(const std::vector<glm::vec2>& positions) -> void;
+// };
+//
+// class C_landing_zones final : public Component {
+// public:
+//     std::vector<std::pair<glm::vec2, glm::vec2>> zones;
+//
+//     C_landing_zones() = default;
+//     explicit C_landing_zones(const std::vector<std::pair<glm::vec2, glm::vec2>>& pairs) :
+//         zones{pairs} {}
+//
+//     auto replace(const std::vector<std::pair<glm::vec2, glm::vec2>>& pairs) -> void;
+// };
+
+class C_terrain_points final : public Component {
 public:
     std::vector<glm::vec2> points;
 
-    C_points() = default;
-    explicit C_points(const std::vector<glm::vec2>& positions) : points{positions} {}
-
-    auto replace(const std::vector<glm::vec2>& positions) -> void;
+    explicit C_terrain_points(const std::vector<glm::vec2>& positions) : points{positions} {}
 };
 
 class C_landing_zones final : public Component {
 public:
-    std::vector<std::pair<glm::vec2, glm::vec2>> zones;
+    defs::types::terrain::Landing_zones zones;
 
-    C_landing_zones() = default;
-    explicit C_landing_zones(const std::vector<std::pair<glm::vec2, glm::vec2>>& pairs) :
-        zones{pairs} {}
-
-    auto replace(const std::vector<std::pair<glm::vec2, glm::vec2>>& pairs) -> void;
+    explicit C_landing_zones(const defs::types::terrain::Landing_zones& positions) :
+        zones{positions} {}
 };
 
 #endif    // SDL3_GAME_COMPONENTS_H

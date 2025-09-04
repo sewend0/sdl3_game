@@ -72,6 +72,25 @@ namespace defs {
             };
         }    // namespace camera
 
+        namespace terrain {
+            struct Landing_zone {
+                glm::vec2 start;
+                glm::vec2 end;
+                // float width_multiplier;    // 1/2/4 (lander widths)
+                int score_value;
+            };
+
+            struct Terrain_data {
+                std::vector<glm::vec2> points;
+                std::vector<Landing_zone> landing_zones;
+                float world_width;
+                float min_height;
+                float max_height;
+            };
+
+            using Landing_zones = std::vector<Landing_zone>;
+        }    // namespace terrain
+
         namespace assets {
             struct Font_def {
                 std::string_view file_name;
@@ -179,10 +198,12 @@ namespace defs {
             // inline const std::string mesh_ground{"ground"};
             // inline const std::string mesh_particle{"particle"};
 
+            inline constexpr float lander_width{30.0F};
+
             inline const types::vertex::Mesh_data lander_vertices{
-                {.position = {0.0F, 70.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
-                {.position = {-30.0F, -30.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
-                {.position = {30.0F, -30.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
+                {.position = {0.0F, 45.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
+                {.position = {-15.0F, -15.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
+                {.position = {15.0F, -15.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
             };
 
             inline const std::vector<types::assets::Mesh_def> hardcoded_meshes{
@@ -198,9 +219,11 @@ namespace defs {
         inline constexpr std::string_view window_name{"lander"};
     }    // namespace startup
 
-    namespace ui {
-        inline constexpr glm::vec4 default_color{1.0F, 1.0F, 1.0F, 1.0F};
+    namespace colors {
+        inline constexpr glm::vec4 white{1.0F, 1.0F, 1.0F, 1.0F};
+    }
 
+    namespace ui {
         inline constexpr std::string_view debug_text{"debug"};
         inline constexpr std::string_view score_text{"score"};
         inline constexpr std::string_view fuel_text{"fuel"};
@@ -208,6 +231,46 @@ namespace defs {
         inline constexpr auto default_elements =
             std::to_array<std::string_view>({debug_text, score_text, fuel_text});
     }    // namespace ui
+
+    namespace terrain {
+        enum class Shape {
+            // LLL = 0,    // low/low/low
+            // LLH,
+            // LHL,
+            // LHH,
+            // HLL,
+            // HLH,
+            // HHH,           // high/high/high
+            Flat_low = 0,
+            Flat_medium,
+            U_normal,      // parabola: max-min-max
+            U_inverted,    // parabola: min-max-min
+            Linear_ramp_up,
+            Linear_ramp_down,
+            S_curve,       // eases in and out
+            Count,
+        };
+
+        inline constexpr float max_height_percent{0.75F};
+        inline constexpr float min_height_percent{0.1F};
+
+        inline constexpr float x_range_percent{0.33};
+
+        inline constexpr float min_landing_zone_separation{assets::meshes::lander_width * 2.0F};
+
+        inline constexpr int num_base_curve_points{20};
+        inline constexpr int num_terrain_points{60};
+        inline constexpr float base_curve_noise{0.3F};
+        inline constexpr float terrain_noise{0.1F};
+
+        // TODO: proper const for scoring values...
+        inline constexpr std::pair<float, int> zone_1{assets::meshes::lander_width * 1.0F, 100};
+        inline constexpr std::pair<float, int> zone_2{assets::meshes::lander_width * 2.0F, 50};
+        inline constexpr std::pair<float, int> zone_3{assets::meshes::lander_width * 4.0F, 25};
+
+        inline constexpr std::array<std::pair<float, int>, 3> zone_configs{zone_1, zone_2, zone_3};
+
+    }    // namespace terrain
 
     namespace pipelines {
         enum class Type {

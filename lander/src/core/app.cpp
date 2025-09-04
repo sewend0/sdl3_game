@@ -49,7 +49,7 @@ auto App::init() -> utils::Result<> {
     TRY(load_startup_assets());
     TRY(create_default_pipelines());
     TRY(create_lander());
-    TRY(create_terrain());
+    TRY(generate_level_terrain());
     TRY(create_default_ui());
 
     game_state->camera = {};
@@ -256,26 +256,41 @@ auto App::create_default_pipelines() -> utils::Result<> {
 auto App::create_default_ui() -> utils::Result<> {
     TRY(game_state->text_manager->create_text(
         std::string(defs::ui::debug_text), std::string(defs::assets::fonts::font_pong), "debug",
-        {300.0F, 300.0F}, {1.0F, 1.0F}, defs::ui::default_color
+        {300.0F, 300.0F}, {1.0F, 1.0F}, defs::colors::white
     ));
 
     TRY(game_state->text_manager->create_text(
         std::string(defs::ui::score_text), std::string(defs::assets::fonts::font_pong), "000",
-        {100.0F, 100.0F}, {1.0F, 1.0F}, defs::ui::default_color
+        {100.0F, 100.0F}, {1.0F, 1.0F}, defs::colors::white
     ));
 
     return {};
 }
 
-auto App::create_terrain() -> utils::Result<> {
+auto App::generate_level_terrain() -> utils::Result<> {
+    // auto terrain{std::make_unique<Game_object>()};
+    //
+    // terrain->add_component<C_landing_zones>();
+    // terrain->add_component<C_points>();
+    //
+    // // store ref and add to collection
+    // game_state->terrain = terrain.get();
+    // game_state->game_objects.push_back(std::move(terrain));
+
+    int width{};
+    int height{};
+    SDL_GetWindowSizeInPixels(game_state->graphics->get_window(), &width, &height);
+
+    Terrain_generator generator{static_cast<float>(width), static_cast<float>(height)};
+
+    defs::types::terrain::Terrain_data terrain_data{TRY(generator.generate_terrain())};
+
+    // create game object
     auto terrain{std::make_unique<Game_object>()};
+    terrain->add_component<C_terrain_points>(terrain_data.points);
+    terrain->add_component<C_landing_zones>(terrain_data.landing_zones);
 
-    terrain->add_component<C_landing_zones>();
-    terrain->add_component<C_points>();
-
-    // store ref and add to collection
-    game_state->terrain = terrain.get();
-    game_state->game_objects.push_back(std::move(terrain));
+    // create mesh
 
     return {};
 }

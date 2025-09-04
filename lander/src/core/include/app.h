@@ -8,6 +8,7 @@
 #include <graphics_context.h>
 #include <lander_game.h>
 #include <renderer.h>
+#include <terrain_generator.h>
 #include <text_manager.h>
 #include <timer.h>
 #include <utils.h>
@@ -52,7 +53,8 @@ private:
     auto create_lander() -> utils::Result<>;
     auto create_default_pipelines() -> utils::Result<>;
     auto create_default_ui() -> utils::Result<>;
-    auto create_terrain() -> utils::Result<>;
+
+    auto generate_level_terrain() -> utils::Result<>;
 };
 
 #endif    // SDL3_GAME_APP_H

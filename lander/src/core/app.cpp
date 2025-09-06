@@ -189,7 +189,7 @@ auto App::update() -> void {
         //
 
         // Terrain debug
-        auto pts = game::generate_landing_zones();
+
         //
 
         game_state->timer->mark_render();
@@ -267,6 +267,7 @@ auto App::create_default_ui() -> utils::Result<> {
     return {};
 }
 
+// TODO: rename this, this creates initial mesh
 auto App::generate_level_terrain() -> utils::Result<> {
     // auto terrain{std::make_unique<Game_object>()};
     //
@@ -277,20 +278,36 @@ auto App::generate_level_terrain() -> utils::Result<> {
     // game_state->terrain = terrain.get();
     // game_state->game_objects.push_back(std::move(terrain));
 
+    // //
+    // // store ref and add to collection
+    // game_state->lander = lander.get();
+    // game_state->game_objects.push_back(std::move(lander));
+    // //
+
     int width{};
     int height{};
     SDL_GetWindowSizeInPixels(game_state->graphics->get_window(), &width, &height);
 
     Terrain_generator generator{static_cast<float>(width), static_cast<float>(height)};
+    const defs::types::terrain::Terrain_data terrain_data{TRY(generator.generate_terrain())};
 
-    defs::types::terrain::Terrain_data terrain_data{TRY(generator.generate_terrain())};
-
-    // create game object
     auto terrain{std::make_unique<Game_object>()};
+
     terrain->add_component<C_terrain_points>(terrain_data.points);
     terrain->add_component<C_landing_zones>(terrain_data.landing_zones);
 
-    // create mesh
+    const defs::types::vertex::Mesh_data vertices{TRY(generator.generate_vertices(terrain_data))};
+    auto mesh_id{
+        TRY(game_state->resource_manager->create_mesh(std::string(defs::terrain::name), vertices))
+    };
+    TRY(game_state->renderer->register_mesh(mesh_id));
+
+    terrain->add_component<C_mesh>(mesh_id);
+    terrain->add_component<C_render>(static_cast<Uint32>(defs::pipelines::Type::Line), 0.0F, true);
+
+    // store ref and add to collection
+    game_state->terrain = terrain.get();
+    game_state->game_objects.push_back(std::move(terrain));
 
     return {};
 }

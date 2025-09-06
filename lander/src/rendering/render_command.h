@@ -15,6 +15,7 @@ struct Render_mesh_command {
     // not sure about having color here, rather than per vertex in mesh?
     // glm::vec4 color;    // prefer to SDL_color for doing math
     float depth;    // for layering
+    // size_t vertex_count;
 };
 
 // struct Render_ui_command {

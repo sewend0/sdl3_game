@@ -37,6 +37,63 @@ auto Terrain_generator::generate_terrain() -> utils::Result<defs::types::terrain
     return {terrain_data};
 }
 
+auto Terrain_generator::generate_vertices(const defs::types::terrain::Terrain_data& terrain_data)
+    -> utils::Result<defs::types::vertex::Mesh_data> {
+
+    defs::types::vertex::Mesh_data vertices{};
+
+    if (terrain_data.points.size() < 2)
+        return vertices;
+
+    vertices.reserve(terrain_data.points.size() * 2);
+
+    constexpr float half_width{defs::terrain::line_thickness * 0.5F};
+
+    for (size_t i = 0; i < terrain_data.points.size(); ++i) {
+        const glm::vec2 current_point{terrain_data.points[i]};
+        glm::vec2 normal{};
+
+        if (i == 0) {
+            const glm::vec2 dir{glm::normalize(terrain_data.points[i + 1] - current_point)};
+            normal = {-dir.y, dir.x};
+        } else if (i == terrain_data.points.size() - 1) {
+            const glm::vec2 dir{glm::normalize(current_point - terrain_data.points[i - 1])};
+            normal = {-dir.y, dir.x};
+        } else {
+            const glm::vec2 dir1{glm::normalize(current_point - terrain_data.points[i - 1])};
+            const glm::vec2 dir2{glm::normalize(terrain_data.points[i + 1] - current_point)};
+
+            const glm::vec2 normal1{-dir1.y, dir1.x};
+            const glm::vec2 normal2{-dir2.y, dir2.x};
+
+            normal = glm::normalize(normal1 + normal2);
+        }
+
+        const glm::vec2 vertex_a{current_point + normal * half_width};
+        const glm::vec2 vertex_b{current_point - normal * half_width};
+
+        // TODO: color based on height maybe?
+        vertices.push_back({vertex_a, defs::colors::white});
+        vertices.push_back({vertex_b, defs::colors::white});
+    }
+
+    // DEBUG
+    // int count{0};
+    // for (const auto& point : terrain_data.points) {
+    //     utils::log(std::format("{}:\t{:.2f}, {:.2f}", count, point.x, point.y));
+    //     ++count;
+    // }
+    //
+    // count = 0;
+    // for (const auto& point : vertices) {
+    //     utils::log(std::format("{}:\t{:.2f}, {:.2f}", count, point.position.x,
+    //     point.position.y));
+    //     ++count;
+    // }
+
+    return vertices;
+}
+
 auto Terrain_generator::create_base_curve(defs::terrain::Shape shape, int num_points)
     -> std::vector<float> {
 
@@ -63,15 +120,28 @@ auto Terrain_generator::create_base_curve(defs::terrain::Shape shape, int num_po
             case defs::terrain::Shape::S_curve:
                 y = t * t * (3.0F - 2.0F * t);
                 break;
+            case defs::terrain::Shape::Rolling_hills:
+                y = 0.5f - std::cos(t * 2.0f * std::numbers::pi_v<float>) * 0.5f;
+                break;
+            case defs::terrain::Shape::Ease_in_exp:
+                y = std::pow(t, 3.0f);
+                break;
+            case defs::terrain::Shape::Ease_out_exp:
+                y = 1.0f - std::pow(1.0f - t, 3.0f);
+                break;
+            case defs::terrain::Shape::Tent_pole:
+                y = 1.0f - std::abs(t - 0.5f) * 2.0f;
+                break;
             default:
                 y = 0.0F;
                 break;
         }
 
-        heights[i] = min_height() + (max_height() - min_height()) * y;
+        heights[i] = y;
     }
 
     add_noise_to_curve(heights);
+    rescale_curve(heights);
 
     return heights;
 }
@@ -276,10 +346,12 @@ auto Terrain_generator::add_noise_to_points(
             float lower_bound{terrain[j - 1].x + x_limit};
             float upper_bound{terrain[j + 1].x - x_limit};
 
-            while (lower_bound >= upper_bound) {
-                lower_bound *= 0.75;
-                upper_bound *= 0.75;
-            }
+            // while (lower_bound >= upper_bound) {
+            //     lower_bound *= 0.75;
+            //     upper_bound *= 0.75;
+            // }
+            if (lower_bound >= upper_bound)
+                continue;
 
             std::uniform_real_distribution<float> x_distribution(lower_bound, upper_bound);
             terrain[j].x = x_distribution(random_engine);
@@ -300,12 +372,48 @@ auto Terrain_generator::add_noise_to_curve(std::vector<float>& heights) -> void 
     std::random_device rd;
     std::mt19937 random_engine(rd());
 
-    std::uniform_real_distribution<float> y_distribution(
-        defs::terrain::base_curve_noise * -1, defs::terrain::base_curve_noise
-    );
+    constexpr float base_noise{defs::terrain::base_curve_noise / 100.0F};
+    constexpr float freq{5.0F};
+    constexpr float amp{0.2f};
 
-    for (auto& y : heights)
-        y += y_distribution(random_engine);
+    std::uniform_real_distribution<float> y_distribution(base_noise * -1, base_noise);
+    std::uniform_real_distribution<float> phase_distribution(std::numbers::pi_v<float> / 8.0F);
+
+    // for (auto& y : heights)
+    //     y += y_distribution(random_engine);
+
+    for (int i = 0; i < heights.size() - 1; ++i) {
+        // calculate normalized progress 't', 0.0 - 1.0
+        const float t{static_cast<float>(i) / static_cast<float>(heights.size() - 1)};
+        const float noise{
+            std::sin(t * freq * std::numbers::pi_v<float> + phase_distribution(random_engine)) *
+                amp +
+            y_distribution(random_engine)
+        };
+        heights[i] += noise;
+    }
+}
+
+auto Terrain_generator::rescale_curve(std::vector<float>& heights) -> void {
+    // find current min and max values of curve
+    const auto [current_min_it, current_max_it]{std::minmax_element(heights.begin(), heights.end())
+    };
+    const float current_min{*current_min_it};
+    const float current_max{*current_max_it};
+    const float current_range{current_max - current_min};
+
+    // avoid divide by 0 - set to average height
+    if (current_range < 0.0001F) {
+        const float mid_height = min_height() + (max_height() - min_height() / 2.0F);
+        std::ranges::fill(heights, mid_height);
+    } else {
+        // normalize each height to 0.0-1.0 range, then scale
+        const float target_range{max_height() - min_height()};
+        for (float& height : heights) {
+            const float normalized_height{(height - current_min) / current_range};
+            height = min_height() + (normalized_height * target_range);
+        }
+    }
 }
 
 auto Terrain_generator::interpolate_height(const std::vector<glm::vec2>& terrain, const float x)

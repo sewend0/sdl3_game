@@ -198,12 +198,12 @@ namespace defs {
             // inline const std::string mesh_ground{"ground"};
             // inline const std::string mesh_particle{"particle"};
 
-            inline constexpr float lander_width{30.0F};
+            inline constexpr float lander_width{20.0F};
 
             inline const types::vertex::Mesh_data lander_vertices{
-                {.position = {0.0F, 45.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
-                {.position = {-15.0F, -15.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
-                {.position = {15.0F, -15.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
+                {.position = {0.0F, 30.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
+                {.position = {-10.0F, -10.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
+                {.position = {10.0F, -10.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
             };
 
             inline const std::vector<types::assets::Mesh_def> hardcoded_meshes{
@@ -241,32 +241,40 @@ namespace defs {
             // HLL,
             // HLH,
             // HHH,           // high/high/high
-            Flat_low = 0,
-            Flat_medium,
-            U_normal,      // parabola: max-min-max
-            U_inverted,    // parabola: min-max-min
+            // Flat_low = 0,
+            // Flat_medium = 0,
+            U_normal = 0,    // parabola: max-min-max
+            U_inverted,      // parabola: min-max-min
             Linear_ramp_up,
             Linear_ramp_down,
-            S_curve,       // eases in and out
+            S_curve,         // eases in and out
+            Rolling_hills,
+            Ease_in_exp,
+            Ease_out_exp,
+            Tent_pole,
             Count,
         };
 
-        inline constexpr float max_height_percent{0.75F};
+        inline constexpr std::string_view name{"terrain"};
+
+        inline constexpr float max_height_percent{0.6F};
         inline constexpr float min_height_percent{0.1F};
 
         inline constexpr float x_range_percent{0.33};
 
-        inline constexpr float min_landing_zone_separation{assets::meshes::lander_width * 2.0F};
+        inline constexpr float min_landing_zone_separation{assets::meshes::lander_width * 4.0F};
 
-        inline constexpr int num_base_curve_points{20};
-        inline constexpr int num_terrain_points{60};
-        inline constexpr float base_curve_noise{0.3F};
-        inline constexpr float terrain_noise{0.1F};
+        inline constexpr int num_base_curve_points{60};
+        inline constexpr int num_terrain_points{120};
+        inline constexpr float base_curve_noise{0.25F};
+        inline constexpr float terrain_noise{0.01F};
+
+        inline constexpr float line_thickness{2.0F};
 
         // TODO: proper const for scoring values...
-        inline constexpr std::pair<float, int> zone_1{assets::meshes::lander_width * 1.0F, 100};
-        inline constexpr std::pair<float, int> zone_2{assets::meshes::lander_width * 2.0F, 50};
-        inline constexpr std::pair<float, int> zone_3{assets::meshes::lander_width * 4.0F, 25};
+        inline constexpr std::pair<float, int> zone_1{assets::meshes::lander_width * 1.2F, 100};
+        inline constexpr std::pair<float, int> zone_2{assets::meshes::lander_width * 2.2F, 50};
+        inline constexpr std::pair<float, int> zone_3{assets::meshes::lander_width * 4.2F, 25};
 
         inline constexpr std::array<std::pair<float, int>, 3> zone_configs{zone_1, zone_2, zone_3};
 
@@ -275,18 +283,17 @@ namespace defs {
     namespace pipelines {
         enum class Type {
             Mesh = 1,
-            Text = 2,
-            Particle = 3,
+            Line = 2,
+            Text = 3,
+            Particle = 4,
         };
-
-        // inline constexpr Uint32 initial_text_vertex_limit{2000};
-        // inline constexpr Uint32 initial_text_index_limit{3000};
 
         inline constexpr size_t initial_text_vertex_bytes{2000};
         inline constexpr size_t initial_text_index_bytes{2000};
 
         struct Desc {
             Type type;
+            std::string_view pipeline_debug_name;
             std::string_view shader_name;
             std::span<const SDL_GPUVertexBufferDescription> vertex_buffer_descriptions;
             std::span<const SDL_GPUVertexAttribute> vertex_attributes;
@@ -298,6 +305,7 @@ namespace defs {
 
         namespace descriptors {
             namespace lander {
+                inline constexpr std::string_view debug_name{"lander"};
                 inline constexpr auto vertex_buffer_descriptions =
                     std::to_array<SDL_GPUVertexBufferDescription>({
                         {
@@ -348,10 +356,70 @@ namespace defs {
                     .vertex_input_state = vertex_input_state,
                     .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
                     .target_info = pipeline_target_info,
+                    // .props = manual
                 };
             }    // namespace lander
 
+            namespace terrain {
+                inline constexpr std::string_view debug_name{"terrain"};
+
+                inline constexpr auto vertex_buffer_descriptions =
+                    std::to_array<SDL_GPUVertexBufferDescription>({
+                        {
+                            .slot = 0,
+                            .pitch = sizeof(types::vertex::Mesh_vertex),
+                            .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+                            .instance_step_rate = 0,
+                        },
+                    });
+
+                inline constexpr auto vertex_attributes = std::to_array<SDL_GPUVertexAttribute>({
+                    {
+                        .location = 0,
+                        .buffer_slot = 0,
+                        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+                        .offset = 0,
+                    },
+                    {
+                        .location = 1,
+                        .buffer_slot = 0,
+                        .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
+                        .offset = sizeof(float) * 2,
+                    },
+                });
+
+                inline constexpr auto color_target_descriptions =
+                    std::to_array<SDL_GPUColorTargetDescription>({
+                        {
+                            .format = SDL_GPU_TEXTUREFORMAT_INVALID,    // manual
+                        },
+                    });
+
+                inline constexpr SDL_GPUGraphicsPipelineTargetInfo pipeline_target_info{
+                    .color_target_descriptions = color_target_descriptions.data(),
+                    .num_color_targets = 1,
+                };
+
+                inline constexpr SDL_GPUVertexInputState vertex_input_state{
+                    .vertex_buffer_descriptions = vertex_buffer_descriptions.data(),
+                    .num_vertex_buffers = 1,
+                    .vertex_attributes = vertex_attributes.data(),
+                    .num_vertex_attributes = 2,
+                };
+
+                inline constexpr SDL_GPUGraphicsPipelineCreateInfo pipeline_create_info{
+                    .vertex_shader = nullptr,      // manual
+                    .fragment_shader = nullptr,    // manual
+                    .vertex_input_state = vertex_input_state,
+                    .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLESTRIP,
+                    .target_info = pipeline_target_info,
+                    // .props = manual
+                };
+            }    // namespace terrain
+
             namespace text {
+                inline constexpr std::string_view debug_name{"text"};
+
                 inline constexpr auto vertex_buffer_descriptions =
                     std::to_array<SDL_GPUVertexBufferDescription>({
                         {
@@ -421,12 +489,14 @@ namespace defs {
                     .vertex_input_state = vertex_input_state,
                     .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
                     .target_info = pipeline_target_info,
+                    // .props = manual
                 };
             }    // namespace text
         }    // namespace descriptors
 
         inline constexpr Desc lander_desc{
             .type = Type::Mesh,
+            .pipeline_debug_name = descriptors::lander::debug_name,
             .shader_name = assets::shaders::shader_lander_name,
             .vertex_buffer_descriptions = descriptors::lander::vertex_buffer_descriptions,
             .vertex_attributes = descriptors::lander::vertex_attributes,
@@ -436,8 +506,22 @@ namespace defs {
             .create_info = descriptors::lander::pipeline_create_info,
         };
 
+        // TODO: shader need changed?
+        inline constexpr Desc terrain_desc{
+            .type = Type::Line,
+            .pipeline_debug_name = descriptors::terrain::debug_name,
+            .shader_name = assets::shaders::shader_lander_name,
+            .vertex_buffer_descriptions = descriptors::terrain::vertex_buffer_descriptions,
+            .vertex_attributes = descriptors::terrain::vertex_attributes,
+            .color_target_descriptions = descriptors::terrain::color_target_descriptions,
+            .target_info = descriptors::terrain::pipeline_target_info,
+            .vertex_input_state = descriptors::terrain::vertex_input_state,
+            .create_info = descriptors::terrain::pipeline_create_info,
+        };
+
         inline constexpr Desc text_desc{
             .type = Type::Text,
+            .pipeline_debug_name = descriptors::text::debug_name,
             .shader_name = assets::shaders::shader_text_name,
             .vertex_buffer_descriptions = descriptors::text::vertex_buffer_descriptions,
             .vertex_attributes = descriptors::text::vertex_attributes,
@@ -449,6 +533,7 @@ namespace defs {
 
         inline constexpr auto default_pipelines = std::to_array<Desc>({
             lander_desc,
+            terrain_desc,
             text_desc,
         });
 

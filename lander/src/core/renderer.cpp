@@ -74,6 +74,19 @@ auto Renderer::create_pipeline(const defs::pipelines::Desc& desc) -> utils::Resu
     create_info.fragment_shader = frag_shader;
     create_info.target_info = target_info;
 
+    // DEBUG - give name to pipeline
+    const SDL_PropertiesID props{SDL_CreateProperties()};
+    if (not props)
+        return std::unexpected(SDL_GetError());
+
+    SDL_SetStringProperty(
+        props, SDL_PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING,
+        std::string(desc.pipeline_debug_name).c_str()
+    );
+
+    create_info.props = props;
+    // DEBUG
+
     // make pipeline
     SDL_GPUGraphicsPipeline* pipeline{CHECK_PTR(SDL_CreateGPUGraphicsPipeline(device, &create_info))
     };
@@ -131,13 +144,6 @@ auto Renderer::prepare_text_resources() -> utils::Result<> {
     TRY(ensure_text_buffer_capacity(
         defs::pipelines::initial_text_vertex_bytes, defs::pipelines::initial_text_index_bytes
     ));
-
-    // size_t vertex_bytes{
-    //     defs::pipelines::initial_text_vertex_limit * sizeof(defs::types::vertex::Textured_vertex)
-    // };
-    // size_t index_bytes{defs::pipelines::initial_text_index_limit * sizeof(Uint16)};
-    // TRY(create_text_vertex_buffers(vertex_bytes));
-    // TRY(create_text_index_buffers(index_bytes));
 
     const Uint32 sampler_id{TRY(create_sampler())};
     text_handles.sampler = samplers[sampler_id];
@@ -317,11 +323,17 @@ auto Renderer::render_opaque(const std::vector<Render_mesh_command>& commands) c
             cmd.model_matrix
         };
 
+        // DEBUG - this is dumb, but for now...
+        size_t vertex_count{};
+        auto mesh_data{resource_manager->get_mesh_data(cmd.mesh_id)};
+        if (mesh_data)
+            vertex_count = mesh_data.value().size();
+
         // bind uniform data
         SDL_PushGPUVertexUniformData(current_frame.command_buffer, 0, &mvp, sizeof(glm::mat4));
 
         // issue draw call
-        SDL_DrawGPUPrimitives(current_frame.render_pass, 3, 1, 0, 0);
+        SDL_DrawGPUPrimitives(current_frame.render_pass, vertex_count, 1, 0, 0);
     }
 
     return {};

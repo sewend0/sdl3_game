@@ -85,27 +85,6 @@ public:
         thrust_power{thrust}, rotation_power{torque} {}
 };
 
-// class C_points final : public Component {
-// public:
-//     std::vector<glm::vec2> points;
-//
-//     C_points() = default;
-//     explicit C_points(const std::vector<glm::vec2>& positions) : points{positions} {}
-//
-//     auto replace(const std::vector<glm::vec2>& positions) -> void;
-// };
-//
-// class C_landing_zones final : public Component {
-// public:
-//     std::vector<std::pair<glm::vec2, glm::vec2>> zones;
-//
-//     C_landing_zones() = default;
-//     explicit C_landing_zones(const std::vector<std::pair<glm::vec2, glm::vec2>>& pairs) :
-//         zones{pairs} {}
-//
-//     auto replace(const std::vector<std::pair<glm::vec2, glm::vec2>>& pairs) -> void;
-// };
-
 class C_terrain_points final : public Component {
 public:
     std::vector<glm::vec2> points;

@@ -17,7 +17,7 @@ public:
     Render_system() = default;
     ~Render_system() = default;
 
-    // collect objects with transform, mesh, render
+    // collect objects with transform/terrain, mesh, render
     auto collect_renderables(const std::vector<std::unique_ptr<Game_object>>& objects) -> void;
     auto collect_text(const std::vector<defs::types::text::Text>& objects) -> void;
 

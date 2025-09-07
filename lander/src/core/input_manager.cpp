@@ -24,6 +24,9 @@ auto Input_manager::handle_input(const SDL_Event& event) -> utils::Result<> {
                 case SDLK_D:
                     input_state->is_d = true;
                     break;
+                case SDLK_0:
+                    input_state->is_zero = true;
+                    break;
                 default:
                     break;
             }
@@ -39,6 +42,9 @@ auto Input_manager::handle_input(const SDL_Event& event) -> utils::Result<> {
                     break;
                 case SDLK_D:
                     input_state->is_d = false;
+                    break;
+                case SDLK_0:
+                    input_state->is_zero = false;
                     break;
                 default:
                     break;

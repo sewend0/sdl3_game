@@ -54,7 +54,9 @@ private:
     auto create_default_pipelines() -> utils::Result<>;
     auto create_default_ui() -> utils::Result<>;
 
-    auto generate_level_terrain() -> utils::Result<>;
+    auto create_terrain_object() -> utils::Result<>;
+
+    auto regenerate_terrain() -> utils::Result<>;
 };
 
 #endif    // SDL3_GAME_APP_H

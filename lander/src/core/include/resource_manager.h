@@ -38,13 +38,16 @@ public:
 
     auto create_mesh(const std::string& mesh_name, const defs::types::vertex::Mesh_data& vertices)
         -> utils::Result<Uint32>;
+    auto update_mesh(const Uint32 mesh_id, const defs::types::vertex::Mesh_data& vertices)
+        -> utils::Result<Uint32>;
 
     auto get_font(const std::string& file_name) -> utils::Result<TTF_Font*>;
     auto get_sound(const std::string& file_name) -> utils::Result<MIX_Audio*>;
     auto get_shader(const std::string& file_name) -> utils::Result<SDL_GPUShader*>;
 
     auto get_mesh_id(const std::string& mesh_name) -> utils::Result<Uint32>;
-    auto get_mesh_data(Uint32 mesh_id) const -> utils::Result<defs::types::vertex::Mesh_data>;
+    auto get_mesh_data(Uint32 mesh_id) -> utils::Result<defs::types::vertex::Mesh_data*>;
+    auto get_mesh_data_copy(Uint32 mesh_id) const -> utils::Result<defs::types::vertex::Mesh_data>;
 
     auto release_shader(SDL_GPUDevice* gpu_device, const std::string& file_name)
         -> utils::Result<SDL_GPUShader*>;

@@ -21,3 +21,20 @@ auto Input_system::iterate(
         }
     }
 }
+
+auto Input_system::terrain_debug(
+    const std::vector<std::unique_ptr<Game_object>>& objects, const Input_state& state
+) -> bool {
+
+    for (const auto& obj : objects) {
+        C_terrain_points* terrain_points{obj->get_component<C_terrain_points>()};
+        C_landing_zones* landing_zones{obj->get_component<C_landing_zones>()};
+
+        if (terrain_points && landing_zones)
+            if (state.is_zero)
+                return true;
+    }
+
+    return false;
+}
+

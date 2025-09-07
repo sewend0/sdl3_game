@@ -105,6 +105,22 @@ auto Resource_manager::create_mesh(
     return utils::Result<Uint32>{mesh_id};
 }
 
+auto Resource_manager::update_mesh(
+    const Uint32 mesh_id, const defs::types::vertex::Mesh_data& vertices
+) -> utils::Result<Uint32> {
+
+    auto data{get_mesh_data(mesh_id)};
+
+    if (not data)
+        return std::unexpected(data.error());
+
+    data.value()->clear();
+    // data.value() = {vertices};
+    data.value()->assign(vertices.begin(), vertices.end());
+
+    return mesh_id;
+}
+
 auto Resource_manager::get_font(const std::string& file_name) -> utils::Result<TTF_Font*> {
     const auto it{fonts.find(file_name)};
     return (it != fonts.end()) ? utils::Result<TTF_Font*>{it->second}
@@ -129,12 +145,26 @@ auto Resource_manager::get_mesh_id(const std::string& mesh_name) -> utils::Resul
                                   : std::unexpected(std::format("Mesh '{}' not found", mesh_name));
 }
 
-auto Resource_manager::get_mesh_data(Uint32 mesh_id) const
+auto Resource_manager::get_mesh_data(const Uint32 mesh_id)
+    -> utils::Result<defs::types::vertex::Mesh_data*> {
+    const auto it{meshes.find(mesh_id)};
+    return (it != meshes.end()) ? utils::Result<defs::types::vertex::Mesh_data*>{&it->second}
+                                : std::unexpected(std::format("Mesh '{}' not found", mesh_id));
+}
+
+auto Resource_manager::get_mesh_data_copy(const Uint32 mesh_id) const
     -> utils::Result<defs::types::vertex::Mesh_data> {
     const auto it{meshes.find(mesh_id)};
     return (it != meshes.end()) ? utils::Result<defs::types::vertex::Mesh_data>{it->second}
                                 : std::unexpected(std::format("Mesh '{}' not found", mesh_id));
 }
+
+// auto Renderer::get_buffers(Uint32 mesh_id) const -> utils::Result<const Buffer_handles*> {
+//     const auto mesh_it{mesh_to_buffers.find(mesh_id)};
+//     return (mesh_it != mesh_to_buffers.end())
+//                ? utils::Result<const Buffer_handles*>{&mesh_it->second}
+//     : std::unexpected(std::format("Mesh ID '{}' not found", mesh_id));
+// }
 
 auto Resource_manager::release_shader(SDL_GPUDevice* gpu_device, const std::string& file_name)
     -> utils::Result<SDL_GPUShader*> {

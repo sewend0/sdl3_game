@@ -113,7 +113,7 @@ auto Renderer::register_mesh(const Uint32 mesh_id) -> utils::Result<> {
     if (mesh_to_buffers.contains(mesh_id))
         return {};
 
-    const defs::types::vertex::Mesh_data mesh_data{*resource_manager->get_mesh_data(mesh_id)};
+    const defs::types::vertex::Mesh_data mesh_data{*resource_manager->get_mesh_data_copy(mesh_id)};
 
     // create buffers
     const Uint32 buffer_size{
@@ -135,6 +135,51 @@ auto Renderer::register_mesh(const Uint32 mesh_id) -> utils::Result<> {
     SDL_ReleaseGPUTransferBuffer(device, mesh_to_buffers[mesh_id].transfer_buffer);
     mesh_to_buffers[mesh_id].transfer_buffer = nullptr;
     transfer_buffers.erase(transfer_buffer_id);
+
+    return {};
+}
+
+auto Renderer::reregister_mesh(Uint32 mesh_id) -> utils::Result<> {
+    if (not mesh_to_buffers.contains(mesh_id))
+        return {};
+
+    const defs::types::vertex::Mesh_data mesh_data{*resource_manager->get_mesh_data_copy(mesh_id)};
+    const Buffer_handles* handles{TRY(get_buffers(mesh_id))};
+
+    // clean up old resources
+    if (handles->vertex_buffer) {
+        Uint32 id{0};
+        for (auto& [key, val] : vertex_buffers) {
+            if (val == handles->vertex_buffer) {
+                id = key;
+                break;
+            }
+        }
+
+        SDL_ReleaseGPUBuffer(device, handles->vertex_buffer);
+        if (id != 0)
+            vertex_buffers.erase(id);
+    }
+
+    // create buffers
+    const Uint32 buffer_size{
+        static_cast<Uint32>(mesh_data.size() * sizeof(defs::types::vertex::Mesh_vertex))
+    };
+    const Uint32 vertex_buffer_id{TRY(create_vertex_buffer(buffer_size))};
+    const Uint32 vertex_transfer_buffer_id{TRY(create_transfer_buffer(buffer_size))};
+
+    // store mappings
+    mesh_to_buffers[mesh_id] = {
+        .vertex_buffer = vertex_buffers[vertex_buffer_id],
+        .transfer_buffer = transfer_buffers[vertex_transfer_buffer_id],
+    };
+
+    // upload data and release buffers (if not using again)
+    TRY(upload_mesh_data(mesh_to_buffers[mesh_id], mesh_data));
+
+    SDL_ReleaseGPUTransferBuffer(device, mesh_to_buffers[mesh_id].transfer_buffer);
+    mesh_to_buffers[mesh_id].transfer_buffer = nullptr;
+    transfer_buffers.erase(vertex_transfer_buffer_id);
 
     return {};
 }
@@ -300,10 +345,10 @@ auto Renderer::render_opaque(const std::vector<Render_mesh_command>& commands) c
 
     for (const auto& cmd : commands) {
         SDL_GPUGraphicsPipeline* pipeline{TRY(get_pipeline(cmd.pipeline_id))};
-        const Buffer_handles buffers{TRY(get_buffers(cmd.mesh_id))};
+        const Buffer_handles* buffers{TRY(get_buffers(cmd.mesh_id))};
 
         // check not nullptr before using a buffer
-        if (not buffers.vertex_buffer)
+        if (not buffers->vertex_buffer)
             return std::unexpected(std::format("vertex buffer = nullptr"));
 
         // bind the graphics pipeline
@@ -311,7 +356,7 @@ auto Renderer::render_opaque(const std::vector<Render_mesh_command>& commands) c
 
         // bind the vertex buffer
         const SDL_GPUBufferBinding buffer_binding{
-            .buffer = buffers.vertex_buffer,
+            .buffer = buffers->vertex_buffer,
             .offset = 0,
         };
         SDL_BindGPUVertexBuffers(current_frame.render_pass, 0, &buffer_binding, 1);
@@ -325,7 +370,7 @@ auto Renderer::render_opaque(const std::vector<Render_mesh_command>& commands) c
 
         // DEBUG - this is dumb, but for now...
         size_t vertex_count{};
-        auto mesh_data{resource_manager->get_mesh_data(cmd.mesh_id)};
+        auto mesh_data{resource_manager->get_mesh_data_copy(cmd.mesh_id)};
         if (mesh_data)
             vertex_count = mesh_data.value().size();
 
@@ -686,9 +731,9 @@ auto Renderer::get_pipeline(Uint32 pipeline_id) const -> utils::Result<SDL_GPUGr
                : std::unexpected(std::format("Pipeline '{}' not found", pipeline_id));
 }
 
-auto Renderer::get_buffers(Uint32 mesh_id) const -> utils::Result<Buffer_handles> {
+auto Renderer::get_buffers(Uint32 mesh_id) const -> utils::Result<const Buffer_handles*> {
     const auto mesh_it{mesh_to_buffers.find(mesh_id)};
     return (mesh_it != mesh_to_buffers.end())
-               ? utils::Result<Buffer_handles>{mesh_it->second}
+               ? utils::Result<const Buffer_handles*>{&mesh_it->second}
                : std::unexpected(std::format("Mesh ID '{}' not found", mesh_id));
 }

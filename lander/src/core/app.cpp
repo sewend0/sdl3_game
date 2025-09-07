@@ -49,7 +49,7 @@ auto App::init() -> utils::Result<> {
     TRY(load_startup_assets());
     TRY(create_default_pipelines());
     TRY(create_lander());
-    TRY(generate_level_terrain());
+    TRY(create_terrain_object());
     TRY(create_default_ui());
 
     game_state->camera = {};
@@ -98,6 +98,16 @@ auto App::update() -> void {
         game_state->physics_system->iterate(
             game_state->game_objects, game_state->timer->sim_delta_seconds()
         );
+
+        // DEBUG
+        static bool previous_state{false};
+        bool current_state{
+            game_state->input_system->terrain_debug(game_state->game_objects, *input_state)
+        };
+        if (current_state && !previous_state) {
+            regenerate_terrain();
+        }
+        previous_state = current_state;
 
         game_state->timer->advance_sim();
     }
@@ -267,22 +277,7 @@ auto App::create_default_ui() -> utils::Result<> {
     return {};
 }
 
-// TODO: rename this, this creates initial mesh
-auto App::generate_level_terrain() -> utils::Result<> {
-    // auto terrain{std::make_unique<Game_object>()};
-    //
-    // terrain->add_component<C_landing_zones>();
-    // terrain->add_component<C_points>();
-    //
-    // // store ref and add to collection
-    // game_state->terrain = terrain.get();
-    // game_state->game_objects.push_back(std::move(terrain));
-
-    // //
-    // // store ref and add to collection
-    // game_state->lander = lander.get();
-    // game_state->game_objects.push_back(std::move(lander));
-    // //
+auto App::create_terrain_object() -> utils::Result<> {
 
     int width{};
     int height{};
@@ -291,23 +286,50 @@ auto App::generate_level_terrain() -> utils::Result<> {
     Terrain_generator generator{static_cast<float>(width), static_cast<float>(height)};
     const defs::types::terrain::Terrain_data terrain_data{TRY(generator.generate_terrain())};
 
-    auto terrain{std::make_unique<Game_object>()};
-
-    terrain->add_component<C_terrain_points>(terrain_data.points);
-    terrain->add_component<C_landing_zones>(terrain_data.landing_zones);
-
     const defs::types::vertex::Mesh_data vertices{TRY(generator.generate_vertices(terrain_data))};
     auto mesh_id{
         TRY(game_state->resource_manager->create_mesh(std::string(defs::terrain::name), vertices))
     };
     TRY(game_state->renderer->register_mesh(mesh_id));
 
+    auto terrain{std::make_unique<Game_object>()};
+
+    terrain->add_component<C_terrain_points>(terrain_data.points);
+    terrain->add_component<C_landing_zones>(terrain_data.landing_zones);
     terrain->add_component<C_mesh>(mesh_id);
     terrain->add_component<C_render>(static_cast<Uint32>(defs::pipelines::Type::Line), 0.0F, true);
 
     // store ref and add to collection
     game_state->terrain = terrain.get();
     game_state->game_objects.push_back(std::move(terrain));
+
+    return {};
+}
+
+auto App::regenerate_terrain() -> utils::Result<> {
+
+    int width{};
+    int height{};
+    SDL_GetWindowSizeInPixels(game_state->graphics->get_window(), &width, &height);
+
+    Terrain_generator generator{static_cast<float>(width), static_cast<float>(height)};
+
+    const defs::types::terrain::Terrain_data terrain_data{TRY(generator.generate_terrain())};
+    const defs::types::vertex::Mesh_data vertices{TRY(generator.generate_vertices(terrain_data))};
+
+    C_mesh* mesh{game_state->terrain->get_component<C_mesh>()};
+    if (not mesh)
+        return std::unexpected("Terrain mesh not found");
+
+    const Uint32 mesh_id{TRY(game_state->resource_manager->update_mesh(mesh->mesh_id, vertices))};
+    TRY(game_state->renderer->reregister_mesh(mesh_id));
+    mesh->mesh_id = mesh_id;
+
+    C_terrain_points* terrain_points{game_state->terrain->get_component<C_terrain_points>()};
+    C_landing_zones* landing_zones{game_state->terrain->get_component<C_landing_zones>()};
+
+    terrain_points->points = terrain_data.points;
+    landing_zones->zones = terrain_data.landing_zones;
 
     return {};
 }

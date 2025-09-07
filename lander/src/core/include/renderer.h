@@ -81,6 +81,7 @@ public:
 
     // Prepare buffers for a mesh and upload data
     auto register_mesh(Uint32 mesh_id) -> utils::Result<>;
+    auto reregister_mesh(Uint32 mesh_id) -> utils::Result<>;
 
     // Single call to render a frame
     auto render_frame(Render_queue& queue, const defs::types::camera::Frame_data& frame_data)
@@ -116,7 +117,7 @@ private:
     auto ensure_text_buffer_capacity(size_t vertex_count, size_t index_count) -> utils::Result<>;
 
     auto get_pipeline(Uint32 pipeline_id) const -> utils::Result<SDL_GPUGraphicsPipeline*>;
-    auto get_buffers(Uint32 mesh_id) const -> utils::Result<Buffer_handles>;
+    auto get_buffers(Uint32 mesh_id) const -> utils::Result<const Buffer_handles*>;
 };
 
 #endif    // SDL3_GAME_RENDERER_H

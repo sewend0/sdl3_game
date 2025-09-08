@@ -224,7 +224,7 @@ auto App::load_startup_assets() -> utils::Result<> {
 
     for (const auto& mesh : defs::assets::meshes::hardcoded_meshes) {
         auto mesh_id{TRY(
-            game_state->resource_manager->create_mesh(std::string(mesh.mesh_name), mesh.vertices)
+            game_state->resource_manager->create_mesh(std::string(mesh.mesh_name), mesh.as_vector())
         )};
         TRY(game_state->renderer->register_mesh(mesh_id));
     }

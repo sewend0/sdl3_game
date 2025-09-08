@@ -11,9 +11,12 @@ auto Physics_system::iterate(const std::vector<std::unique_ptr<Game_object>>& ob
 
         if (physics && transform) {
 
+            // apply gravity
+            physics->forces += defs::game::gravity_acceleration * physics->mass;
+
             // linear integration
             glm::vec2 acceleration{physics->forces / physics->mass};
-            physics->velocity += acceleration;
+            physics->velocity += acceleration * dt;
             transform->position += physics->velocity * dt;
             physics->forces = {0.0F, 0.0F};
 

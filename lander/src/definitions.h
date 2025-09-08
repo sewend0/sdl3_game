@@ -16,8 +16,6 @@
 #include <string>
 #include <vector>
 
-// TODO: replace vectors with spans
-
 namespace defs {
 
     namespace types {
@@ -107,7 +105,11 @@ namespace defs {
 
             struct Mesh_def {
                 std::string_view mesh_name;
-                vertex::Mesh_data vertices;
+                std::span<const vertex::Mesh_vertex> vertices;
+
+                [[nodiscard]] auto as_vector() const -> std::vector<vertex::Mesh_vertex> {
+                    return {vertices.begin(), vertices.end()};
+                }
             };
 
         }    // namespace assets
@@ -145,7 +147,7 @@ namespace defs {
             inline constexpr std::string_view font_pong{"pong_font.ttf"};
 
             inline constexpr auto startup_fonts = std::to_array<types::assets::Font_def>({
-                {font_pong, 24.0F},
+                {.file_name = font_pong, .size = 24.0F},
             });
 
         }    // namespace fonts
@@ -200,15 +202,15 @@ namespace defs {
 
             inline constexpr float lander_width{20.0F};
 
-            inline const types::vertex::Mesh_data lander_vertices{
+            inline constexpr auto lander_vertices = std::to_array<types::vertex::Mesh_vertex>({
                 {.position = {0.0F, 30.0F}, .color = {1.0F, 0.0F, 0.0F, 1.0F}},
                 {.position = {-10.0F, -10.0F}, .color = {0.0F, 1.0F, 0.0F, 1.0F}},
                 {.position = {10.0F, -10.0F}, .color = {0.0F, 0.0F, 1.0F, 1.0F}},
-            };
+            });
 
-            inline const std::vector<types::assets::Mesh_def> hardcoded_meshes{
-                {mesh_lander, lander_vertices},
-            };
+            inline constexpr auto hardcoded_meshes = std::to_array<types::assets::Mesh_def>({
+                {.mesh_name = mesh_lander, .vertices = lander_vertices},
+            });
 
         }    // namespace meshes
     }    // namespace assets
@@ -221,7 +223,12 @@ namespace defs {
 
     namespace colors {
         inline constexpr glm::vec4 white{1.0F, 1.0F, 1.0F, 1.0F};
-    }
+    }    // namespace colors
+
+    namespace game {
+        inline constexpr float gravity{-1.62F};
+        inline constexpr glm::vec2 gravity_acceleration{0.0F, -1.62F};
+    }    // namespace game
 
     namespace ui {
         inline constexpr std::string_view debug_text{"debug"};

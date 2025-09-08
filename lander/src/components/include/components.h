@@ -4,12 +4,11 @@
 #define SDL3_GAME_COMPONENTS_H
 
 #include <SDL3/SDL.h>
+#include <definitions.h>
 
 #include <glm/glm/ext/matrix_transform.hpp>
 #include <glm/glm/matrix.hpp>
 #include <glm/glm/vec2.hpp>
-
-#include "definitions.h"
 
 // Base component interface
 class Component {
@@ -81,7 +80,9 @@ public:
     bool thrust_intent{false};
     float rotation_intent{0.0F};    // left: -1, none: 0, right: 1
 
-    explicit C_player_controller(const float thrust = 10.0F, const float torque = 500.0F) :
+    explicit C_player_controller(
+        const float thrust = std::abs(defs::game::gravity * 100.0F), const float torque = 500.0F
+    ) :
         thrust_power{thrust}, rotation_power{torque} {}
 };
 

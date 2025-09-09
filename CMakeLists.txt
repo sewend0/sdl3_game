@@ -76,6 +76,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         ${LANDER_SRC_DIR}/rendering/render_command.h
         ${LANDER_SRC_DIR}/rendering/render_queue.h
         # Systems
+        ${LANDER_SRC_DIR}/systems/include/collision_system.h
         ${LANDER_SRC_DIR}/systems/include/input_system.h
         ${LANDER_SRC_DIR}/systems/include/physics_system.h
         ${LANDER_SRC_DIR}/systems/include/player_control_system.h
@@ -98,6 +99,7 @@ target_sources("${CMAKE_PROJECT_NAME}"
         ${LANDER_SRC_DIR}/game/game_object.cpp
         ${LANDER_SRC_DIR}/game/terrain_generator.cpp
         # Systems
+        ${LANDER_SRC_DIR}/systems/collision_system.cpp
         ${LANDER_SRC_DIR}/systems/input_system.cpp
         ${LANDER_SRC_DIR}/systems/physics_system.cpp
         ${LANDER_SRC_DIR}/systems/player_control_system.cpp

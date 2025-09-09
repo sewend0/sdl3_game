@@ -89,6 +89,25 @@ namespace defs {
             using Landing_zones = std::vector<Landing_zone>;
         }    // namespace terrain
 
+        namespace physics {
+            enum class Collision_result {
+                None = 0,
+                Safe,
+                Crash,
+                Bounce,
+            };
+
+            struct Collision_info {
+                bool occurred{false};
+                glm::vec2 contact_point{0.0F};
+                glm::vec2 contact_normal{0.0F};
+                float penetration_depth{0.0F};
+                bool is_landing_zone{false};
+                int landing_zone_id{-1};
+                Collision_result result{Collision_result::None};
+            };
+        }    // namespace physics
+
         namespace assets {
             struct Font_def {
                 std::string_view file_name;
@@ -228,6 +247,13 @@ namespace defs {
     namespace game {
         inline constexpr float gravity{-1.62F};
         inline constexpr glm::vec2 gravity_acceleration{0.0F, -1.62F};
+
+        namespace collision {
+            inline constexpr float max_vertical_velocity{-50.0F};
+            inline constexpr float max_horizontal_velocity{30.0F};
+            inline constexpr float max_angular_velocity{1.0F};     // rotation speed limit
+            inline constexpr float max_rotation_degrees{15.0F};    // upright tolerance
+        }    // namespace collision
     }    // namespace game
 
     namespace ui {

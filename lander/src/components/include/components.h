@@ -33,6 +33,13 @@ public:
     [[nodiscard]] auto get_matrix() const -> glm::mat4;
 };
 
+class C_collider final : public Component {
+public:
+    std::vector<glm::vec2> vertices;
+
+    explicit C_collider(const std::vector<glm::vec2>& verts) : vertices{verts} {}
+};
+
 class C_mesh final : public Component {
 public:
     Uint32 mesh_id;

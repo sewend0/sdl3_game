@@ -249,6 +249,16 @@ auto App::create_lander() -> utils::Result<> {
     lander->add_component<C_physics>(50.0F);         // 50kg
     lander->add_component<C_player_controller>();    // thrust, rot speed
 
+    // add collider component using vertices from mesh
+    const defs::types::vertex::Mesh_data mesh_data{
+        TRY(game_state->resource_manager->get_mesh_data_copy(mid))
+    };
+    std::vector<glm::vec2> mesh_vertices{};
+    for (const auto& [position, _] : mesh_data)
+        mesh_vertices.push_back(position);
+
+    lander->add_component<C_collider>(mesh_vertices);
+
     // store ref and add to collection
     game_state->lander = lander.get();
     game_state->game_objects.push_back(std::move(lander));
